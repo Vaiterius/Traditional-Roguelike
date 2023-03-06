@@ -1,4 +1,4 @@
-from entities import Creature
+from .entities import Creature
 
 
 class Action:

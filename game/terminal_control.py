@@ -1,8 +1,8 @@
 import curses
 
-from dungeon import Floor
-from entities import Player
-from color import Color
+from .dungeon import Floor
+from .entities import Player
+from .color import Color
 
 
 class TerminalController:

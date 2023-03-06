@@ -1,8 +1,8 @@
 import random
 from typing import Any
 
-from tile import Tile
-from entities import Player, Creature
+from .tile import Tile
+from .entities import Player, Creature
 
 
 class Room:

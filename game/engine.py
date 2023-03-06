@@ -2,10 +2,10 @@ import sys
 import curses
 from typing import Optional
 
-from entities import Player
-from actions import *
-from dungeon import Dungeon
-from terminal_control import TerminalController
+from .entities import Player
+from .actions import *
+from .dungeon import Dungeon
+from .terminal_control import TerminalController
 
 
 class Engine:
