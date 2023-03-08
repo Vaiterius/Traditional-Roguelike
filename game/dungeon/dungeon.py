@@ -1,78 +1,30 @@
+from __future__ import annotations
+
 import random
-from typing import Any
+from typing import TYPE_CHECKING
 
-from .tile import Tile
-from .entities import Player, Creature
-
-
-class Room:
-
-    def __init__(self, x1: int, y1: int, width: int, height: int):
-        self.x1 = x1
-        self.y1 = y1
-
-        # Inverted because x-axis going down is our height.
-        self.x2 = x1 + height
-        self.y2 = y1 + width
-
-        self.width = width
-        self.height = height
-    
-
-    def intersects_with(self, room: "Room") -> bool:
-        return (
-           self.x1 <= room.x2
-           and self.x2 >= room.x1
-           and self.y1 <= room.y2
-           and self.y2 >= room.y1
-       )
-    
-
-    def get_random_cell(self) -> tuple[int]:
-        rand_x = random.randint(self.x1, self.x2)
-        rand_y = random.randint(self.y1, self.y2)
-        return rand_x, rand_y
-
-
-class Floor:
-
-    def __init__(self,
-                 width: int,
-                 height: int,
-                 dungeon: "Dungeon",
-                 tiles: list[list[Tile]],
-                 rooms: list[Room],
-                 entities: list[Player|Creature],
-                 objects: list[Any]):
-        self.width = width
-        self.height = height
-
-        self.dungeon = dungeon
-
-        self.tiles = tiles
-
-        self.rooms = rooms
-
-        self.entities = entities
-        self.objects = objects
-    
-    
-    @property
-    def first_room(self) -> Room:
-        return self.rooms[0]
+if TYPE_CHECKING:
+    from ..entities import Player
+from .floor import Floor
+from .room import Room
+from.spawner import Spawner
+from ..tile import Tile
+from ..entity_prefabs import *
 
 
 class Dungeon:
+    """The dungeon composed of multiple floors the player must beat through"""
     
     def __init__(self,
                  player: Player,
                  wall_char: str,
                  floor_char: str,
                  num_floors: int,
-                 floor_dimensions: tuple[int],
-                 min_max_rooms: tuple[int],
-                 min_max_room_width: tuple[int],
-                 min_max_room_height: tuple[int]
+                 max_entities_per_room: int,
+                 floor_dimensions: tuple[int, int],
+                 min_max_rooms: tuple[int, int],
+                 min_max_room_width: tuple[int, int],
+                 min_max_room_height: tuple[int, int]
                  ):
         self.player = player
 
@@ -80,6 +32,7 @@ class Dungeon:
         self.floor_tile = Tile(char=floor_char, walkable=True)
 
         self.num_floors = num_floors
+        self.max_entities_per_room = max_entities_per_room
         self.floor_width, self.floor_height = floor_dimensions
         self.min_rooms, self.max_rooms = min_max_rooms
         self.min_room_width, self.max_room_width = min_max_room_width
@@ -95,30 +48,60 @@ class Dungeon:
     
 
     def generate_floor(self) -> list[list[str]]:
+        """Procedurally generate a floor for the next dungeon level"""
+        # Starting 2D matrix of empty floors and walls.
         map_tiles = [
             [self.wall_tile for x in range(self.floor_width)]
             for y in range(self.floor_height)
         ]
-        rooms: list[Room] = self.place_rooms(map_tiles)
+
+        # Create the actual floor object itself and add it to the dungeon.
         floor: Floor = Floor(
             width=self.floor_width,
             height=self.floor_height,
             dungeon=self,
             tiles=map_tiles,
-            rooms=rooms,
-            entities=[],
-            objects=[]
+            rooms=None,
+            entities=[self.player]
         )
+        floor.rooms = self.place_rooms(floor)
+
         self.floors.append(floor)
     
 
     def spawn_player(self) -> None:
+        """Place a player in the first room when they first enter the floor"""
+        # TODO change this to apply to every floor, not just the first not.
         first_room: Room = self.current_floor.first_room
         spawn_x, spawn_y = first_room.get_random_cell()
+        while first_room.floor.blocking_entity_at(spawn_x, spawn_y):
+            spawn_x, spawn_y = first_room.get_random_cell()
         self.player.x, self.player.y = spawn_x, spawn_y
     
 
-    def place_rooms(self, map_tiles: list[list[str]]) -> list[Room]:
+    def spawn_enemies(self, room: Room) -> None:
+        """Place creatures for the player to fight against"""
+        # TODO maybe create a spawner function or class?
+        num_creatures = random.randint(0, self.max_entities_per_room)
+        print(num_creatures)
+        for i in range(num_creatures):
+            spawn_x, spawn_y = room.get_random_cell()
+
+            while room.floor.blocking_entity_at(spawn_x, spawn_y):
+                spawn_x, spawn_y = room.get_random_cell()
+
+            # ghoul_copy = ghoul.spawn_clone()
+            # ghoul_copy.x, ghoul_copy.y = spawn_x, spawn_y
+            # room.floor.entities.append(ghoul_copy)
+            enemy = Spawner.spawn_random_enemy_instance()
+            enemy.x, enemy.y = spawn_x, spawn_y
+            room.floor.entities.append(enemy)
+    
+
+    def place_rooms(self, floor: Floor) -> list[Room]:
+        """Main procedural algorithm for placing tunnel-connected rooms"""
+        map_tiles: list[list[Tile]] = floor.tiles
+
         num_rooms = random.randint(self.min_rooms, self.max_rooms)
         rooms = []
 
@@ -126,10 +109,11 @@ class Dungeon:
         while len(rooms) < num_rooms:
             room = Room(
                 # Starting left x,y corner for room.
-                x1 = random.randint(0, self.floor_height - self.max_room_height - 1),
-                y1 = random.randint(0, self.floor_width - self.max_room_width - 1),
+                x1 = random.randint(1, self.floor_height - self.max_room_height -1),
+                y1 = random.randint(1, self.floor_width - self.max_room_width - 1),
                 width=random.randint(self.min_room_width, self.max_room_width),
-                height=random.randint(self.min_room_height, self.max_room_height)
+                height=random.randint(self.min_room_height, self.max_room_height),
+                floor=floor
             )
 
             # We don't want rooms overlapping each other.
@@ -143,9 +127,15 @@ class Dungeon:
             curr_iterations = 0
             
             # Start "digging" the room.
-            for x in range(room.x1, room.x2 + 1):
-                for y in range(room.y1, room.y2 + 1):
+            for x in range(room.x1, room.x2):
+                for y in range(room.y1, room.y2):
                     map_tiles[x][y] = self.floor_tile
+            
+            # Place objects.
+            # TODO
+
+            # Place creatures.
+            self.spawn_enemies(room)
             
             rooms.append(room)
 
@@ -162,7 +152,9 @@ class Dungeon:
 
 
     def get_tunnel_set(
-            self, r1_cell: tuple[int], r2_cell: tuple[int]) -> set[tuple]:
+            self, r1_cell: tuple[int, int],
+            r2_cell: tuple[int, int]
+    ) -> set[tuple[int, int]]:
         tunnel_set = set()
         # First leg vertical, second leg horizontal.
 

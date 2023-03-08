@@ -2,12 +2,12 @@ import curses
 
 from game.config import *
 from game.engine import Engine
-from game.dungeon import Dungeon
+from game.dungeon.dungeon import Dungeon
 from game.entities import Player
 from game.terminal_control import TerminalController
 
 
-def main(screen):
+def main(screen: curses.initscr):
     # curses frontend to handle display and input handling.
     terminal_controller = TerminalController(screen)
 
@@ -16,8 +16,9 @@ def main(screen):
         y=-1,
         name="<unnamed>",
         char=PLAYER_TILE,
-        color="white",
-        max_hp=12
+        color="blue",
+        hp=100,
+        dmg=5
     )
 
     dungeon = Dungeon(
@@ -25,6 +26,7 @@ def main(screen):
         wall_char=WALL_TILE,
         floor_char=FLOOR_TILE,
         num_floors=NUM_FLOORS,
+        max_entities_per_room=MAX_ENTITIES_PER_ROOM,
         floor_dimensions=FLOOR_DIMENSIONS,
         min_max_rooms=MIN_MAX_ROOMS,
         min_max_room_width=MIN_MAX_ROOM_WIDTH,
