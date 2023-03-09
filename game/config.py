@@ -1,6 +1,6 @@
 # Numerical configurations.
 NUM_FLOORS: int = 5
-MAX_ENTITIES_PER_ROOM = 3
+MAX_ENTITIES_PER_ROOM = 2
 FLOOR_DIMENSIONS: tuple[int] = (100, 25)
 MIN_MAX_ROOMS: tuple[int] = (5, 10)
 MIN_MAX_ROOM_WIDTH: tuple[int] = (14, 19)

@@ -18,6 +18,10 @@ class TerminalController:
 
         # curses.newwin(self.dungeon.floor_width + 1, self.dungeon.floor_height + 1)
         curses.curs_set(0)  # Hide cursor.
+        self.msgs = []
+
+    def add_msg(self, msg: str):
+        self.msgs.append(msg)
     
 
     def display(self, floor: Floor, player: Player):
@@ -46,6 +50,11 @@ class TerminalController:
                            player.char,
                            self.colors.get_color(player.color)
                            )
+
+        msg = "" if not self.msgs else self.msgs.pop()
+        self.screen.addstr(
+            floor.height, 0, msg
+        )
 
         self.screen.refresh()
     

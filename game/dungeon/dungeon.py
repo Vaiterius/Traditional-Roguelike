@@ -30,6 +30,8 @@ class Dungeon:
 
         self.wall_tile = Tile(char=wall_char, walkable=False)
         self.floor_tile = Tile(char=floor_char, walkable=True)
+        # TODO add shrouded wall tile.
+        # TODO add shrouded floor tile.
 
         self.num_floors = num_floors
         self.max_entities_per_room = max_entities_per_room

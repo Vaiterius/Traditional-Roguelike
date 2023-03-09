@@ -72,7 +72,7 @@ class WalkAction(ActionWithDirection):
 class MeleeAction(ActionWithDirection):
     """Action to hit a creature within melee range"""
 
-    def perform(self, engine: "Engine") -> None:
+    def perform(self, engine: Engine) -> None:
         floor = engine.dungeon.current_floor
 
         desired_x = self.entity.x + self.dx

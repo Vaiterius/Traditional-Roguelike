@@ -2,7 +2,7 @@ import random
 
 from ..entities import Creature
 from ..config import enemies
-from ..components.component import WanderingAI
+from ..components.component import WanderingAI, HostileEnemyAI
 
 class Spawner:
 
@@ -28,7 +28,8 @@ class Spawner:
             hp=enemy_data["hp"],
             dmg=enemy_data["dmg"]
         )
-        enemy.add_component("ai", WanderingAI(enemy))
+        # enemy.add_component("ai", WanderingAI(enemy))
+        enemy.add_component("ai", HostileEnemyAI(enemy))
         return enemy
     
 
