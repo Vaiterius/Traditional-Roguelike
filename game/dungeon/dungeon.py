@@ -85,7 +85,6 @@ class Dungeon:
         """Place creatures for the player to fight against"""
         # TODO maybe create a spawner function or class?
         num_creatures = random.randint(0, self.max_entities_per_room)
-        print(num_creatures)
         for i in range(num_creatures):
             spawn_x, spawn_y = room.get_random_cell()
 

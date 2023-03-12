@@ -59,6 +59,7 @@ class Creature(Entity):
         self.x = x
         self.y = y
         self.name = name
+        self.og_name = name
         self.char = char
         self.color = color
         self.max_hp = hp

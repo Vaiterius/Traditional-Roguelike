@@ -162,8 +162,6 @@ class HostileEnemyAI(BaseAI):
 
         next_path: tuple[int, int] = paths.pop(1)  # Second path is next path.
 
-        engine.terminal_controller.add_msg(f"HP: {engine.player.hp} | {self.entity.name} spots you!")
-        
         desired_x, desired_y = next_path
 
         dx = desired_x - self.entity.x

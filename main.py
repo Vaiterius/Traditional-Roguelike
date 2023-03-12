@@ -9,12 +9,15 @@ from game.terminal_control import TerminalController
 
 def main(screen: curses.initscr):
     # curses frontend to handle display and input handling.
-    terminal_controller = TerminalController(screen)
+    terminal_controller = TerminalController(
+        screen=screen,
+        floor_dimensions=FLOOR_DIMENSIONS
+    )
 
     player = Player(
         x=-1,
         y=-1,
-        name="<unnamed>",
+        name="Player",
         char=PLAYER_TILE,
         color="blue",
         hp=100,

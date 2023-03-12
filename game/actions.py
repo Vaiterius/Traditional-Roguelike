@@ -80,4 +80,28 @@ class MeleeAction(ActionWithDirection):
 
         target: Entity = floor.blocking_entity_at(desired_x, desired_y)
         target.set_hp(target.hp - self.entity.dmg)
+        
+        if target.is_dead:
+            engine.terminal_controller.message_log.add(
+                f"{target.og_name} has perished!",
+                True
+            )
+            return
+        
+        # Log info to message log.
+        if target == engine.player:
+            engine.terminal_controller.message_log.add(
+                f"{self.entity.name} hits you for {self.entity.dmg} points!",
+                True
+            )
+        elif self.entity == engine.player:
+            engine.terminal_controller.message_log.add(
+                f"You hit {target.name} for {self.entity.dmg} points!",
+                True
+            )
+        else:
+            engine.terminal_controller.message_log.add(
+                f"{self.entity.name} hits {target.name} for {self.entity.dmg} points! Lol!",
+                True
+            )
 

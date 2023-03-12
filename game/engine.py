@@ -36,44 +36,43 @@ class Engine:
         # Main game loop.
         while True:
             self.display()
-            self.handle_input()
+            self.get_valid_action()
             self.process()
 
 
-    def display(self):
+    def display(self) -> None:
         """Display the game to the screen"""
         self.terminal_controller.display(
             self.dungeon.current_floor, self.player)
 
 
-    def handle_input(self):
+    def get_valid_action(self) -> Optional[Action]:
         """Handle player input"""
-        player_input = self.terminal_controller.get_input()
-        if player_input == "Q":
-            sys.exit(1)
-        
         action: Optional[Action] = None
+        while not action:
+            player_input = self.terminal_controller.get_input()
+            
+            if player_input == "Q":
+                sys.exit(1)
+            elif player_input == "KEY_UP":  # Move up.
+                action = BumpAction(self.player, dx=-1, dy=0)
+            elif player_input == "KEY_DOWN":  # Move down.
+                action = BumpAction(self.player, dx=1, dy=0)
+            elif player_input == "KEY_LEFT":  # Move left.
+                action = BumpAction(self.player, dx=0, dy=-1)
+            elif player_input == "KEY_RIGHT":  # Move right.
+                action = BumpAction(self.player, dx=0, dy=1)
+            elif player_input == ".":  # Do nothing.
+                action = WaitAction(self.player)
         
-        if player_input == "KEY_UP":  # Move up.
-            action = BumpAction(self.player, dx=-1, dy=0)
-        elif player_input == "KEY_DOWN":  # Move down.
-            action = BumpAction(self.player, dx=1, dy=0)
-        elif player_input == "KEY_LEFT":  # Move left.
-            action = BumpAction(self.player, dx=0, dy=-1)
-        elif player_input == "KEY_RIGHT":  # Move right.
-            action = BumpAction(self.player, dx=0, dy=1)
-        elif player_input == ".":  # Do nothing.
-            action = WaitAction(self.player)
-        
-        if action:
-            action.perform(self)
+        action.perform(self)
 
 
-    def process(self):
+    def process(self) -> None:
         """Proccess world's turn from player's input"""
         # Handle enemy turns.
         entities = self.dungeon.current_floor.entities
         for entity in entities:
-            if entity.get_component("ai"):
+            if entity.get_component("ai") and not entity.is_dead:
                 entity.ai.perform(self)
 

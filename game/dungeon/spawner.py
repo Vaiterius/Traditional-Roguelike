@@ -18,7 +18,6 @@ class Spawner:
             population=list(enemies.values()),
             weights=[enemy["spawn_chance"] for enemy in enemies.values()]
         )[0]
-        print(enemy_data)
         enemy = Creature(
             x=-1,
             y=-1,
