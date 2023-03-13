@@ -17,15 +17,15 @@ enemies: dict[str, dict] = {
         "name": "Ghoul",
         "char": 'g',
         "color": "red",
-        "hp": 65,
-        "dmg": 6,
+        "hp": 35,
+        "dmg": 5,
         "spawn_chance": 33  # out of 100, relative weight percentage
     },
     "giant_rat": {
         "name": "Giant Rat",
         "char": "r",
-        "color": "black",
-        "hp": 35,
+        "color": "grey",
+        "hp": 10,
         "dmg": 3,
         "spawn_chance": 45
     },
@@ -33,31 +33,31 @@ enemies: dict[str, dict] = {
         "name": "Vampire",
         "char": "V",
         "color": "magenta",
-        "hp": 75,
+        "hp": 40,
         "dmg": 6,
-        "spawn_chance": 25
+        "spawn_chance": 20
     },
     "troll": {
         "name": "Troll",
         "char": "t",
         "color": "green",
-        "hp": 40,
-        "dmg": 7,
+        "hp": 30,
+        "dmg": 6,
         "spawn_chance": 40
     },
     "wraith": {
         "name": "Wraith",
         "char": "w",
         "color": "cyan",
-        "hp": 30,
-        "dmg": 8,
+        "hp": 25,
+        "dmg": 7,
         "spawn_chance": 25
     },
     "giant_spider": {
         "name": "Giant Spider",
         "char": "s",
-        "color": "black",
-        "hp": 25,
+        "color": "grey",
+        "hp": 10,
         "dmg": 7,
         "spawn_chance": 20
     },

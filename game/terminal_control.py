@@ -6,16 +6,33 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .dungeon.floor import Floor
-    from .entities import Player
+    from .entities import Player, Entity
 from .color import Color
+from .actions import ExploreAction
+from .pathfinding import distance_from, bresenham_path_to
+
+
+class Message:
+    """Hold message content and other relevant info"""
+    
+    def __init__(self, message: str):
+        self.message = message
+        self.count = 1
+    
+    
+    def __str__(self):
+        if self.count > 1:
+            return f"{self.message} x{self.count}"
+        return self.message
 
 
 class MessageLog:
+    """Message logger for game display"""
     GREETING_MESSAGE = "Welcome to <unnamed game>!"
     
     def __init__(self):
-        self.messages: deque = deque([self.GREETING_MESSAGE])
-        self.history: deque = deque([self.GREETING_MESSAGE])
+        self.messages: deque = deque([Message(self.GREETING_MESSAGE)])
+        self.history: deque = deque([Message(self.GREETING_MESSAGE)])
     
     
     def get(self, index: int) -> str:
@@ -29,12 +46,20 @@ class MessageLog:
     def add(self, message: str, debug: bool = False) -> None:
         if debug:
             message = "[DEBUG] " + message
-        self.messages.appendleft(message)
-        self.history.appendleft(message)
+        
+        new_message = Message(message)    
+        
+        # Message is the same as the previous.
+        if new_message.message == self.messages[0].message:
+            self.messages[0].count += 1
+            return
+
+        self.messages.appendleft(new_message)
+        self.history.appendleft(new_message)
     
     
     def clear(self) -> None:
-        self.messages = deque([self.GREETING_MESSAGE])
+        self.messages = deque([Message(self.GREETING_MESSAGE)])
 
 
 class TerminalController:
@@ -86,8 +111,6 @@ class TerminalController:
         self.floor_view_window.refresh()
         self.message_log_window.refresh()
         self.sidebar.refresh()
-        
-        curses.doupdate()
     
 
     def display(self, floor: Floor, player: Player):
@@ -98,23 +121,28 @@ class TerminalController:
         self.sidebar.erase()
 
         # Display dungeon tiles.
-        self.floor_view_window.box()
-        self.floor_view_window.addstr(0, 2, player.name)
+        self.floor_view_window.border()
+        player_info_temp = f"{player.name} - HP: {player.hp}/{player.max_hp}"
+        self.floor_view_window.addstr(0, 2, player_info_temp)
         for x in range(self.floor_view_height):
             for y in range(self.floor_view_width):
                 self.floor_view_window.addstr(
-                    x + 1, y + 1,floor.tiles[x][y].char)
+                    x + 1, y + 1,
+                    floor.tiles[x][y].char,
+                    self.colors.get_color(floor.tiles[x][y].color))
 
         # Display objects.
         # TODO
 
         # Display entities.
-        for entity in floor.entities:
+        for creature in floor.creatures:
+            if not self.in_player_fov(player, creature, floor):  # TODO refactor to player class
+                continue
             self.floor_view_window.addstr(
-                entity.x + 1,
-                entity.y + 1,
-                entity.char,
-                self.colors.get_color(entity.color))
+                creature.x + 1,
+                creature.y + 1,
+                creature.char,
+                self.colors.get_color(creature.color))
         
         # Display player.
         self.floor_view_window.addstr(
@@ -124,22 +152,22 @@ class TerminalController:
             self.colors.get_color(player.color))
 
         # Display message log.
-        self.message_log_window.box()
+        self.message_log_window.border()
         self.message_log_window.addstr(0, 2, "MESSAGE LOG")
         cursor = 0
         for i in range(self.message_log_height - 2, 0, -1):
-            self.message_log_window.addstr(i, 2, self.message_log.get(cursor))
+            message = str(self.message_log.get(cursor))
+            self.message_log_window.addstr(i, 2, message)
             cursor += 1
             if cursor > self.message_log.size() - 1:
                 break
         
         # Display sidebar.
-        self.sidebar.box()
+        self.sidebar.border()
 
         self.floor_view_window.refresh()
         self.message_log_window.refresh()
         self.sidebar.refresh()
-        curses.doupdate()
     
 
     def ensure_right_terminal_size(self):
@@ -162,4 +190,22 @@ class TerminalController:
     def get_input(self):
         """Retrieve player input"""
         return self.screen.getkey()
+    
+    
+    def in_player_fov(
+        self, player: Player, entity: Entity, floor: Floor) -> bool:
+        """Return whether player is able to see an item or enemy"""
+        # Save resources and compute if within reasonable range.
+        TILE_RANGE: int = 10
+        if distance_from(entity.x, entity.y, player.x, player.y) <= TILE_RANGE:
+
+            # Line of sight is blocked.
+            paths: list[tuple[int, int]] = bresenham_path_to(
+                entity.x, entity.y, player.x, player.y)
+            blocked: bool = any(
+                [not floor.tiles[x][y].walkable for x,y in paths])
+            if blocked or not floor.tiles[entity.x][entity.y].explored:
+                return False
+            return True
+        return False
 

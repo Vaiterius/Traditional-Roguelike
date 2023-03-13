@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Iterator, Optional, Union, TYPE_CHECKING
+from typing import Iterator, Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .dungeon import Dungeon
     from .room import Room
-    from ..entities import Item, Player, Creature
+    from ..entities import Item, Player
     from ..tile import Tile
+from ..entities import Creature
 
 
 class Floor:
@@ -34,6 +35,16 @@ class Floor:
     def items(self) -> Iterator[Item]:
         pass
     
+    @property
+    def creatures(self) -> Iterator[Creature]:
+        yield from (
+            entity for entity in self.entities
+            if isinstance(entity, Creature)
+        )
+    
+    @property
+    def unexplored_rooms(self) -> Iterator[Room]:
+        yield from (room for room in self.rooms if not room.explored)
     
     @property
     def first_room(self) -> Room:
@@ -44,8 +55,8 @@ class Floor:
         return self.rooms[-1]
 
 
-    def blocking_entity_at(self, x: int, y: int
-                           ) -> Optional[Union[Player, Creature]]:
+    def blocking_entity_at(
+        self, x: int, y: int) -> Optional[Union[Player, Creature]]:
         """Check if a cell is occupied by an entity"""
         for entity in self.entities:
             if entity.x == x and entity.y == y and entity.blocking:

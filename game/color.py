@@ -20,7 +20,11 @@ class Color:
             "blue": 5,
             "magenta": 6,
             "cyan": 7,
-            "white": 8
+            "white": 8,
+            
+            "off_white": 248,
+            "grey": 241,
+            "shrouded_grey": 236
         }
     
 

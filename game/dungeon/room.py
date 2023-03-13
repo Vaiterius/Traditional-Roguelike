@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .floor import Floor
+    from ..engine import Engine
+from ..tile import *
 
 import random
 
@@ -27,6 +29,7 @@ class Room:
         self.height = height
 
         self.floor = floor
+        self.explored = False
     
 
     def intersects_with(self, room: Room) -> bool:
@@ -44,3 +47,20 @@ class Room:
         rand_x = random.randint(self.x1, self.x2 - 1)
         rand_y = random.randint(self.y1, self.y2 - 1)
         return rand_x, rand_y
+    
+    
+    def explore(self, engine: Engine) -> None:
+        """Explore and reveal room"""
+        self.explored = True
+
+        tiles: list[list[Tile]] = self.floor.tiles
+        for x in range(self.x1 - 1, self.x2 + 1):
+            for y in range(self.y1 - 1, self.y2 + 1):
+                
+                if tiles[x][y].char == WALL_TILE:
+                    tiles[x][y] = wall_tile
+                else:
+                    tiles[x][y] = floor_tile
+                
+    
+    

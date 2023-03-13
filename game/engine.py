@@ -32,6 +32,7 @@ class Engine:
         # Game initialization.
         self.dungeon.generate_floor()
         self.dungeon.spawn_player()
+        self.dungeon.current_floor.first_room.explore(self)
 
         # Main game loop.
         while True:

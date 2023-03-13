@@ -8,8 +8,7 @@ if TYPE_CHECKING:
 from .floor import Floor
 from .room import Room
 from.spawner import Spawner
-from ..tile import Tile
-from ..entity_prefabs import *
+from ..tile import *
 
 
 class Dungeon:
@@ -27,11 +26,6 @@ class Dungeon:
                  min_max_room_height: tuple[int, int]
                  ):
         self.player = player
-
-        self.wall_tile = Tile(char=wall_char, walkable=False)
-        self.floor_tile = Tile(char=floor_char, walkable=True)
-        # TODO add shrouded wall tile.
-        # TODO add shrouded floor tile.
 
         self.num_floors = num_floors
         self.max_entities_per_room = max_entities_per_room
@@ -53,7 +47,7 @@ class Dungeon:
         """Procedurally generate a floor for the next dungeon level"""
         # Starting 2D matrix of empty floors and walls.
         map_tiles = [
-            [self.wall_tile for x in range(self.floor_width)]
+            [wall_tile_shrouded for x in range(self.floor_width)]
             for y in range(self.floor_height)
         ]
 
@@ -83,7 +77,7 @@ class Dungeon:
 
     def spawn_enemies(self, room: Room) -> None:
         """Place creatures for the player to fight against"""
-        # TODO maybe create a spawner function or class?
+        # TODO transfer most logic to spawner class
         num_creatures = random.randint(0, self.max_entities_per_room)
         for i in range(num_creatures):
             spawn_x, spawn_y = room.get_random_cell()
@@ -91,9 +85,6 @@ class Dungeon:
             while room.floor.blocking_entity_at(spawn_x, spawn_y):
                 spawn_x, spawn_y = room.get_random_cell()
 
-            # ghoul_copy = ghoul.spawn_clone()
-            # ghoul_copy.x, ghoul_copy.y = spawn_x, spawn_y
-            # room.floor.entities.append(ghoul_copy)
             enemy = Spawner.spawn_random_enemy_instance()
             enemy.x, enemy.y = spawn_x, spawn_y
             room.floor.entities.append(enemy)
@@ -130,7 +121,7 @@ class Dungeon:
             # Start "digging" the room.
             for x in range(room.x1, room.x2):
                 for y in range(room.y1, room.y2):
-                    map_tiles[x][y] = self.floor_tile
+                    map_tiles[x][y] = floor_tile_shrouded
             
             # Place objects.
             # TODO
@@ -146,7 +137,7 @@ class Dungeon:
                 r2_cell = rooms[-2].get_random_cell()
 
                 for x, y in self.get_tunnel_set(r1_cell, r2_cell):
-                    map_tiles[x][y] = self.floor_tile
+                    map_tiles[x][y] = floor_tile_shrouded
         
         return rooms
 

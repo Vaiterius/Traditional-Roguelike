@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import math
 import random
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..engine import Engine
     from ..entities import Entity
-from ..actions import Action, BumpAction, WalkAction
+from ..actions import Action, BumpAction
+from ..pathfinding import distance_from, bresenham_path_to
 
 
 class BaseComponent:
@@ -36,8 +36,9 @@ class BaseAI(Action, BaseComponent):
         boundary between them
         """
         player_x, player_y = engine.player.x, engine.player.y
-        distance_from_player: float = self.distance_from(
-            player_x, player_y
+        distance_from_player: float = distance_from(
+            player_x, player_y,
+            self.entity.x, self.entity.y
         )
         
         # Checking for blocked tiles in enemy paths.
@@ -49,66 +50,10 @@ class BaseAI(Action, BaseComponent):
         else:
             self.agro = False
 
-    
-    def distance_from(self, x: int, y: int) -> float:
-        """Distance formula"""
-        return math.sqrt(
-            (x - self.entity.x) ** 2 + (y - self.entity.y) ** 2
-        )
-
 
     def get_path_to(self, x: int, y: int) -> list[tuple[int, int]]:
-        """
-        Get a set of coordinates from two points on the map following a
-        straight line.
-        
-        Uses Bresenham's algorithm from RogueBasin:
-        http://www.roguebasin.com/index.php/Bresenham%27s_Line_Algorithm#Python
-        """
-        # Setup initial conditions
-        x1, y1 = (self.entity.x, self.entity.y)
-        x2, y2 = (x, y)
-        dx = x2 - x1
-        dy = y2 - y1
-
-        # Determine how steep the line is
-        is_steep = abs(dy) > abs(dx)
-
-        # Rotate line
-        if is_steep:
-            x1, y1 = y1, x1
-            x2, y2 = y2, x2
-
-        # Swap start and end points if necessary and store swap state
-        swapped = False
-        if x1 > x2:
-            x1, x2 = x2, x1
-            y1, y2 = y2, y1
-            swapped = True
-
-        # Recalculate differentials
-        dx = x2 - x1
-        dy = y2 - y1
-
-        # Calculate error
-        error = int(dx / 2.0)
-        ystep = 1 if y1 < y2 else -1
-
-        # Iterate over bounding box generating points between start and end
-        y = y1
-        points = []
-        for x in range(x1, x2 + 1):
-            coord = (y, x) if is_steep else (x, y)
-            points.append(coord)
-            error -= abs(dy)
-            if error < 0:
-                y += ystep
-                error += dx
-
-        # Reverse the list if the coordinates were swapped
-        if swapped:
-            points.reverse()
-        return points
+        """Get a set coordinate points following a path to desired x and y"""
+        return bresenham_path_to(self.entity.x, self.entity.y, x, y)
 
 
 class WanderingAI(BaseAI):

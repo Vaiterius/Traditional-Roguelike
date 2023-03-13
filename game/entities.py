@@ -73,11 +73,6 @@ class Creature(Entity):
     def is_dead(self) -> bool:
         return self.hp <= 0
     
-    # @property
-    # def hp(self):
-    #     return self.hp
-
-    # @hp.setter
     def set_hp(self, new_hp: int) -> None:
         # New HP cannot be lower than 0 or higher than max HP.
         self.hp = max(0, min(self.max_hp, new_hp))
