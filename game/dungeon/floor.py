@@ -24,12 +24,12 @@ class Floor:
         self.height = height
 
         self.dungeon = dungeon
-
         self.tiles = tiles
-
         self.rooms = rooms
 
         self.entities = entities
+        self.descending_staircase_location: tuple[int, int] = None
+        self.ascending_staircase_location: tuple[int, int] = None
     
     @property
     def items(self) -> Iterator[Item]:
@@ -53,8 +53,8 @@ class Floor:
     @property
     def last_room(self) -> Room:
         return self.rooms[-1]
-
-
+    
+    
     def blocking_entity_at(
         self, x: int, y: int) -> Optional[Union[Player, Creature]]:
         """Check if a cell is occupied by an entity"""

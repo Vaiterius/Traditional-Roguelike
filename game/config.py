@@ -10,6 +10,8 @@ MIN_MAX_ROOM_HEIGHT: tuple[int] = (4, 7)
 PLAYER_TILE: str = '@'
 FLOOR_TILE: str = '.'
 WALL_TILE: str = '#'
+DESCENDING_STAIRCASE_TILE: str = ">"  # Staircases are entities.
+ASCENDING_STAIRCASE_TILE: str = "<"
 
 # Enemy data.
 enemies: dict[str, dict] = {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -24,6 +25,62 @@ class WaitAction(Action):
 
     def perform(self, engine: Engine) -> None:
         pass
+
+
+class DescendStairsAction(Action):
+    """Descend a flight of stairs to the next dungeon level"""
+    
+    def perform(self, engine: Engine) -> None:
+        floor = engine.dungeon.current_floor
+
+        player_x = engine.player.x
+        player_y = engine.player.y
+        
+        # Ensure there exists a staircase to begin with.
+        if floor.descending_staircase_location is None:
+            return
+        
+        # Player is standing on the staircase tile.
+        staircase_x, staircase_y = floor.descending_staircase_location 
+        if player_x == staircase_x and player_y == staircase_y:
+            
+            # Go down a level.
+            engine.dungeon.current_floor_idx += 1
+            room_to_spawn = engine.dungeon.current_floor.first_room
+            engine.dungeon.spawner.spawn_player(
+                engine.player, room_to_spawn)
+            room_to_spawn.explore(self)
+            
+            engine.terminal_controller.message_log.add(
+                "You descend a level...")
+
+
+class AscendStairsAction(Action):
+    """Ascend a flight of stairs to the previous dungeon level"""
+    
+    def perform(self, engine: Engine) -> None:
+        floor = engine.dungeon.current_floor
+
+        player_x = engine.player.x
+        player_y = engine.player.y
+        
+        # Ensure there exists a staircase to begin with.
+        if floor.ascending_staircase_location is None:
+            return
+        
+        # Player is standing on the staircase tile.
+        staircase_x, staircase_y = floor.ascending_staircase_location 
+        if player_x == staircase_x and player_y == staircase_y:
+            
+            # Go up a level.
+            engine.dungeon.current_floor_idx -= 1
+            room_to_spawn = engine.dungeon.current_floor.last_room
+            engine.dungeon.spawner.spawn_player(
+                engine.player, room_to_spawn)
+            room_to_spawn.explore(self)
+            
+            engine.terminal_controller.message_log.add(
+                "You ascend a level...")
 
 
 class ExploreAction(Action):
@@ -120,9 +177,14 @@ class MeleeAction(ActionWithDirection):
         target.set_hp(target.hp - self.entity.dmg)
         
         if target.is_dead:
+            # Change sorted render order position.
+            floor.entities.remove(target)
+            bisect.insort(
+                floor.entities, target, key=lambda x: x.render_order.value)
+            
             engine.terminal_controller.message_log.add(
                 f"{target.og_name} has perished!",
-                True
+                debug=True
             )
             return
         
@@ -130,16 +192,16 @@ class MeleeAction(ActionWithDirection):
         if target == engine.player:
             engine.terminal_controller.message_log.add(
                 f"{self.entity.name} hits you for {self.entity.dmg} points!",
-                True
+                debug=True
             )
         elif self.entity == engine.player:
             engine.terminal_controller.message_log.add(
                 f"You hit {target.name} for {engine.player.dmg} points!",
-                True
+                debug=True
             )
         else:
             engine.terminal_controller.message_log.add(
                 f"{self.entity.name} hits {target.name} for {self.entity.dmg} points! Lol!",
-                True
+                debug=True
             )
 

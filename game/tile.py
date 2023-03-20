@@ -15,6 +15,7 @@ class Tile:
         self.explored = explored
 
 
+# Walls and floors.
 wall_tile = Tile(
     char=WALL_TILE, color="off_white", walkable=False, explored=True)
 floor_tile = Tile(

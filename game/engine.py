@@ -9,7 +9,8 @@ if TYPE_CHECKING:
     from .dungeon.dungeon import Dungeon
     from .terminal_control import TerminalController
     from .entities import Player
-from .actions import BumpAction, WaitAction
+from .actions import (
+    BumpAction, WaitAction, DescendStairsAction, AscendStairsAction)
 
 
 class Engine:
@@ -30,7 +31,7 @@ class Engine:
     def run(self):
         """Starting the game"""
         # Game initialization.
-        self.dungeon.generate_floor()
+        self.dungeon.generate()
         self.dungeon.spawn_player()
         self.dungeon.current_floor.first_room.explore(self)
 
@@ -65,6 +66,11 @@ class Engine:
                 action = BumpAction(self.player, dx=0, dy=1)
             elif player_input == ".":  # Do nothing.
                 action = WaitAction(self.player)
+            
+            elif player_input == ">":
+                action = DescendStairsAction(self.player)
+            elif player_input == "<":
+                action = AscendStairsAction(self.player)
         
         action.perform(self)
 

@@ -131,25 +131,36 @@ class TerminalController:
                     floor.tiles[x][y].char,
                     self.colors.get_color(floor.tiles[x][y].color))
 
-        # Display objects.
-        # TODO
-
-        # Display entities.
-        for creature in floor.creatures:
-            if not self.in_player_fov(player, creature, floor):  # TODO refactor to player class
+        # Display entities (they should be in sorted render order).
+        for entity in floor.entities:
+            if not self.in_player_fov(player, entity, floor):
                 continue
             self.floor_view_window.addstr(
-                creature.x + 1,
-                creature.y + 1,
-                creature.char,
-                self.colors.get_color(creature.color))
+                entity.x + 1,
+                entity.y + 1,
+                entity.char,
+                self.colors.get_color(entity.color)
+            )
         
-        # Display player.
-        self.floor_view_window.addstr(
-            player.x + 1,
-            player.y + 1,
-            player.char,
-            self.colors.get_color(player.color))
+        # # Display objects.
+        # # TODO
+
+        # # Display enemies.
+        # for creature in floor.creatures:
+        #     if not self.in_player_fov(player, creature, floor):  # TODO refactor to player class
+        #         continue
+        #     self.floor_view_window.addstr(
+        #         creature.x + 1,
+        #         creature.y + 1,
+        #         creature.char,
+        #         self.colors.get_color(creature.color))
+        
+        # # Display player.
+        # self.floor_view_window.addstr(
+        #     player.x + 1,
+        #     player.y + 1,
+        #     player.char,
+        #     self.colors.get_color(player.color))
 
         # Display message log.
         self.message_log_window.border()
@@ -195,8 +206,9 @@ class TerminalController:
     def in_player_fov(
         self, player: Player, entity: Entity, floor: Floor) -> bool:
         """Return whether player is able to see an item or enemy"""
-        # Save resources and compute if within reasonable range.
         TILE_RANGE: int = 10
+        
+        # Save resources and compute if within reasonable range.
         if distance_from(entity.x, entity.y, player.x, player.y) <= TILE_RANGE:
 
             # Line of sight is blocked.

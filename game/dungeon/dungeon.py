@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from ..entities import Player
 from .floor import Floor
 from .room import Room
-from.spawner import Spawner
+from .spawner import Spawner
 from ..tile import *
 
 
@@ -16,8 +16,6 @@ class Dungeon:
     
     def __init__(self,
                  player: Player,
-                 wall_char: str,
-                 floor_char: str,
                  num_floors: int,
                  max_entities_per_room: int,
                  floor_dimensions: tuple[int, int],
@@ -36,14 +34,24 @@ class Dungeon:
 
         self.floors: list[Floor] = []
         self.current_floor_idx: int = 0
+        
+        self.spawner = Spawner()
     
 
     @property
-    def current_floor(self):
+    def current_floor(self) -> Floor:
         return self.floors[self.current_floor_idx]
     
+    
+    def generate(self) -> None:
+        """Generate the the entirety of the dungeon"""
+        # TODO make each level harder as the player progress.
+        for curr_idx in range(self.num_floors):
+            floor: Floor = self.generate_floor(curr_idx)
+            self.floors.append(floor)
+    
 
-    def generate_floor(self) -> list[list[str]]:
+    def generate_floor(self, curr_idx: int) -> list[list[str]]:
         """Procedurally generate a floor for the next dungeon level"""
         # Starting 2D matrix of empty floors and walls.
         map_tiles = [
@@ -61,33 +69,17 @@ class Dungeon:
             entities=[self.player]
         )
         floor.rooms = self.place_rooms(floor)
+        
+        # Add the staircases if applicable.
+        self.spawner.spawn_staircases(
+            floor, self.num_floors, curr_idx)
 
-        self.floors.append(floor)
+        return floor
     
 
     def spawn_player(self) -> None:
-        """Place a player in the first room when they first enter the floor"""
-        # TODO change this to apply to every floor, not just the first not.
-        first_room: Room = self.current_floor.first_room
-        spawn_x, spawn_y = first_room.get_random_cell()
-        while first_room.floor.blocking_entity_at(spawn_x, spawn_y):
-            spawn_x, spawn_y = first_room.get_random_cell()
-        self.player.x, self.player.y = spawn_x, spawn_y
-    
-
-    def spawn_enemies(self, room: Room) -> None:
-        """Place creatures for the player to fight against"""
-        # TODO transfer most logic to spawner class
-        num_creatures = random.randint(0, self.max_entities_per_room)
-        for i in range(num_creatures):
-            spawn_x, spawn_y = room.get_random_cell()
-
-            while room.floor.blocking_entity_at(spawn_x, spawn_y):
-                spawn_x, spawn_y = room.get_random_cell()
-
-            enemy = Spawner.spawn_random_enemy_instance()
-            enemy.x, enemy.y = spawn_x, spawn_y
-            room.floor.entities.append(enemy)
+        """Place a player in the first room upon entering a floor"""
+        self.spawner.spawn_player(self.player, self.current_floor.first_room)
     
 
     def place_rooms(self, floor: Floor) -> list[Room]:
@@ -127,7 +119,10 @@ class Dungeon:
             # TODO
 
             # Place creatures.
-            self.spawn_enemies(room)
+            self.spawner.spawn_enemies_in_room(
+                room,
+                random.randint(0, self.max_entities_per_room)
+            )
             
             rooms.append(room)
 

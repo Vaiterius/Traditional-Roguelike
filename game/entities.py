@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from .components.component import BaseComponent
     from .color import Color
+from .render_order import RenderOrder
 
 
 class Entity:
@@ -17,12 +18,14 @@ class Entity:
                  name: str,
                  char: str,
                  color: Color,
-                 blocking: bool):
+                 render_order: RenderOrder,
+                 blocking: bool,):
         self.x = x
         self.y = y
         self.name = name
         self.char = char
         self.color = color
+        self.render_order = render_order
         self.blocking = blocking
     
 
@@ -39,7 +42,7 @@ class Entity:
         delattr(self, name)
 
 
-class Item:
+class Item(Entity):
     pass
 
 
@@ -52,16 +55,18 @@ class Creature(Entity):
                  name: str,
                  char: str,
                  color: Color,
+                 render_order: RenderOrder,
                  hp: int,
                  dmg: int,
                  blocking: bool = True):
-        super().__init__(x, y, name, char, color, blocking)
+        super().__init__(x, y, name, char, color, render_order, blocking)
         self.x = x
         self.y = y
         self.name = name
         self.og_name = name
         self.char = char
         self.color = color
+        self.render_order = render_order
         self.max_hp = hp
         self.hp = hp  # Starting hp.
         self.dmg = dmg
@@ -88,6 +93,7 @@ class Creature(Entity):
         self.blocking = False
         self.char = "%"
         self.name = f"remains of {self.name}"
+        self.render_order = RenderOrder.CORPSE
 
 
     def move(self, dx: int, dy: int) -> None:
