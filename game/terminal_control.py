@@ -77,6 +77,7 @@ class TerminalController:
         # TODO maybe make a little wrapper around curses for code readability
         # curses = ew
         
+        
         # MAP CONFIG.
         self.floor_view_height: int = self.floor_height
         self.floor_view_width: int = self.floor_width
@@ -84,6 +85,7 @@ class TerminalController:
             self.floor_view_height + 2, self.floor_view_width + 2,
             0, 0
         )
+        
         
         # MESSAGE LOG CONFIG.
         self.message_log = MessageLog()
@@ -94,6 +96,7 @@ class TerminalController:
             self.floor_view_height + 2, 0
         )
         
+        
         # SIDEBAR CONFIG.
         self.sidebar_width: int = 28
         self.sidebar_height: int = self.floor_view_height \
@@ -103,14 +106,53 @@ class TerminalController:
             0, self.floor_view_width + 2
         )
         
+        
         # Entire game window sizes.
         self.game_height = self.floor_view_height + self.message_log_height + 2
         self.game_width = self.floor_view_width + self.sidebar_width + 2
+
+
+        # INVENTORY CONFIG.
+        self.inventory_height = 15
+        self.inventory_width = 40
+        inventory_origin_x = (self.game_height // 2) - (self.inventory_height // 2)
+        inventory_origin_y = (self.game_width // 2) - (self.inventory_width // 2)
+        self.inventory_window = curses.newwin(
+            self.inventory_height, self.inventory_width,
+            inventory_origin_x, inventory_origin_y)
+        
         
         self.screen.refresh()
         self.floor_view_window.refresh()
         self.message_log_window.refresh()
         self.sidebar.refresh()
+
+
+    def display_inventory(self, cursor_index_pos):
+        self.inventory_window.refresh()
+        
+        HEADER_TEXT = "INVENTORY"
+        
+        # TODO refact list to player, then pass list to MoveCursorAction init,
+        # then pass list to this method
+        inventory_items = ["item 1", "item 2", "item 3"]
+        num_showable_items = self.inventory_height - 2
+        
+        self.inventory_window.erase()
+        self.inventory_window.border()
+        self.inventory_window.addstr(0, (self.inventory_width // 2) - (len(HEADER_TEXT) // 2), HEADER_TEXT)
+
+        # TODO validate cursor_index_pos (somewhere else maybe)
+        cursor_index_pos = max(1, min(cursor_index_pos, min(num_showable_items, len(inventory_items))))
+        self.inventory_window.addstr(cursor_index_pos, 2, ">")
+
+        # Show inventory items.
+        item_index_num = 1
+        for item in inventory_items:
+            self.inventory_window.addstr(item_index_num, 4, str(item_index_num) + ") " + item)
+            item_index_num += 1
+        
+        self.inventory_window.refresh()
     
 
     def display(self, floor: Floor, player: Player):

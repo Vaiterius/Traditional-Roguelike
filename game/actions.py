@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import sys
 import bisect
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .engine import Engine
     from .entities import Creature, Entity
+    from .gamestates import InventoryMenuState
 from .tile import *
 
 
@@ -18,6 +20,25 @@ class Action:
     def perform(self) -> None:
         """Overridable method"""
         pass
+
+
+class QuitGameAction(Action):
+    def perform(self, engine: Engine):
+        sys.exit(0)
+
+
+class MoveCursorAction(Action):
+    pass
+
+
+class LowerCursorAction(MoveCursorAction):
+    def perform(self, engine: Engine):
+        engine.gamestate.cursor_index_pos += 1
+
+
+class RaiseCursorAction(MoveCursorAction):
+    def perform(self, engine: Engine):
+        engine.gamestate.cursor_index_pos -= 1
 
 
 class WaitAction(Action):

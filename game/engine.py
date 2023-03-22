@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-import sys
 import curses
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .actions import Action
     from .dungeon.dungeon import Dungeon
     from .terminal_control import TerminalController
     from .entities import Player
-from .actions import (
-    BumpAction, WaitAction, DescendStairsAction, AscendStairsAction)
+from .gamestates import *
 
 
 class Engine:
@@ -26,6 +23,10 @@ class Engine:
         self.player = player
         self.dungeon = dungeon
         self.terminal_controller = terminal_controller
+        
+        # Start off exploring for now.
+        # TODO change to MainMenuState
+        self.gamestate = ExploreState(self.player)
 
 
     def run(self):
@@ -44,42 +45,27 @@ class Engine:
 
     def display(self) -> None:
         """Display the game to the screen"""
-        self.terminal_controller.display(
-            self.dungeon.current_floor, self.player)
+        # self.terminal_controller.display(
+        #     self.dungeon.current_floor, self.player)
+        self.gamestate.render(self)
 
 
-    def get_valid_action(self) -> Optional[Action]:
-        """Handle player input"""
-        action: Optional[Action] = None
-        while not action:
-            player_input = self.terminal_controller.get_input()
-            
-            if player_input == "Q":
-                sys.exit(1)
-            elif player_input == "KEY_UP":  # Move up.
-                action = BumpAction(self.player, dx=-1, dy=0)
-            elif player_input == "KEY_DOWN":  # Move down.
-                action = BumpAction(self.player, dx=1, dy=0)
-            elif player_input == "KEY_LEFT":  # Move left.
-                action = BumpAction(self.player, dx=0, dy=-1)
-            elif player_input == "KEY_RIGHT":  # Move right.
-                action = BumpAction(self.player, dx=0, dy=1)
-            elif player_input == ".":  # Do nothing.
-                action = WaitAction(self.player)
-            
-            elif player_input == ">":
-                action = DescendStairsAction(self.player)
-            elif player_input == "<":
-                action = AscendStairsAction(self.player)
-        
-        action.perform(self)
+    def get_valid_action(self) -> None:
+        """Handle player input depending on state"""
+        action_or_state = self.gamestate.handle_input(self.terminal_controller)
+        self.gamestate.perform(self, action_or_state)
 
 
     def process(self) -> None:
         """Proccess world's turn from player's input"""
         # Handle enemy turns.
-        entities = self.dungeon.current_floor.entities
-        for entity in entities:
-            if entity.get_component("ai") and not entity.is_dead:
-                entity.ai.perform(self)
+        if isinstance(self.gamestate, ExploreState):
+            entities = self.dungeon.current_floor.entities
+            for entity in entities:
+                if entity.get_component("ai") and not entity.is_dead:
+                    # TODO maybe change to take_turn()
+                    entity.ai.perform(self)
+        # Move cursor for item selection.
+        # elif isinstance(self.gamestate, InventoryMenuState):
+            
 

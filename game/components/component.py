@@ -88,6 +88,7 @@ class WanderingAI(BaseAI):
             dx, dy = random.choice(list(self.DIRECTIONS.values()))
             
             # Walk to that tile if it is not blocked by a blocking entity.
+            engine.terminal_controller.message_log.add(f"from wanderingAI: dx={dx}, dy={dy}")
             BumpAction(self.owner, dx, dy).perform(engine)
 
 
@@ -112,5 +113,6 @@ class HostileEnemyAI(BaseAI):
         dx = desired_x - self.entity.x
         dy = desired_y - self.entity.y
         
+        engine.terminal_controller.message_log.add(f"from hostileAI: dx={dx}, dy={dy}")
         BumpAction(self.owner, dx, dy).perform(engine)
 

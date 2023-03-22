@@ -60,19 +60,11 @@ class Creature(Entity):
                  dmg: int,
                  blocking: bool = True):
         super().__init__(x, y, name, char, color, render_order, blocking)
-        self.x = x
-        self.y = y
-        self.name = name
-        self.og_name = name
-        self.char = char
-        self.color = color
-        self.render_order = render_order
+        self.og_name = name  # Track old name after name change upon death.
         self.max_hp = hp
         self.hp = hp  # Starting hp.
         self.dmg = dmg
 
-        self.blocking = blocking
-    
 
     @property
     def is_dead(self) -> bool:
@@ -92,7 +84,7 @@ class Creature(Entity):
         self.ai = None
         self.blocking = False
         self.char = "%"
-        self.name = f"remains of {self.name}"
+        self.name = f"Remains of {self.name}"
         self.render_order = RenderOrder.CORPSE
 
 

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 from ..render_order import RenderOrder
 from ..entities import Creature, Entity
 from ..config import enemies
-from ..components.component import WanderingAI
+from ..components.component import HostileEnemyAI
 from ..config import DESCENDING_STAIRCASE_TILE, ASCENDING_STAIRCASE_TILE
 
 class Spawner:
@@ -101,7 +101,7 @@ class Spawner:
             hp=enemy_data["hp"],
             dmg=enemy_data["dmg"]
         )
-        enemy.add_component("ai", WanderingAI(enemy))
+        enemy.add_component("ai", HostileEnemyAI(enemy))
         return enemy
     
 
