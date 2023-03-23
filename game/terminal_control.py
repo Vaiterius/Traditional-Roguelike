@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import curses
 from collections import deque
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .dungeon.floor import Floor
-    from .entities import Player, Entity
+    from .entities import Player, Entity, Item
+    from .components.component import Inventory
 from .color import Color
-from .actions import ExploreAction
 from .pathfinding import distance_from, bresenham_path_to
 
 
@@ -112,49 +112,62 @@ class TerminalController:
         self.game_width = self.floor_view_width + self.sidebar_width + 2
 
 
-        # INVENTORY CONFIG.
-        self.inventory_height = 15
-        self.inventory_width = 40
-        inventory_origin_x = (self.game_height // 2) - (self.inventory_height // 2)
-        inventory_origin_y = (self.game_width // 2) - (self.inventory_width // 2)
-        self.inventory_window = curses.newwin(
-            self.inventory_height, self.inventory_width,
-            inventory_origin_x, inventory_origin_y)
-        
-        
         self.screen.refresh()
         self.floor_view_window.refresh()
         self.message_log_window.refresh()
         self.sidebar.refresh()
+    
+    
+    def get_new_inventory_window(self, height: int, width: int) -> curses.newwin:
+        """Return a curses window that represents an inventory menu"""
+        # Topleft corner where the window will be positioned at.
+        origin_x = (self.game_height // 2) - (height // 2)
+        origin_y = (self.game_width // 2) - (width // 2)
+
+        return curses.newwin(height, width, origin_x, origin_y)
 
 
-    def display_inventory(self, cursor_index_pos):
-        self.inventory_window.refresh()
+    def display_inventory(self, inventory: Inventory, cursor_index_pos: int) -> int:
+        """Display the inventory menu for player to select through"""
+        INVENTORY_HEIGHT: int = inventory.max_slots + 2
+        INVENTORY_WIDTH: int = 40
+
+        window = self.get_new_inventory_window(INVENTORY_HEIGHT, INVENTORY_WIDTH)
         
         HEADER_TEXT = "INVENTORY"
         
-        # TODO refact list to player, then pass list to MoveCursorAction init,
-        # then pass list to this method
-        inventory_items = ["item 1", "item 2", "item 3"]
-        num_showable_items = self.inventory_height - 2
-        
-        self.inventory_window.erase()
-        self.inventory_window.border()
-        self.inventory_window.addstr(0, (self.inventory_width // 2) - (len(HEADER_TEXT) // 2), HEADER_TEXT)
+        window.erase()
+        window.border()
+        window.addstr(0, (INVENTORY_WIDTH // 2) - (len(HEADER_TEXT) // 2), HEADER_TEXT)
 
-        # TODO validate cursor_index_pos (somewhere else maybe)
-        cursor_index_pos = max(1, min(cursor_index_pos, min(num_showable_items, len(inventory_items))))
-        self.inventory_window.addstr(cursor_index_pos, 2, ">")
+        # Validate cursor position.
+        if cursor_index_pos < 0:
+            cursor_index_pos = 0
+        elif cursor_index_pos > inventory.max_slots - 1:
+            cursor_index_pos = inventory.max_slots - 1
+            
+        window.addstr(cursor_index_pos + 1, 2, ">")
 
         # Show inventory items.
-        item_index_num = 1
-        for item in inventory_items:
-            self.inventory_window.addstr(item_index_num, 4, str(item_index_num) + ") " + item)
-            item_index_num += 1
+        SINGLE_DIGIT_ADDON = ' '  # Line up the numbers neatly.
+        for index in range(inventory.max_slots):
+            item: Optional[Item] = inventory.get_item(index)
+            
+            index += 1  # Shift from 0-9 numbering to 1-10.
+            if index > 9:
+                SINGLE_DIGIT_ADDON = ''
+            
+            if item:
+                window.addstr(index, 4, SINGLE_DIGIT_ADDON + str(index) + ") " + item.name)
+            else:
+                window.addstr(index, 4, SINGLE_DIGIT_ADDON + str(index) + ") N/A")
         
-        self.inventory_window.refresh()
+        window.refresh()
+        
+        return cursor_index_pos
     
 
+    # TODO (MAYBE) switch parameters to only take engine
     def display(self, floor: Floor, player: Player):
         """Output the game data onto the screen"""
         self.ensure_right_terminal_size()
@@ -184,26 +197,6 @@ class TerminalController:
                 self.colors.get_color(entity.color)
             )
         
-        # # Display objects.
-        # # TODO
-
-        # # Display enemies.
-        # for creature in floor.creatures:
-        #     if not self.in_player_fov(player, creature, floor):  # TODO refactor to player class
-        #         continue
-        #     self.floor_view_window.addstr(
-        #         creature.x + 1,
-        #         creature.y + 1,
-        #         creature.char,
-        #         self.colors.get_color(creature.color))
-        
-        # # Display player.
-        # self.floor_view_window.addstr(
-        #     player.x + 1,
-        #     player.y + 1,
-        #     player.char,
-        #     self.colors.get_color(player.color))
-
         # Display message log.
         self.message_log_window.border()
         self.message_log_window.addstr(0, 2, "MESSAGE LOG")

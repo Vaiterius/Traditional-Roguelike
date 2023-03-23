@@ -1,27 +1,63 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
+from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
     from .entities import Entity
+    from .engine import Engine
 from .actions import *
 
 
-class State:
+class AbstractState(ABC):
     
-    def __init__(self, parent: Entity):
-        self.parent = parent
-    
+    @abstractmethod
     def on_enter():
         pass
     
+    @abstractmethod
     def handle_input():
         pass
     
+    @abstractmethod
     def perform():
         pass
     
+    @abstractmethod
     def render():
+        pass
+
+
+class State(AbstractState):
+    """Base class for gamestate classes"""
+    
+    def __init__(self, parent: Entity):
+        self.parent = parent
+
+
+    def on_enter(self, engine: Engine) -> None:
+        """Code to run upon switching to another state"""
+        pass
+
+
+    def handle_input(self, engine: Engine) -> Union[Action, State]:
+        """Retrieve input from player while in this state"""
+        pass
+
+
+    def perform(self,
+                engine: Engine,
+                action_or_state: Union[Action, State]) -> None:
+        """Perform an action or switch to another state from input"""
+        if isinstance(action_or_state, Action):
+            action_or_state.perform(engine)
+        elif isinstance(action_or_state, State):
+            engine.gamestate = action_or_state
+            engine.gamestate.on_enter(engine)
+
+
+    def render(self, engine: Engine) -> None:
+        """Display part of the game belonging to the current gamestate"""
         pass
 
 
@@ -32,24 +68,19 @@ class MainMenuState(State):
 class ExploreState(State):
     """Handles player movement and interaction when exploring the dungeon"""
 
-    #         case "KEY_UP":  # Move up.
-    #             return BumpAction(self.parent, dx=-1, dy=0)
-    #         case "KEY_DOWN":  # Move down.
-    #             return BumpAction(self.parent, dx=1, dy=0)
-    #         case "KEY_LEFT":  # Move left.
-    #             return BumpAction(self.parent, dx=0, dy=-1)
-    #         case "KEY_RIGHT":  # Move right.
-    #             return BumpAction(self.parent, dx=0, dy=1)
+    def on_enter(self, engine: Engine) -> None:
+        self.render(engine)
+        engine.get_valid_action()
 
-    def on_enter(self):
-        pass
 
-    def handle_input(self, terminal_controller):
-        action_or_state = None
+    def handle_input(self, engine: Engine) -> Union[Action, State]:
+        action_or_state: Union[Action, State] = None
         while not action_or_state:
-            player_input = terminal_controller.get_input()
+            player_input: str = engine.terminal_controller.get_input()
             
             match player_input:
+                
+                # ACTIONS
                 case "KEY_UP":  # Move up.
                     action_or_state = BumpAction(self.parent, dx=-1, dy=0)
                 case "KEY_DOWN":  # Move down.
@@ -58,65 +89,64 @@ class ExploreState(State):
                     action_or_state = BumpAction(self.parent, dx=0, dy=-1)
                 case "KEY_RIGHT":  # Move right.
                     action_or_state = BumpAction(self.parent, dx=0, dy=1)
-                case ".":  # Do nothing.
+                case '.':  # Do nothing.
                     action_or_state = WaitAction(self.parent)
+                case '>':  # Descend a level.
+                    action_or_state = DescendStairsAction(self.parent)
+                case '<':  # Ascend a level.
+                    action_or_state = AscendStairsAction(self.parent)
+                case 'Q':  # Quit game.
+                    action_or_state = QuitGameAction(self.parent)
                 
-                # TODO add staircase actions
-                
-                case "I":  # Head to inventory.
+                # CHANGE STATE.
+                case 'I':  # Head to inventory.
                     action_or_state = InventoryMenuState(self.parent)
                 case _:
                     action_or_state = None
         
         return action_or_state
 
-    def perform(self, engine, action_or_state):
-        if isinstance(action_or_state, Action):
-            action_or_state.perform(engine)
-        elif isinstance(action_or_state, InventoryMenuState):
-            engine.gamestate = action_or_state
-            engine.gamestate.on_enter()
-        
-    
-    def render(self, engine):
-        engine.terminal_controller.display(engine.dungeon.current_floor, engine.player)
+
+    def render(self, engine: Engine) -> None:
+        engine.terminal_controller.display(
+            engine.dungeon.current_floor, engine.player)
 
 
 # TODO maybe inherit from common menu state
 class InventoryMenuState(State):
+    """Handles selection/dropping/using of items in player inventory"""
     
-    def on_enter(self):
+    def on_enter(self, engine: Engine) -> None:
         # Initialize cursor delta.
         self.cursor_index_pos = 0
-    
-    def handle_input(self, terminal_controller):
-        action_or_state = None
+
+
+    def handle_input(self, engine: Engine) -> Union[Action, State]:
+        action_or_state: Union[Action, State] = None
         while not action_or_state:
-            player_input = terminal_controller.get_input()
+            player_input: str = engine.terminal_controller.get_input()
             
             match player_input:
-                case "KEY_UP":
+                
+                # ACTIONS.
+                case "KEY_UP":  # Move cursor up.
                     action_or_state = RaiseCursorAction(self.parent)
-                case "KEY_DOWN":
+                case "KEY_DOWN":  # Move cursor down.
                     action_or_state = LowerCursorAction(self.parent)
-                case "I":
+                case "KEY_ENTER":  # Select item to use.
+                    action_or_state = ...
+                
+                # CHANGE STATE.
+                case 'I':
                     action_or_state = ExploreState(self.parent)
                 case _:
                     action_or_state = None
         
         return action_or_state
-    
-    def perform(self, engine, action_or_state):
-        if isinstance(action_or_state, Action):
-            action_or_state.perform(engine)
-        elif isinstance(action_or_state, ExploreState):
-            engine.gamestate = action_or_state
-            engine.gamestate.on_enter()
-            
-            # Don't process enemy turns when exiting out of inventory.
-            engine.gamestate.render(engine)
-            engine.get_valid_action()
-    
-    def render(self, engine):
-        engine.terminal_controller.display_inventory(self.cursor_index_pos)
+
+
+    def render(self, engine: Engine) -> None:
+        new_cursor_pos: int = engine.terminal_controller.display_inventory(
+            engine.player.inventory, self.cursor_index_pos)
+        self.cursor_index_pos = new_cursor_pos
 

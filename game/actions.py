@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .engine import Engine
     from .entities import Creature, Entity
-    from .gamestates import InventoryMenuState
 from .tile import *
 
 
@@ -27,6 +26,7 @@ class QuitGameAction(Action):
         sys.exit(0)
 
 
+# TODO idk what to do with this yet
 class MoveCursorAction(Action):
     pass
 
@@ -39,6 +39,11 @@ class LowerCursorAction(MoveCursorAction):
 class RaiseCursorAction(MoveCursorAction):
     def perform(self, engine: Engine):
         engine.gamestate.cursor_index_pos -= 1
+
+
+class ReadItemAction(Action):
+    def perform(self, engine: Engine):
+        pass
 
 
 class WaitAction(Action):

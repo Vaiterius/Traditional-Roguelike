@@ -4,8 +4,9 @@ from game.config import *
 from game.render_order import RenderOrder
 from game.engine import Engine
 from game.dungeon.dungeon import Dungeon
-from game.entities import Player
+from game.entities import Player, Item
 from game.terminal_control import TerminalController
+from game.components.component import Inventory
 
 
 def main(screen: curses.initscr):
@@ -25,6 +26,11 @@ def main(screen: curses.initscr):
         hp=1000,
         dmg=5
     )
+    player.add_component("inventory", Inventory(num_slots=16))
+    test_item_1 = Item(-1, -1, "test_item_1", "?", "default", RenderOrder.ITEM, False)
+    test_item_2 = Item(-1, -1, "test_item_2", "?", "default", RenderOrder.ITEM, False)
+    test_item_3 = Item(-1, -1, "test_item_3", "?", "default", RenderOrder.ITEM, False)
+    player.inventory.add_items([test_item_1, test_item_2, test_item_3])
 
     dungeon = Dungeon(
         player=player,

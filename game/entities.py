@@ -43,6 +43,7 @@ class Entity:
 
 
 class Item(Entity):
+    """A holdable or usable thing to a creature"""
     pass
 
 

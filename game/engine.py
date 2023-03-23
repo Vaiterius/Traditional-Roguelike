@@ -45,14 +45,12 @@ class Engine:
 
     def display(self) -> None:
         """Display the game to the screen"""
-        # self.terminal_controller.display(
-        #     self.dungeon.current_floor, self.player)
         self.gamestate.render(self)
 
 
     def get_valid_action(self) -> None:
         """Handle player input depending on state"""
-        action_or_state = self.gamestate.handle_input(self.terminal_controller)
+        action_or_state = self.gamestate.handle_input(self)
         self.gamestate.perform(self, action_or_state)
 
 
@@ -65,7 +63,5 @@ class Engine:
                 if entity.get_component("ai") and not entity.is_dead:
                     # TODO maybe change to take_turn()
                     entity.ai.perform(self)
-        # Move cursor for item selection.
-        # elif isinstance(self.gamestate, InventoryMenuState):
             
 
