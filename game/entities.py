@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from .components.component import BaseComponent
     from .color import Color
+    from .engine import Engine
 from .render_order import RenderOrder
 
 
@@ -40,6 +41,9 @@ class Entity:
 
     def del_component(self, name: str) -> None:
         delattr(self, name)
+    
+    def spawn_clone(self) -> Entity:
+        return copy.deepcopy(self)
 
 
 class Item(Entity):
@@ -59,12 +63,15 @@ class Creature(Entity):
                  render_order: RenderOrder,
                  hp: int,
                  dmg: int,
-                 blocking: bool = True):
+                 blocking: bool = True,
+                 energy: int = 0):
         super().__init__(x, y, name, char, color, render_order, blocking)
         self.og_name = name  # Track old name after name change upon death.
         self.max_hp = hp
         self.hp = hp  # Starting hp.
         self.dmg = dmg
+        self.energy_gain = energy  # Gain energy every turn.
+        self.energy = energy
 
 
     @property
@@ -79,12 +86,13 @@ class Creature(Entity):
     
 
     def die(self) -> None:
-        """ RIP bozo"""
+        """RIP bozo"""
         # TODO Player dies.
         # Creature dies.
         self.ai = None
         self.blocking = False
         self.char = "%"
+        self.color = "blood_red"
         self.name = f"Remains of {self.name}"
         self.render_order = RenderOrder.CORPSE
 
@@ -93,9 +101,15 @@ class Creature(Entity):
         self.x += dx
         self.y += dy
     
-
-    def spawn_clone(self) -> Creature:
-        return copy.deepcopy(self)
+    
+    def take_turn(self, engine: Engine) -> None:
+        """If monster has enough energy, perform its turn"""
+        ENERGY_THRESHOLD: int = 10
+        if self.ai:
+            self.energy += self.energy_gain
+            if self.energy >= ENERGY_THRESHOLD:
+                self.ai.perform(engine)
+                self.energy -= ENERGY_THRESHOLD  # Expend energy.
 
 
 class Player(Creature):

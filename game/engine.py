@@ -58,10 +58,9 @@ class Engine:
         """Proccess world's turn from player's input"""
         # Handle enemy turns.
         if isinstance(self.gamestate, ExploreState):
-            entities = self.dungeon.current_floor.entities
-            for entity in entities:
-                if entity.get_component("ai") and not entity.is_dead:
-                    # TODO maybe change to take_turn()
-                    entity.ai.perform(self)
+            creatures = self.dungeon.current_floor.creatures
+            for creature in creatures:
+                if creature.get_component("ai") and not creature.is_dead:
+                    creature.take_turn(self)
             
 

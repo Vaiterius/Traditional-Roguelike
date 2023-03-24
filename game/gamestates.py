@@ -108,8 +108,11 @@ class ExploreState(State):
 
 
     def render(self, engine: Engine) -> None:
-        engine.terminal_controller.display(
+        engine.terminal_controller.ensure_right_terminal_size()
+        engine.terminal_controller.display_map(
             engine.dungeon.current_floor, engine.player)
+        engine.terminal_controller.display_message_log()
+        engine.terminal_controller.display_sidebar()
 
 
 # TODO maybe inherit from common menu state

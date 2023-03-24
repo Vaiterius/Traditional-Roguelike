@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from ..dungeon.floor import Floor
 from ..render_order import RenderOrder
 from ..entities import Creature, Entity
-from ..config import enemies
+from ..data.enemies import enemies
 from ..components.component import HostileEnemyAI
 from ..config import DESCENDING_STAIRCASE_TILE, ASCENDING_STAIRCASE_TILE
 
@@ -47,7 +47,7 @@ class Spawner:
         # Spawn descending staircase if there's a floor below.
         if current_floor_idx < num_floors - 1:
             rand_x, rand_y = floor.last_room.get_center_cell()
-            descending_staircase = copy.deepcopy(self.descending_staircase)
+            descending_staircase = self.descending_staircase.spawn_clone()
             descending_staircase.x = rand_x
             descending_staircase.y = rand_y
             # Keep track of location.
@@ -57,7 +57,7 @@ class Spawner:
         # Spawn ascending staircase if there's a floor above.
         if current_floor_idx > 0:
             rand_x, rand_y = floor.first_room.get_center_cell()
-            ascending_staircase = copy.deepcopy(self.ascending_staircase)
+            ascending_staircase = self.ascending_staircase.spawn_clone()
             ascending_staircase.x = rand_x
             ascending_staircase.y = rand_y
             # Keep track of location.
@@ -99,7 +99,8 @@ class Spawner:
             color=enemy_data["color"],
             render_order=RenderOrder.CREATURE,
             hp=enemy_data["hp"],
-            dmg=enemy_data["dmg"]
+            dmg=enemy_data["dmg"],
+            energy=enemy_data["energy"]
         )
         enemy.add_component("ai", HostileEnemyAI(enemy))
         return enemy

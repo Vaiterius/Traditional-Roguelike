@@ -24,7 +24,8 @@ class Color:
             
             "off_white": 248,
             "grey": 241,
-            "shrouded_grey": 236
+            "shrouded_grey": 236,
+            "blood_red": 53,
         }
     
 
