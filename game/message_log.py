@@ -33,6 +33,9 @@ class MessageLog:
 
 
     def add(self, message: str, debug: bool = False) -> None:
+        if isinstance(message, int):
+            message = str(message)
+
         if debug:
             message = "[DEBUG] " + message
         

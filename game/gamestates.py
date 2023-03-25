@@ -112,7 +112,8 @@ class ExploreState(State):
         engine.terminal_controller.display_map(
             engine.dungeon.current_floor, engine.player)
         engine.terminal_controller.display_message_log()
-        engine.terminal_controller.display_sidebar()
+        engine.terminal_controller.display_sidebar(engine.dungeon)
+        engine.terminal_controller.enemies_in_fov = []
 
 
 # TODO maybe inherit from common menu state

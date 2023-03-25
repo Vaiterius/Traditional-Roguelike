@@ -24,6 +24,7 @@ def main(screen: curses.initscr):
         color="blue",
         render_order=RenderOrder.CREATURE,
         hp=1000,
+        mp=500,
         dmg=5
     )
     player.add_component("inventory", Inventory(num_slots=16))

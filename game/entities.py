@@ -68,9 +68,9 @@ class Creature(Entity):
         super().__init__(x, y, name, char, color, render_order, blocking)
         self.og_name = name  # Track old name after name change upon death.
         self.max_hp = hp
-        self.hp = hp  # Starting hp.
+        self.hp = hp  # Starting health.
         self.dmg = dmg
-        self.energy_gain = energy  # Gain energy every turn.
+        self.energy_gain_per_turn = energy
         self.energy = energy
 
 
@@ -106,13 +106,34 @@ class Creature(Entity):
         """If monster has enough energy, perform its turn"""
         ENERGY_THRESHOLD: int = 10
         if self.ai:
-            self.energy += self.energy_gain
+            self.energy += self.energy_gain_per_turn
             if self.energy >= ENERGY_THRESHOLD:
                 self.ai.perform(engine)
                 self.energy -= ENERGY_THRESHOLD  # Expend energy.
 
 
 class Player(Creature):
-    """You!"""
-    pass
+    """A special and heroic creature that you control"""
+    
+    def __init__(self,
+                 x: int,
+                 y: int,
+                 name: str,
+                 char: str,
+                 color: Color,
+                 render_order: RenderOrder,
+                 hp: int,
+                 mp: int,
+                 dmg: int,
+                 blocking: bool = True):
+        super().__init__(
+            x, y, name, char, color, render_order, hp, dmg, blocking)
+        self.max_mp = mp
+        self.mp = mp  # Starting mp.
+        
+        # TODO Attributes.
+        self.str = -1
+        self.agi = -1
+        self.con = -1
+        self.wis = -1
 
