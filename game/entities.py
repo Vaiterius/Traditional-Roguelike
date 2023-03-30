@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .color import Color
     from .engine import Engine
 from .render_order import RenderOrder
+from .gamestates import GameOverState
 
 
 class Entity:
@@ -87,7 +88,6 @@ class Creature(Entity):
 
     def die(self) -> None:
         """RIP bozo"""
-        # TODO Player dies.
         # Creature dies.
         self.ai = None
         self.blocking = False

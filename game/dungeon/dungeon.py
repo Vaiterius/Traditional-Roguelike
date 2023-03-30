@@ -41,11 +41,17 @@ class Dungeon:
     @property
     def current_floor(self) -> Floor:
         return self.floors[self.current_floor_idx]
-    
-    
+
+
+    # TODO Add dungeon level progression (inrcease difficulty).
     def generate(self) -> None:
         """Generate the the entirety of the dungeon"""
-        # TODO make each level harder as the player progress.
+
+        # Regenerate if dungeon already exists.
+        if self.floors:
+            self.floors = []
+            self.current_floor_idx = 0
+
         for curr_idx in range(self.num_floors):
             floor: Floor = self.generate_floor(curr_idx)
             self.floors.append(floor)

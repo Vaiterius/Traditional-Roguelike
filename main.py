@@ -7,6 +7,7 @@ from game.dungeon.dungeon import Dungeon
 from game.entities import Player, Item
 from game.terminal_control import TerminalController
 from game.components.component import Inventory
+from game.message_log import MessageLog
 
 
 def main(screen: curses.initscr):
@@ -23,7 +24,7 @@ def main(screen: curses.initscr):
         char=PLAYER_TILE,
         color="blue",
         render_order=RenderOrder.CREATURE,
-        hp=1000,
+        hp=500,
         mp=500,
         dmg=5
     )
@@ -43,7 +44,7 @@ def main(screen: curses.initscr):
         min_max_room_height=MIN_MAX_ROOM_HEIGHT
     )
 
-    engine = Engine(screen, player, dungeon, terminal_controller)
+    engine = Engine(screen, player, dungeon, MessageLog(), terminal_controller)
     engine.run()
 
 

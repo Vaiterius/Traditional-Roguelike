@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import curses
 from math import ceil
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 if TYPE_CHECKING:
     from .dungeon.floor import Floor
     from .dungeon.dungeon import Dungeon
     from .entities import Entity, Item
     from .components.component import Inventory
+    from .message_log import MessageLog
+    from .gamestates import State
+    from .actions import Action
 from .entities import Creature, Player
 from .color import Color
-from .message_log import MessageLog
 from .pathfinding import in_player_fov
 from .render_order import RenderOrder
 from .config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
@@ -46,7 +48,6 @@ class TerminalController:
         self.screen = screen
         self.floor_width, self.floor_height = floor_dimensions
         self.colors = Color()  # Fetch available character tile colors.
-        self.message_log = MessageLog()
         
         # Keep track for enemies around sidebar.
         self.enemies_in_fov = []
@@ -116,7 +117,7 @@ class TerminalController:
         window.refresh()
     
     
-    def display_message_log(self) -> None:
+    def display_message_log(self, message_log: MessageLog) -> None:
         """Display the in-game message log"""
         MESSAGE_LOG_HEIGHT: int = self.message_log_height
         MESSAGE_LOG_WIDTH: int = self.message_log_width
@@ -131,10 +132,10 @@ class TerminalController:
         window.addstr(0, 2, "MESSAGE LOG")
         cursor = 0
         for i in range(MESSAGE_LOG_HEIGHT - 2, 0, -1):
-            message = str(self.message_log.get(cursor))
+            message = str(message_log.get(cursor))
             window.addstr(i, 2, message)  # TODO color code the messages.
             cursor += 1
-            if cursor > self.message_log.size() - 1:
+            if cursor > message_log.size() - 1:
                 break
         
         window.refresh()
@@ -295,6 +296,9 @@ class TerminalController:
         if remaining_enemies_in_fov > 0:
             enemies_around_subwindow.addstr(
                 9, 1, f"    and {remaining_enemies_in_fov} more...")
+        
+        # Then reset.
+        self.enemies_in_fov = []
 
 
         # HELP SECTION #
@@ -323,7 +327,7 @@ class TerminalController:
 
     def display_inventory(self,
                           inventory: Inventory,
-                          cursor_index_pos: int) -> int:
+                          cursor_index: int) -> int:
         """Display the inventory menu for player to select through"""
         INVENTORY_HEIGHT: int = inventory.max_slots + 2
         INVENTORY_WIDTH: int = 40
@@ -344,12 +348,12 @@ class TerminalController:
             0, (INVENTORY_WIDTH // 2) - (len(HEADER_TEXT) // 2), HEADER_TEXT)
 
         # Validate cursor position.
-        if cursor_index_pos < 0:
-            cursor_index_pos = 0
-        elif cursor_index_pos > inventory.max_slots - 1:
-            cursor_index_pos = inventory.max_slots - 1
+        if cursor_index < 0:
+            cursor_index = 0
+        elif cursor_index > inventory.max_slots - 1:
+            cursor_index = inventory.max_slots - 1
             
-        window.addstr(cursor_index_pos + 1, 2, ">")
+        window.addstr(cursor_index + 1, 2, ">")
 
         # Show inventory items.
         SINGLE_DIGIT_ADDON = ' '  # Line up the numbers neatly.
@@ -370,7 +374,50 @@ class TerminalController:
         
         window.refresh()
         
-        return cursor_index_pos
+        return cursor_index
+    
+    
+    def display_main_menu(self,
+                          menu_options: list[tuple[str, Union[Action, State]]],
+                          cursor_index: int) -> None:
+        """Display the menu options for the player"""
+        MAIN_MENU_HEIGHT: int = self.game_height
+        MAIN_MENU_WIDTH: int = self.game_width
+        
+        # Create the main menu window itself.
+        window = curses.newwin(MAIN_MENU_HEIGHT, MAIN_MENU_WIDTH, 0, 0)
+        
+        window.erase()
+        window.border()
+        
+        # Clamp cursor index.
+        if cursor_index < 0:
+            cursor_index = 0
+        elif cursor_index > len(menu_options) - 1:
+            cursor_index = len(menu_options) - 1
+        
+        WELCOME_MESSAGE: str = "Welcome to <untitled_game>!"
+        WELCOME_SUBMESSAGE: str = "(Work In Progress)"
+        
+        # Adjust positions relative to screen.
+        display_cursor_index = cursor_index + MAIN_MENU_HEIGHT // 2
+        option_y_pos: int = MAIN_MENU_WIDTH // 2 - len(WELCOME_MESSAGE) // 2
+        
+        # Display welcome messages.
+        window.addstr(MAIN_MENU_HEIGHT // 3, option_y_pos, WELCOME_MESSAGE)
+        window.addstr(
+            (MAIN_MENU_HEIGHT // 3) + 1, option_y_pos, WELCOME_SUBMESSAGE)
+        
+        # Display menu option choices with cursor.
+        for i in range(len(menu_options)):
+            current_option: str = menu_options[i][0]
+            window.addstr(
+                MAIN_MENU_HEIGHT // 2 + i, option_y_pos, current_option)
+        window.addstr(display_cursor_index, option_y_pos - 2, ">")
+        
+        window.refresh()
+        
+        return cursor_index
     
 
     def ensure_right_terminal_size(self):

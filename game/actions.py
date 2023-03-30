@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .engine import Engine
     from .entities import Creature, Entity
 from .tile import *
+from .message_log import MessageLog
 
 
 class Action:
@@ -22,41 +23,56 @@ class Action:
 
 
 class QuitGameAction(Action):
+    """Exit program"""
+
     def perform(self, engine: Engine):
         sys.exit(0)
 
 
-# TODO idk what to do with this yet
-class MoveCursorAction(Action):
-    pass
+class StartNewGameAction(Action):
+    """Start the dungeon anew"""
+
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+        
+        engine.message_log = MessageLog()
+        engine.dungeon.generate()
+        engine.dungeon.spawn_player()
+        engine.dungeon.current_floor.first_room.explore(engine)
+        
+        return turnable
 
 
-class LowerCursorAction(MoveCursorAction):
-    def perform(self, engine: Engine):
-        engine.gamestate.cursor_index_pos += 1
+class ContinueGameAction(Action):
+    """Continue a previous save"""
+
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+        return turnable
 
 
-class RaiseCursorAction(MoveCursorAction):
-    def perform(self, engine: Engine):
-        engine.gamestate.cursor_index_pos -= 1
+class LoadGameAction(Action):
+    """Load a previous save"""
 
-
-class ReadItemAction(Action):
-    def perform(self, engine: Engine):
-        pass
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+        return turnable
 
 
 class WaitAction(Action):
     """Do nothing this turn"""
 
-    def perform(self, engine: Engine) -> None:
-        pass
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = True
+        return turnable
 
 
 class DescendStairsAction(Action):
     """Descend a flight of stairs to the next dungeon level"""
     
-    def perform(self, engine: Engine) -> None:
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+
         floor = engine.dungeon.current_floor
 
         player_x = engine.player.x
@@ -64,7 +80,7 @@ class DescendStairsAction(Action):
         
         # Ensure there exists a staircase to begin with.
         if floor.descending_staircase_location is None:
-            return
+            return turnable
         
         # Player is standing on the staircase tile.
         staircase_x, staircase_y = floor.descending_staircase_location 
@@ -77,14 +93,18 @@ class DescendStairsAction(Action):
                 engine.player, room_to_spawn)
             room_to_spawn.explore(self)
             
-            engine.terminal_controller.message_log.add(
+            engine.message_log.add(
                 "You descend a level...")
+        
+        return turnable
 
 
 class AscendStairsAction(Action):
     """Ascend a flight of stairs to the previous dungeon level"""
     
-    def perform(self, engine: Engine) -> None:
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+
         floor = engine.dungeon.current_floor
 
         player_x = engine.player.x
@@ -92,7 +112,7 @@ class AscendStairsAction(Action):
         
         # Ensure there exists a staircase to begin with.
         if floor.ascending_staircase_location is None:
-            return
+            return turnable
         
         # Player is standing on the staircase tile.
         staircase_x, staircase_y = floor.ascending_staircase_location 
@@ -105,14 +125,18 @@ class AscendStairsAction(Action):
                 engine.player, room_to_spawn)
             room_to_spawn.explore(self)
             
-            engine.terminal_controller.message_log.add(
+            engine.message_log.add(
                 "You ascend a level...")
+        
+        return turnable
 
 
 class ExploreAction(Action):
     """Reveal the room and tunnels the player is in"""
     
-    def perform(self, engine: Engine) -> None:
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+
         floor = engine.dungeon.current_floor
 
         player_x = engine.player.x
@@ -136,6 +160,8 @@ class ExploreAction(Action):
                     tiles[x][y] = wall_tile
                 else:
                     tiles[x][y] = floor_tile
+                    
+        return turnable
 
 
 class ActionWithDirection(Action):
@@ -150,50 +176,57 @@ class ActionWithDirection(Action):
 class BumpAction(ActionWithDirection):
     """Action to decide what happens when a creature moves to a desired tile"""
 
-    def perform(self, engine: Engine) -> None:
+    def perform(self, engine: Engine) -> bool:
         floor = engine.dungeon.current_floor
 
         desired_x = self.entity.x + self.dx
         desired_y = self.entity.y + self.dy
 
         if floor.blocking_entity_at(desired_x, desired_y):
-            MeleeAction(self.entity, self.dx, self.dy).perform(engine)
+            return MeleeAction(self.entity, self.dx, self.dy).perform(engine)
         else:
-            WalkAction(self.entity, self.dx, self.dy).perform(engine)
+            return WalkAction(self.entity, self.dx, self.dy).perform(engine)
 
 
 class WalkAction(ActionWithDirection):
     """Action to validly move a creature"""
 
-    def perform(self, engine: Engine) -> None:
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+
         floor = engine.dungeon.current_floor
 
         desired_x = self.entity.x + self.dx
         desired_y = self.entity.y + self.dy
 
-        # Get within bounds.
-        # TODO
+        # TODO Get within bounds (turns out I don't need to do this?).
         # Get blocking tiles.
         if not floor.tiles[desired_x][desired_y].walkable:
             if self.entity == engine.player:
-                engine.terminal_controller.message_log.add(
+                engine.message_log.add(
                     "That way is blocked")
-            return
+            return turnable
         # Get blocking entities.
         if floor.blocking_entity_at(desired_x, desired_y):
-            return
+            return turnable
+    
+        turnable = True
 
         self.entity.move(dx=self.dx, dy=self.dy)
         
         # Explore environment around player.
         if self.entity == engine.player:
             ExploreAction(self.entity).perform(engine)
+        
+        return turnable
 
 
 class MeleeAction(ActionWithDirection):
     """Action to hit a creature within melee range"""
 
-    def perform(self, engine: Engine) -> None:
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = True
+
         floor = engine.dungeon.current_floor
 
         desired_x = self.entity.x + self.dx
@@ -208,26 +241,28 @@ class MeleeAction(ActionWithDirection):
             bisect.insort(
                 floor.entities, target, key=lambda x: x.render_order.value)
             
-            engine.terminal_controller.message_log.add(
-                f"{target.og_name} has perished!",
-                debug=True
+            engine.message_log.add(
+                f"{target.og_name} has perished!"
             )
-            return
+            
+            return turnable
         
         # Log info to message log.
         if target == engine.player:
-            engine.terminal_controller.message_log.add(
+            engine.message_log.add(
                 f"{self.entity.name} hits you for {self.entity.dmg} points!",
                 debug=True
             )
         elif self.entity == engine.player:
-            engine.terminal_controller.message_log.add(
+            engine.message_log.add(
                 f"You hit {target.name} for {engine.player.dmg} points!",
                 debug=True
             )
         else:
-            engine.terminal_controller.message_log.add(
+            engine.message_log.add(
                 f"{self.entity.name} hits {target.name} for {self.entity.dmg} points! Lol!",
                 debug=True
             )
+        
+        return turnable
 
