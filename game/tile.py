@@ -1,4 +1,4 @@
-from .config import WALL_TILE, FLOOR_TILE
+from .data.config import WALL_TILE, FLOOR_TILE
 
 
 class Tile:
@@ -22,6 +22,6 @@ floor_tile = Tile(
     char=FLOOR_TILE, color="off_white", walkable=True, explored=True)
 
 wall_tile_shrouded = Tile(
-    char=WALL_TILE, color="shrouded_grey", walkable=False, explored=False)
+    char=WALL_TILE, color="black", walkable=False, explored=False)
 floor_tile_shrouded = Tile(
-    char=FLOOR_TILE, color="shrouded_grey", walkable=True, explored=False)
+    char=FLOOR_TILE, color="black", walkable=True, explored=False)

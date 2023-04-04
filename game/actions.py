@@ -37,7 +37,7 @@ class StartNewGameAction(Action):
         
         engine.message_log = MessageLog()
         engine.dungeon.generate()
-        engine.dungeon.spawn_player()
+        engine.dungeon.spawn_player(engine.player)
         engine.dungeon.current_floor.first_room.explore(engine)
         
         return turnable

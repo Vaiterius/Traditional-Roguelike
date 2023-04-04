@@ -34,10 +34,10 @@ class Room:
     def intersects_with(self, room: Room) -> bool:
         """Check if this room is overlapping with another room"""
         return (
-           self.x1 <= room.x2
-           and self.x2 >= room.x1
-           and self.y1 <= room.y2
-           and self.y2 >= room.y1
+           self.x1 <= room.x2 + 1
+           and self.x2 >= room.x1 - 1
+           and self.y1 <= room.y2 + 1
+           and self.y2 >= room.y1 - 1
        )
 
     

@@ -46,8 +46,6 @@ class Engine:
         self.gamestate.render(self)
 
 
-    # TODO make sure actions by player are turnable or not
-    # e.g. running into a wall costs a turn, taking stairs costs a turn, etc.
     def get_valid_action(self) -> bool:
         """Handle player input depending on state"""
         action_or_state = self.gamestate.handle_input(self)

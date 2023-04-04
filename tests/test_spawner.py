@@ -1,6 +1,6 @@
 import random
 
-from game.config import enemies
+from game.data.config import enemies
 
 enemy_data: dict = random.choices(
     population=list(enemies.values()),

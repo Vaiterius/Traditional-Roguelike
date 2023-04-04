@@ -70,7 +70,8 @@ class State(AbstractState):
         engine.terminal_controller.display_map(
             engine.dungeon.current_floor, engine.player)
         engine.terminal_controller.display_message_log(engine.message_log)
-        engine.terminal_controller.display_sidebar(engine.dungeon)
+        engine.terminal_controller.display_sidebar(
+            engine.dungeon, engine.player)
 
 
 class IndexableOptionsState(State):

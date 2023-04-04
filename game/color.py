@@ -13,7 +13,8 @@ class Color:
             curses.init_pair(i + 1, i, -1)
         
         self.supported_colors = {
-            "default": 1,
+            # Default colors.
+            "black": 1,
             "red": 2,
             "green": 3,
             "yellow": 4,
@@ -22,10 +23,13 @@ class Color:
             "cyan": 7,
             "white": 8,
             
+            # Custom colors.
             "off_white": 248,
             "grey": 241,
             "shrouded_grey": 236,
             "blood_red": 53,
+            "forest_green": 23,
+            "brown": 131,
         }
     
 

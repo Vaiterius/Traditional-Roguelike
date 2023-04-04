@@ -16,7 +16,7 @@ from .entities import Creature, Player
 from .color import Color
 from .pathfinding import in_player_fov
 from .render_order import RenderOrder
-from .config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
+from .data.config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
 
 
 def get_filled_bar(percent: float, width: int) -> str:
@@ -141,9 +141,8 @@ class TerminalController:
         window.refresh()
     
     
-    def display_sidebar(self, dungeon: Dungeon) -> None:
+    def display_sidebar(self, dungeon: Dungeon, player: Player) -> None:
         """Display sidebar filled with game and player data"""
-        player = dungeon.player
         floor = dungeon.current_floor
 
         SIDEBAR_HEIGHT: int = self.sidebar_height
