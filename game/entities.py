@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from .color import Color
     from .engine import Engine
 from .render_order import RenderOrder
-from .gamestates import GameOverState
 
 
 class Entity:

@@ -7,7 +7,6 @@ if TYPE_CHECKING:
     from ..entities import Player
     from ..spawner import Spawner
 from .floor import Floor, FloorBuilder
-from ..spawner import Spawner
 
 
 class Dungeon:

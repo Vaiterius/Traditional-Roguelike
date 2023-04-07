@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import curses
 from math import ceil
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Any
 
 if TYPE_CHECKING:
     from .dungeon.floor import Floor
@@ -12,11 +12,13 @@ if TYPE_CHECKING:
     from .message_log import MessageLog
     from .gamestates import State
     from .actions import Action
+    from .save_handling import Save
 from .entities import Creature, Player
 from .color import Color
 from .pathfinding import in_player_fov
 from .render_order import RenderOrder
 from .data.config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
+from .save_handling import fetch_save
 
 
 def get_filled_bar(percent: float, width: int) -> str:
@@ -376,9 +378,75 @@ class TerminalController:
         return cursor_index
     
     
+    def display_saves(self,
+                      saves: list[Save],
+                      cursor_index: int,
+                      title: str) -> int:
+        """
+        Display a list of savefile names as well as metadata beside it.
+        """
+        PANEL_HEIGHT: int = self.game_height // 2
+        PANEL_WIDTH: int = self.game_width // 3
+        
+        # Create the slots and metadata panels.
+        slots_window = curses.newwin(
+            PANEL_HEIGHT, PANEL_WIDTH, 
+            self.game_height // 3,
+            (self.game_width // 2) - PANEL_WIDTH
+        )
+        metadata_window = curses.newwin(
+            PANEL_HEIGHT, PANEL_WIDTH,
+            self.game_height // 3,
+            (self.game_width // 2)
+        )
+        
+        slots_window.erase()
+        slots_window.border()
+        metadata_window.erase()
+        metadata_window.border()
+        
+        # Clamp cursor index.
+        if cursor_index < 0:
+            cursor_index = 0
+        elif cursor_index > len(saves) - 1:
+            cursor_index = len(saves) - 1
+        
+        # Display save slots on slots panel.
+        slots_window.addstr(0, 2, title)
+        first_item_x: int = 1
+        for index, save in enumerate(saves):
+            if save.is_empty:
+                slots_window.addstr(index + first_item_x, 3, "<Empty>")
+                continue
+            slots_window.addstr(
+                index + first_item_x, 3, f"({index + 1}) {save.path}"
+            )
+        slots_window.addstr(first_item_x + cursor_index, 2, '>')
+
+        # Display save info on the other panel.
+        save: Save = fetch_save(saves, cursor_index)
+        if save.is_empty:
+            metadata_window.addstr(1, 1, "<Empty>")
+        else:
+            metadata_window.addstr(
+                1, 1, f"Player: {save.data.get('player').name}")
+            metadata_window.addstr(
+                2, 1,
+                f"Floor: {save.data.get('dungeon').current_floor_idx + 1}")
+            metadata_window.addstr(
+                3, 1, f"Created at: {save.metadata.get('created_at')}")
+            metadata_window.addstr(
+                4, 1, f"Last played: {save.metadata.get('last_played')}")
+        
+        slots_window.refresh()
+        metadata_window.refresh()
+        
+        return cursor_index
+    
+    
     def display_main_menu(self,
                           menu_options: list[tuple[str, Union[Action, State]]],
-                          cursor_index: int) -> None:
+                          cursor_index: int) -> int:
         """Display the menu options for the player"""
         MAIN_MENU_HEIGHT: int = self.game_height
         MAIN_MENU_WIDTH: int = self.game_width
@@ -408,10 +476,9 @@ class TerminalController:
             (MAIN_MENU_HEIGHT // 3) + 1, option_y_pos, WELCOME_SUBMESSAGE)
         
         # Display menu option choices with cursor.
-        for i in range(len(menu_options)):
-            current_option: str = menu_options[i][0]
+        for i, option in enumerate(menu_options):
             window.addstr(
-                MAIN_MENU_HEIGHT // 2 + i, option_y_pos, current_option)
+                MAIN_MENU_HEIGHT // 2 + i, option_y_pos, option[0])
         window.addstr(display_cursor_index, option_y_pos - 2, ">")
         
         window.refresh()

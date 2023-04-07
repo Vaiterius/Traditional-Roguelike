@@ -10,8 +10,7 @@ if TYPE_CHECKING:
     from .dungeon.floor import Floor
 from .render_order import RenderOrder
 from .entities import Entity, Item, Creature, Player
-from .data.creatures import player, enemies
-from .components.component import HostileEnemyAI
+from .data.creatures import enemies, player
 from .data.config import DESCENDING_STAIRCASE_TILE, ASCENDING_STAIRCASE_TILE
 
 class Spawner:
@@ -83,7 +82,10 @@ class Spawner:
     
     def get_player_instance(self) -> Player:
         """Load player data and create an instance out of it"""
-        return Player(
+        # Prevent circular import.
+        from .components.component import Inventory
+
+        player_obj = Player(
             x=-1, y=-1,
             name=player["name"],
             char=player["char"],
@@ -93,10 +95,21 @@ class Spawner:
             mp=player["mp"],
             dmg=player["dmg"]
         )
+        player_obj.add_component("inventory", Inventory(num_slots=16))
+        # TODO remove test items
+        test_item_1 = Item(-1, -1, "test_item_1", "?", "default", RenderOrder.ITEM, False)
+        test_item_2 = Item(-1, -1, "test_item_2", "?", "default", RenderOrder.ITEM, False)
+        test_item_3 = Item(-1, -1, "test_item_3", "?", "default", RenderOrder.ITEM, False)
+        player_obj.inventory.add_items([test_item_1, test_item_2, test_item_3])
+        
+        return player_obj
     
 
     def _get_random_enemy_instance(self) -> Creature:
         """Load enemy data and create an instance out of it"""
+        # Prevent circular import.
+        from .components.component import HostileEnemyAI
+
         # Fetch a random enemy data object.
         enemy_data: dict = random.choices(
             population=list(enemies.values()),

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import curses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union, Any
 
 if TYPE_CHECKING:
     from .dungeon.dungeon import Dungeon
     from .terminal_control import TerminalController
     from .entities import Player
     from .message_log import MessageLog
+    from .save_handling import Save
 from .gamestates import *
 
 
@@ -16,18 +17,19 @@ class Engine:
 
     def __init__(self,
                  screen: curses.initscr,
-                 player: Player,
-                 dungeon: Dungeon,
-                 message_log: MessageLog,
-                 terminal_controller: TerminalController
+                 save: Save,
+                 terminal_controller: TerminalController,
+                 gamestate: State
                  ):
         self.screen = screen
-        self.player = player
-        self.dungeon = dungeon
-        self.message_log = message_log
+        self.save = save
+        self.save_meta: Optional[dict[str, Any]] = None
+        self.player: Optional[Player] = save.data.get("dummy")
+        self.dungeon: Optional[Dungeon] = None
+        self.message_log: Optional[MessageLog] = None
         self.terminal_controller = terminal_controller
         
-        self.gamestate = MainMenuState(self.player)
+        self.gamestate = gamestate
 
 
     def run(self):
@@ -47,8 +49,12 @@ class Engine:
 
 
     def get_valid_action(self) -> bool:
-        """Handle player input depending on state"""
-        action_or_state = self.gamestate.handle_input(self)
+        """Player input will perform an action or change the game state"""
+        action_or_state: Optional[Union[Action, State]] = None
+        while not action_or_state:
+            player_input: str = self.terminal_controller.get_input()
+            action_or_state = self.gamestate.handle_input(player_input)
+
         return self.gamestate.perform(self, action_or_state)  # Can be turnable.
 
 
@@ -63,7 +69,7 @@ class Engine:
         
         # Check if player has died.
         if self.player.is_dead:
-            self.gamestate = GameOverState(self.player)
+            self.gamestate = GameOverState(self.player, self)
             self.message_log.add("Game over!")
             
 

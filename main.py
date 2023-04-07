@@ -1,14 +1,11 @@
 import curses
 
-from game.data.config import *
-from game.render_order import RenderOrder
 from game.engine import Engine
-from game.dungeon.dungeon import Dungeon
-from game.spawner import Spawner
-from game.entities import Item
 from game.terminal_control import TerminalController
-from game.components.component import Inventory
-from game.message_log import MessageLog
+from game.data.config import *
+from game.gamestates import MainMenuState
+from game.save_handling import Save
+from game.entities import Creature
 
 
 def main(screen: curses.initscr):
@@ -17,28 +14,18 @@ def main(screen: curses.initscr):
         screen=screen,
         floor_dimensions=FLOOR_DIMENSIONS
     )
+    # Fill with filler data to start the engine.
+    dummy: Creature = Creature(-1, -1, "", "", "", None, 69, -1)
+    save = Save(
+        slot_index=-1, path=None, data={"dummy": dummy}, metadata=None)
+    gamestate = MainMenuState(dummy)
     
-    spawner = Spawner()
-
-    player = spawner.get_player_instance()
-    player.add_component("inventory", Inventory(num_slots=16))
-    # TODO remove test items
-    test_item_1 = Item(-1, -1, "test_item_1", "?", "default", RenderOrder.ITEM, False)
-    test_item_2 = Item(-1, -1, "test_item_2", "?", "default", RenderOrder.ITEM, False)
-    test_item_3 = Item(-1, -1, "test_item_3", "?", "default", RenderOrder.ITEM, False)
-    player.inventory.add_items([test_item_1, test_item_2, test_item_3])
-
-    dungeon = Dungeon(
-        spawner=spawner,
-        num_floors=NUM_FLOORS,
-        max_enemies_per_floor=MAX_ENEMIES_PER_FLOOR,
-        floor_dimensions=FLOOR_DIMENSIONS,
-        min_max_rooms=MIN_MAX_ROOMS,
-        min_max_room_width=MIN_MAX_ROOM_WIDTH,
-        min_max_room_height=MIN_MAX_ROOM_HEIGHT
+    engine = Engine(
+        screen,
+        save,
+        terminal_controller,
+        gamestate
     )
-
-    engine = Engine(screen, player, dungeon, MessageLog(), terminal_controller)
     engine.run()
 
 
