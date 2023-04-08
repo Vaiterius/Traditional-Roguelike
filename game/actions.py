@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import sys
 import bisect
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from .engine import Engine
     from .entities import Creature, Entity
     from .save_handling import Save
 from .tile import *
+from .save_handling import (
+    save_current_game, create_new_game_save, delete_current_game)
 
 
 class Action:
@@ -29,10 +32,52 @@ class QuitGameAction(Action):
         sys.exit(0)
 
 
+class QuitGameOnDeathAction(Action):
+    """Delete save and return to main menu"""
+
+    def perform(self, engine: Engine):
+        turnable: bool = False
+        
+        delete_current_game(engine)
+        
+        return turnable
+
+
 class FromSavedataAction(Action):
     
-    def __init__(self, save: Save) -> bool:
+    def __init__(self, save: Save, saves_dir: Path, index: int) -> bool:
         self.save = save
+        self.saves_dir = saves_dir
+        self.index = index
+    
+    
+    def _load_data_to_engine(self, engine: Engine, save: Save) -> None:
+        """Loads a given save data into the engine"""
+        engine.save = save
+        engine.save_meta = save.metadata
+        engine.player = save.data.get("player")
+        engine.dungeon = save.data.get("dungeon")
+        engine.message_log = save.data.get("message_log")
+
+
+class SaveAndQuitAction(Action):
+    
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+        
+        save_current_game(engine)
+        
+        return turnable
+
+
+# class SaveCurrentGameAction(FromSavedataAction):
+    
+#     def perform(self, engine: Engine) -> bool:
+#         turnable: bool = False
+        
+#         save_current_game(engine, self.saves_dir, self.index)
+        
+#         return turnable
 
 
 class StartNewGameAction(FromSavedataAction):
@@ -41,11 +86,10 @@ class StartNewGameAction(FromSavedataAction):
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
         
+        create_new_game_save(self.save, self.saves_dir, self.index)
+        
         # TODO add game mode conditional
-        engine.player = self.save.data.get("player")
-        engine.dungeon = self.save.data.get("dungeon")
-        engine.message_log = self.save.data.get("message_log")
-        engine.save_meta = self.save.metadata
+        self._load_data_to_engine(engine, self.save)
         
         engine.dungeon.generate()
         engine.dungeon.spawn_player(engine.player)
@@ -60,12 +104,8 @@ class ContinueGameAction(FromSavedataAction):
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
         
-        engine.player = self.save.data.get("player")
-        engine.dungeon = self.save.data.get("dungeon")
-        engine.message_log = self.save.data.get("message_log")
-        engine.save_meta = self.save.metadata
+        self._load_data_to_engine(engine, self.save)
 
-        engine.dungeon.spawn_player(engine.player)
         engine.dungeon.current_floor.first_room.explore(engine)
         
         return turnable

@@ -23,7 +23,7 @@ class Engine:
                  ):
         self.screen = screen
         self.save = save
-        self.save_meta: Optional[dict[str, Any]] = None
+        self.save_meta: Optional[dict[str, Any]] = {}
         self.player: Optional[Player] = save.data.get("dummy")
         self.dungeon: Optional[Dungeon] = None
         self.message_log: Optional[MessageLog] = None
@@ -55,6 +55,9 @@ class Engine:
             player_input: str = self.terminal_controller.get_input()
             action_or_state = self.gamestate.handle_input(player_input)
 
+        # DEBUG
+        if self.message_log:
+            self.message_log.add(f"action_or_state: {action_or_state.__class__.__name__}", True)
         return self.gamestate.perform(self, action_or_state)  # Can be turnable.
 
 
@@ -68,8 +71,10 @@ class Engine:
                     creature.take_turn(self)
         
         # Check if player has died.
-        if self.player.is_dead:
+        if (
+            self.player.is_dead
+            and isinstance(self.gamestate, ExploreState)
+        ):
             self.gamestate = GameOverState(self.player, self)
             self.message_log.add("Game over!")
-            
 

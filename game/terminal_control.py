@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import curses
 from math import ceil
-from typing import TYPE_CHECKING, Optional, Union, Any
+from typing import TYPE_CHECKING, Optional, Union
 
 if TYPE_CHECKING:
     from .dungeon.floor import Floor
@@ -484,6 +484,15 @@ class TerminalController:
         window.refresh()
         
         return cursor_index
+
+
+    def display_confirm_box(self, option_1: str, option_2: str) -> bool:
+        """Display a confirmation box after an important action.
+        
+        e.g. quitting without saving, overwriting a save
+        """
+        
+        pass
     
 
     def ensure_right_terminal_size(self):

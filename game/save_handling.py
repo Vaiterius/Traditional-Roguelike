@@ -3,7 +3,7 @@ from __future__ import annotations
 import pickle
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Union, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -86,7 +86,10 @@ def fetch_saves(saves_dir: Path) -> list[Save]:
     for path in saves_dir.glob("*.sav"):
         with open(path, "rb") as f:
             save: Save = pickle.load(f)
-            assert is_valid_save(save)
+            try:
+                assert is_valid_save(save)
+            except AssertionError:
+                raise Exception(save.data.get("player"))
             saves.append(save)
 
             if len(saves) >= 5:  # Display only 5 valid saves.
@@ -111,11 +114,38 @@ def fetch_save(saves: list[Save], index: int) -> Save:
     return save
 
 
-# TODO overwrite selected savefile via index
-def create_new_save(engine: Engine, saves_dir: Path, index: int) -> None:
-    """Create a save file in the saves directory"""
+def get_current_save_data(engine: Engine) -> Save:
+    """Fetch the current game data from the engine and into a save object"""
+    return Save(
+        slot_index=engine.save.slot_index,
+        path=engine.save.path,
+        data=engine.save.data,
+        metadata=engine.save.metadata
+    )
+
+
+# def save_current_game(engine: Engine, saves_dir: Path, index: int) -> None:
+def save_current_game(engine: Engine) -> None:
+    """Save filedata from the currently-played game"""
+    current_savegame: Save = get_current_save_data(engine)
+    current_savegame.metadata["last_played"] = datetime.now()  # Update time.
+
+    with open(current_savegame.path, "wb") as f:
+        pickle.dump(current_savegame, f)
+    
+    # save_to_dir(saves_dir, index, current_savegame)
+
+
+def create_new_game_save(save: Save, saves_dir: Path, index: int) -> None:
+    """Create fresh savedata when starting a new game from the main menu"""
+    save_to_dir(saves_dir, index, save)
+
+
+def save_to_dir(saves_dir: Path, index: int, save: Save) -> None:
+    """Save file data given a save in the saves directory"""
     saves_dir.mkdir(parents=True, exist_ok=True)
     
+    # Overwrite save if selected an occupied save.
     occupied_save: Save = fetch_saves(saves_dir)[index]
     if not occupied_save.is_empty:
         path: Path = occupied_save.path
@@ -128,31 +158,16 @@ def create_new_save(engine: Engine, saves_dir: Path, index: int) -> None:
         path = saves_dir / f"mysave({duplicate_index}).sav"
         duplicate_index += 1
     
+    # Update path.
+    save.path = path
     with open(path, "wb") as f:
-        # pickle.dump(get_new_game())
-        pickle.dump(
-            Save(
-                slot_index=index,
-                path=path,
-                data={
-                    "player": engine.player,
-                    "dungeon": engine.dungeon,
-                    "message_log": engine.message_log
-                },
-                metadata={
-                    "created_at": engine.save_meta.get("created_at"),
-                    "last_played": engine.save_meta.get("last_played")
-                }
-            ),
-            f
-        )
+        pickle.dump(save, f)
 
 
-# def overwrite_save(index: int):
-#     pass
-
-
-def delete_save(save: Save) -> None:
-    pass
+def delete_current_game(engine: Engine) -> None:
+    """Permadeath so we must delete the save"""
+    path: Path = engine.save.path
+    if path.exists():
+        path.unlink()
 
     

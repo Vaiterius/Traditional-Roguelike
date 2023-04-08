@@ -9,10 +9,7 @@ if TYPE_CHECKING:
     from .entities import Entity
     from .engine import Engine
 from .actions import *
-from .save_handling import (
-    get_new_game, fetch_saves, create_new_save, delete_save,
-    # overwrite_save
-)
+from .save_handling import get_new_game, fetch_saves
 
 # In order, if applicable: arrow keys, numpad keys, and vi keys.
 MOVE_KEYS = {
@@ -132,8 +129,8 @@ class MainMenuState(IndexableOptionsState):
     def __init__(self, parent: Entity):
         super().__init__(parent)
         self.menu_options: list[tuple[str, Union[Action, State]]] = [
-            ("1) New Game", StartNewFromSavesState(self.parent)),
-            ("2) Continue Game", ContinueFromSavesState(self.parent)),
+            ("1) New Game", StartNewGameMenuState(self.parent)),
+            ("2) Continue Game", ContinueGameMenuState(self.parent)),
             ("3) Help", DoNothingAction(self.parent)),
             ("4) Quit", QuitGameAction(self.parent))
         ]
@@ -166,7 +163,7 @@ class MainMenuState(IndexableOptionsState):
         self.cursor_index = new_cursor_pos
 
 
-class SavesMenuState(IndexableOptionsState):
+class ListSavesMenuState(IndexableOptionsState):
     
     TITLE = "<None>"
     
@@ -180,24 +177,14 @@ class SavesMenuState(IndexableOptionsState):
         new_cursor_pos: int = engine.terminal_controller.display_saves(
             self.saves, self.cursor_index, self.TITLE)
         self.cursor_index = new_cursor_pos
-    
-    
-class ContinueFromSavesState(SavesMenuState):
-    
-    TITLE = "CONTINUE A GAME"
-    
+
+
     def handle_input(
         self, player_input: str) -> Optional[Union[Action, State]]:
-
-        action_or_state: Optional[Union[Action, State]] = None
-        if player_input in CONFIRM_KEYS:
-            save: Save = self.saves[self.cursor_index]
-            if save.is_empty:
-                action_or_state = DoNothingAction(self.parent)
-            else:
-                action_or_state = ContinueGameAction(save)
         
-        elif player_input in MOVE_KEYS:
+        # Handle shared cursor movement for subclasses.
+        action_or_state: Optional[Union[Action, State]] = None
+        if player_input in MOVE_KEYS:
             x, y = MOVE_KEYS[player_input]
             if x == -1 and y == 0:  # Move cursor up.
                 self.cursor_index -= 1
@@ -206,13 +193,6 @@ class ContinueFromSavesState(SavesMenuState):
                 self.cursor_index += 1
                 action_or_state = DoNothingAction(self.parent)
         
-        # Go back to main menu.
-        elif player_input in BACK_KEYS:
-            action_or_state = MainMenuState(self.parent)
-        
-        elif player_input in EXIT_KEYS:
-            action_or_state = QuitGameAction(self.parent)
-        
         return action_or_state
     
     
@@ -224,9 +204,12 @@ class ContinueFromSavesState(SavesMenuState):
         if isinstance(action_or_state, Action):
             turnable = action_or_state.perform(engine)
             
-            # Play from savefile or from newly-created savefile if empty slot.
-            if isinstance(action_or_state, ContinueGameAction):
-                create_new_save(engine, self.saves_dir, self.cursor_index)
+            # Go explore after starting a new game or continuing a
+            # previously-saved game.
+            if (
+                isinstance(action_or_state, StartNewGameAction)
+                or isinstance(action_or_state, ContinueGameAction)
+            ):
                 engine.gamestate = ExploreState(engine.player)
             
         elif isinstance(action_or_state, State):
@@ -236,36 +219,22 @@ class ContinueFromSavesState(SavesMenuState):
         return turnable
     
 
-class StartNewFromSavesState(SavesMenuState):
+class StartNewGameMenuState(ListSavesMenuState):
     
     TITLE = "START A NEW GAME"
     
     def handle_input(
         self, player_input: str) -> Optional[Union[Action, State]]:
         
-        action_or_state: Optional[Union[Action, State]] = None
+        action_or_state: Optional[Union[Action, State]] = \
+            super().handle_input(player_input)
+        if action_or_state is not None:
+            return action_or_state
+
         if player_input in CONFIRM_KEYS:
-            # Create save into any slot.
-            # save: Save = self.saves[self.cursor_index]
             action_or_state = StartNewGameAction(
-                get_new_game(self.cursor_index))
-            # # Delete and replace occupied save.
-            # else:
-            #     path: Path = self.saves_dir / save.path.name
-            #     if path.exists():
-            #         path.unlink()
-            #         action_or_state = StartNewGameAction(
-            #             get_new_game(self.cursor_index))
-                
-        
-        elif player_input in MOVE_KEYS:
-            x, y = MOVE_KEYS[player_input]
-            if x == -1 and y == 0:  # Move cursor up.
-                self.cursor_index -= 1
-                action_or_state = DoNothingAction(self.parent)
-            if x == 1 and y == 0:  # Move cursor down.
-                self.cursor_index += 1
-                action_or_state = DoNothingAction(self.parent)
+                get_new_game(self.cursor_index),
+                self.saves_dir, self.cursor_index)
         
         # Go back to main menu.
         elif player_input in BACK_KEYS:
@@ -275,31 +244,36 @@ class StartNewFromSavesState(SavesMenuState):
             action_or_state = QuitGameAction(self.parent)
         
         return action_or_state
+
+
+class ContinueGameMenuState(ListSavesMenuState):
     
+    TITLE = "CONTINUE A GAME"
     
-    def perform(self,
-                engine: Engine,
-                action_or_state: Union[Action, State]) -> bool:
-        """Perform an action or switch to another state from input"""
-        turnable: bool = False
-        if isinstance(action_or_state, Action):
-            turnable = action_or_state.perform(engine)
-            
-            # Create savefile and play it, replacing any occupied save.
-            if isinstance(action_or_state, StartNewGameAction):
-                # save: Save = self.saves[self.cursor_index]
-                # if save.is_empty:
-                #     create_new_save(self.saves_dir, self.cursor_index)
-                # else:
-                #     overwrite_save(self.saves_dir, self.cursor_index)
-                create_new_save(engine, self.saves_dir, self.cursor_index)
-                engine.gamestate = ExploreState(engine.player)
-            
-        elif isinstance(action_or_state, State):
-            engine.gamestate = action_or_state
-            engine.gamestate.on_enter(engine)
+    def handle_input(
+        self, player_input: str) -> Optional[Union[Action, State]]:
+
+        action_or_state: Optional[Union[Action, State]] = \
+            super().handle_input(player_input)
+        if action_or_state is not None:
+            return action_or_state
+
+        if player_input in CONFIRM_KEYS:
+            save: Save = self.saves[self.cursor_index]
+            if save.is_empty:  # Can't continue an empty save.
+                action_or_state = DoNothingAction(self.parent)
+            else:
+                action_or_state = ContinueGameAction(
+                    save, self.saves_dir, self.cursor_index)
         
-        return turnable
+        # Go back to main menu.
+        elif player_input in BACK_KEYS:
+            action_or_state = MainMenuState(self.parent)
+        
+        elif player_input in EXIT_KEYS:
+            action_or_state = QuitGameAction(self.parent)
+        
+        return action_or_state
 
 
 # TODO delete current save
@@ -308,16 +282,26 @@ class GameOverState(State):
     
     def __init__(self, parent: Entity, engine: Engine):
         super().__init__(parent)
-        delete_save(engine.save)
+
         
     def handle_input(
         self, player_input: str) -> Optional[Union[Action, State]]:
         action_or_state: Optional[Union[Action, State]] = None
             
         if player_input in EXIT_KEYS:
-            action_or_state = QuitGameAction(self.parent)
+            action_or_state = QuitGameOnDeathAction(self.parent)
         
         return action_or_state
+    
+    
+    def perform(
+        self, engine: Engine, action_or_state: Union[Action, State]) -> bool:
+        turnable: bool = super().perform(engine, action_or_state)
+
+        if isinstance(action_or_state, QuitGameOnDeathAction):
+            engine.gamestate = MainMenuState(self.parent)
+        
+        return turnable
 
     
     def render(self, engine: Engine) -> None:
@@ -342,20 +326,30 @@ class ExploreState(State):
             action_or_state = BumpAction(self.parent, dx=x, dy=y)
         elif player_input in WAIT_KEYS:
             action_or_state = DoNothingAction(self.parent)
-        elif player_input in EXIT_KEYS:
-            action_or_state = QuitGameAction(self.parent)
         elif player_input == '>':
             action_or_state = DescendStairsAction(self.parent)
         elif player_input == '<':
             action_or_state = AscendStairsAction(self.parent)
         
         # Change state.
+        elif player_input in EXIT_KEYS:  # Save and return to main menu.
+            action_or_state = SaveAndQuitAction(self.parent)
         elif player_input == 'i':
             return InventoryMenuState(self.parent)
         elif player_input == 'm':
             return MainMenuState(self.parent)
         
         return action_or_state
+    
+    
+    def perform(
+        self, engine: Engine, action_or_state: Union[Action, State]) -> bool:
+        turnable: bool = super().perform(engine, action_or_state)
+
+        if isinstance(action_or_state, SaveAndQuitAction):
+            engine.gamestate = MainMenuState(self.parent)
+        
+        return turnable
 
 
     def render(self, engine: Engine) -> None:

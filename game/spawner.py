@@ -60,8 +60,8 @@ class Spawner:
     
     def spawn_player(self, player: Player, room: Room) -> None:
         """Place the player in a selected room"""
-        rand_x, rand_y = room.get_center_cell()  # On top of a staircase.
-        player.x, player.y =  rand_x, rand_y
+        x, y = room.get_center_cell()  # On top of a staircase.
+        player.x, player.y =  x, y
         self.add_to_sorted_entities(room.floor.entities, player)
     
     
