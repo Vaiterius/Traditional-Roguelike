@@ -27,11 +27,14 @@ class Save:
     @property
     def is_empty(self) -> bool:
         return (
-            self.slot_index == -1
-            and self.path is None
+            self.path is None
             and self.data is None
             and self.metadata is None
         )
+    
+    @classmethod
+    def get_empty(cls) -> Save:
+        return cls(-1, None, None, None)
 
 
 def get_new_game(slot_index: int) -> Save:
@@ -83,21 +86,26 @@ def fetch_saves(saves_dir: Path) -> list[Save]:
         saves_dir.mkdir()
         
     saves: list[Save] = []
+    indices_inside: set[int] = set()  # Tracking which slot indices are filled.
     for path in saves_dir.glob("*.sav"):
         with open(path, "rb") as f:
             save: Save = pickle.load(f)
             try:
                 assert is_valid_save(save)
             except AssertionError:
-                raise Exception(save.data.get("player"))
+                raise Exception("Corrupted save")
             saves.append(save)
+            indices_inside.add(save.slot_index)
 
             if len(saves) >= 5:  # Display only 5 valid saves.
                 break
     
-    # Fill empty slots.
-    while len(saves) < 5:
-        saves.append(Save(-1, None, None, None))
+    # Order the save slots by their indices.
+    for i in range(5):
+        if i in indices_inside:
+            continue
+        saves.append(Save(i, None, None, None))
+    saves.sort(key=lambda save: save.slot_index)
 
     return saves
 
@@ -107,9 +115,12 @@ def fetch_save(saves: list[Save], index: int) -> Save:
     save: Save = saves[index]
     if save.is_empty:
         return save
-    with open(save.path, "rb") as f:
-        save: Save = pickle.load(f)
-        assert is_valid_save(save)
+    try:
+        with open(save.path, "rb") as f:
+            save: Save = pickle.load(f)
+            assert is_valid_save(save)
+    except FileNotFoundError:
+        return Save.get_empty()
         
     return save
 
@@ -124,7 +135,6 @@ def get_current_save_data(engine: Engine) -> Save:
     )
 
 
-# def save_current_game(engine: Engine, saves_dir: Path, index: int) -> None:
 def save_current_game(engine: Engine) -> None:
     """Save filedata from the currently-played game"""
     current_savegame: Save = get_current_save_data(engine)
@@ -132,13 +142,6 @@ def save_current_game(engine: Engine) -> None:
 
     with open(current_savegame.path, "wb") as f:
         pickle.dump(current_savegame, f)
-    
-    # save_to_dir(saves_dir, index, current_savegame)
-
-
-def create_new_game_save(save: Save, saves_dir: Path, index: int) -> None:
-    """Create fresh savedata when starting a new game from the main menu"""
-    save_to_dir(saves_dir, index, save)
 
 
 def save_to_dir(saves_dir: Path, index: int, save: Save) -> None:
@@ -147,10 +150,7 @@ def save_to_dir(saves_dir: Path, index: int, save: Save) -> None:
     
     # Overwrite save if selected an occupied save.
     occupied_save: Save = fetch_saves(saves_dir)[index]
-    if not occupied_save.is_empty:
-        path: Path = occupied_save.path
-        if path.exists():
-            path.unlink()
+    delete_save_slot(occupied_save)
     
     path = saves_dir / "mysave.sav"
     duplicate_index: int = 1
@@ -164,10 +164,10 @@ def save_to_dir(saves_dir: Path, index: int, save: Save) -> None:
         pickle.dump(save, f)
 
 
-def delete_current_game(engine: Engine) -> None:
-    """Permadeath so we must delete the save"""
-    path: Path = engine.save.path
-    if path.exists():
-        path.unlink()
+def delete_save_slot(save: Save) -> None:
+    if not save.is_empty:
+        path: Path = save.path
+        if path.exists():
+            path.unlink()
 
     

@@ -11,7 +11,11 @@ if TYPE_CHECKING:
     from .save_handling import Save
 from .tile import *
 from .save_handling import (
-    save_current_game, create_new_game_save, delete_current_game)
+    save_current_game,
+    save_to_dir,
+    delete_save_slot,
+    fetch_saves
+)
 
 
 class Action:
@@ -32,18 +36,19 @@ class QuitGameAction(Action):
         sys.exit(0)
 
 
-class QuitGameOnDeathAction(Action):
+class OnPlayerDeathAction(Action):
     """Delete save and return to main menu"""
 
-    def perform(self, engine: Engine):
+    def perform(self, engine: Engine) -> bool:
         turnable: bool = False
         
-        delete_current_game(engine)
+        delete_save_slot(engine.save)
         
         return turnable
 
 
 class FromSavedataAction(Action):
+    """Base action given save information"""
     
     def __init__(self, save: Save, saves_dir: Path, index: int) -> bool:
         self.save = save
@@ -60,7 +65,22 @@ class FromSavedataAction(Action):
         engine.message_log = save.data.get("message_log")
 
 
+class DeleteSaveAction(FromSavedataAction):
+    """Delete the selected save slot by index"""
+    
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+        
+        # Delete save and refresh saves list.
+        save: Save = fetch_saves(self.saves_dir)[self.index]
+        delete_save_slot(save)
+        engine.gamestate.saves = fetch_saves(self.saves_dir)
+        
+        return turnable
+
+
 class SaveAndQuitAction(Action):
+    """Saves the game before player quits"""
     
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
@@ -70,23 +90,13 @@ class SaveAndQuitAction(Action):
         return turnable
 
 
-# class SaveCurrentGameAction(FromSavedataAction):
-    
-#     def perform(self, engine: Engine) -> bool:
-#         turnable: bool = False
-        
-#         save_current_game(engine, self.saves_dir, self.index)
-        
-#         return turnable
-
-
 class StartNewGameAction(FromSavedataAction):
-    """Start the dungeon anew"""
+    """Start the dungeon crawling on the selected gamemode"""
 
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
         
-        create_new_game_save(self.save, self.saves_dir, self.index)
+        save_to_dir(self.saves_dir, self.index, self.save)
         
         # TODO add game mode conditional
         self._load_data_to_engine(engine, self.save)
@@ -106,7 +116,7 @@ class ContinueGameAction(FromSavedataAction):
         
         self._load_data_to_engine(engine, self.save)
 
-        engine.dungeon.current_floor.first_room.explore(engine)
+        engine.message_log.add(f"Welcome back, {engine.player.name}!")
         
         return turnable
 

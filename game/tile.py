@@ -21,6 +21,9 @@ wall_tile = Tile(
 floor_tile = Tile(
     char=FLOOR_TILE, color="off_white", walkable=True, explored=True)
 
+main_menu_tile = Tile(
+    char=WALL_TILE, color="grey", walkable=False, explored=False
+)
 wall_tile_shrouded = Tile(
     char=WALL_TILE, color="black", walkable=False, explored=False)
 floor_tile_shrouded = Tile(

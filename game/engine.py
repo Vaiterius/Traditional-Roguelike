@@ -52,7 +52,10 @@ class Engine:
         """Player input will perform an action or change the game state"""
         action_or_state: Optional[Union[Action, State]] = None
         while not action_or_state:
-            player_input: str = self.terminal_controller.get_input()
+            player_input: Optional[str] = None
+            if not self.gamestate.bypassable:  # Skip input or not.
+                player_input = self.terminal_controller.get_input()
+ 
             action_or_state = self.gamestate.handle_input(player_input)
 
         # DEBUG

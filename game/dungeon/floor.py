@@ -24,7 +24,7 @@ class Floor:
         self.rooms: list[Room] = []
         self.entities: list[Union[Player, Creature, Item]] = []
         
-        self.dungeon: Dungeon = None
+        self.dungeon: Optional[Dungeon] = None
 
         self.descending_staircase_location: tuple[int, int] = None
         self.ascending_staircase_location: tuple[int, int] = None
@@ -87,10 +87,10 @@ class FloorBuilder:
         )
     
     
-    def place_walls(self):
+    def place_walls(self, tile_type: Tile = wall_tile_shrouded):
         """Fill the floor with wall tiles"""
         self._floor.tiles = [
-            [wall_tile_shrouded for x in range(self.floor_width)]
+            [tile_type for x in range(self.floor_width)]
             for y in range(self.floor_height)
         ]
         return self
@@ -189,7 +189,7 @@ class FloorBuilder:
         return self
     
     
-    def build(self, dungeon: Dungeon):
+    def build(self, dungeon: Optional[Dungeon]):
         """Return the completed floor"""
         self._floor.dungeon = dungeon  # Pass dungeon reference.
         return self._floor
