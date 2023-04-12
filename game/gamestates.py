@@ -467,6 +467,8 @@ class ExploreState(State):
             action_or_state = DescendStairsAction(self.parent)
         elif player_input == '<':
             action_or_state = AscendStairsAction(self.parent)
+        elif player_input == 'p':
+            action_or_state = PickUpItemAction(self.parent)
         
         # Change state.
         elif player_input in EXIT_KEYS:  # Save and return to main menu.
@@ -516,11 +518,27 @@ class InventoryMenuState(IndexableOptionsState):
         elif player_input in CONFIRM_KEYS:
             action_or_state = DoNothingAction(self.parent)  # TODO
         
+        # TEST
+        elif player_input == 'd':
+            item: Optional[Item] = self.parent.inventory.get_item(
+                self.cursor_index)
+            if item:
+                action_or_state = DropItemAction(self.parent, item)
         # Change state.
         elif player_input == 'i':
             action_or_state = ExploreState(self.parent)
         
         return action_or_state
+
+    
+    def perform(
+        self, engine: Engine, action_or_state: Union[Action, State]) -> bool:
+        turnable: bool = super().perform(engine, action_or_state)
+
+        if isinstance(action_or_state, DropItemAction):
+            engine.gamestate = ExploreState(self.parent)
+        
+        return turnable
 
 
     def render(self, engine: Engine) -> None:

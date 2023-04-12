@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import sys
 import bisect
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from pathlib import Path
     from .engine import Engine
-    from .entities import Creature, Entity
+    from .entities import Creature, Entity, Item
     from .save_handling import Save
+    from .components.inventory import Inventory
+    from .dungeon.floor import Floor
 from .tile import *
 from .save_handling import (
     save_current_game,
@@ -27,6 +29,69 @@ class Action:
     def perform(self) -> None:
         """Overridable method"""
         pass
+
+
+class ItemAction(Action):
+    """Base item action for an entity performing something with it"""
+
+    def __init__(self, entity: Entity, item: Item):
+        super().__init__(entity)
+        self.item = item
+
+
+class PickUpItemAction(Action):
+    """Pick an item from off the floor and add it to inventory"""
+    
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+        
+        inventory: Inventory = self.entity.inventory
+        floor: Floor = engine.dungeon.current_floor
+        item_to_pick_up: Optional[Item] = None
+        
+        # Check if an item actually exists at the carrier's location.
+        for item in floor.items:
+            if item.x == self.entity.x and item.y == self.entity.y:
+                item_to_pick_up = item
+        
+        # No item found underneath entity.
+        if item_to_pick_up is None:
+            engine.message_log.add("Nothing to be picked up here", color="red")
+            return turnable
+
+        # Not enough space in carrier's inventory.
+        if inventory.size > inventory.max_slots:
+            if self.entity == engine.player:
+                engine.message_log.add(
+                    "There is not enough space in your inventory", color="red")
+            return turnable
+        
+        # Pick up the item.
+        floor.entities.remove(item)
+        inventory.add_item(item)
+        
+        engine.message_log.add(
+            f"You picked up: {item.name.lower()}", color="blue")
+
+        return turnable
+        
+
+class DropItemAction(ItemAction):
+    """Remove from inventory and drop an item onto the floor"""
+    
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+
+        inventory: Inventory = self.entity.inventory
+        floor: Floor = engine.dungeon.current_floor
+
+        inventory.remove_item(self.item)
+        self.item.place(floor, self.entity.x, self.entity.y)
+
+        engine.message_log.add(
+            f"You dropped: {self.item.name.lower()}", color="blue")
+        
+        return turnable
 
 
 class QuitGameAction(Action):
@@ -116,7 +181,8 @@ class ContinueGameAction(FromSavedataAction):
         
         self._load_data_to_engine(engine, self.save)
 
-        engine.message_log.add(f"Welcome back, {engine.player.name}!")
+        engine.message_log.add(
+            f"Welcome back, {engine.player.name}!", color="blue")
         
         return turnable
 
@@ -142,21 +208,23 @@ class DescendStairsAction(Action):
         
         # Ensure there exists a staircase to begin with.
         if floor.descending_staircase_location is None:
+            engine.message_log.add("Can't descend here", color="red")
             return turnable
         
-        # Player is standing on the staircase tile.
+        # Check if player is standing on the staircase tile.
         staircase_x, staircase_y = floor.descending_staircase_location 
-        if player_x == staircase_x and player_y == staircase_y:
+        if not (player_x == staircase_x and player_y == staircase_y):
+            engine.message_log.add("Can't descend here", color="red")
+            return turnable
             
-            # Go down a level.
-            engine.dungeon.current_floor_idx += 1
-            room_to_spawn = engine.dungeon.current_floor.first_room
-            engine.dungeon.spawner.spawn_player(
-                engine.player, room_to_spawn)
-            room_to_spawn.explore(self)
-            
-            engine.message_log.add(
-                "You descend a level...")
+        # Go down a level.
+        engine.dungeon.current_floor_idx += 1
+        room_to_spawn = engine.dungeon.current_floor.first_room
+        engine.dungeon.spawner.spawn_player(engine.player, room_to_spawn)
+        room_to_spawn.explore(self)
+        
+        engine.message_log.add(
+            "You descend a level...", color="blue")
         
         return turnable
 
@@ -174,21 +242,24 @@ class AscendStairsAction(Action):
         
         # Ensure there exists a staircase to begin with.
         if floor.ascending_staircase_location is None:
+            engine.message_log.add("Can't ascend here", color="red")
             return turnable
         
-        # Player is standing on the staircase tile.
+        # Check if player is standing on the staircase tile.
         staircase_x, staircase_y = floor.ascending_staircase_location 
-        if player_x == staircase_x and player_y == staircase_y:
+        if not (player_x == staircase_x and player_y == staircase_y):
+            engine.message_log.add("Can't ascend here", color="red")
+            return turnable
             
-            # Go up a level.
-            engine.dungeon.current_floor_idx -= 1
-            room_to_spawn = engine.dungeon.current_floor.last_room
-            engine.dungeon.spawner.spawn_player(
-                engine.player, room_to_spawn)
-            room_to_spawn.explore(self)
-            
-            engine.message_log.add(
-                "You ascend a level...")
+        # Go up a level.
+        engine.dungeon.current_floor_idx -= 1
+        room_to_spawn = engine.dungeon.current_floor.last_room
+        engine.dungeon.spawner.spawn_player(
+            engine.player, room_to_spawn)
+        room_to_spawn.explore(self)
+        
+        engine.message_log.add(
+            "You ascend a level...", color="blue")
         
         return turnable
 
@@ -261,13 +332,20 @@ class WalkAction(ActionWithDirection):
         desired_x = self.entity.x + self.dx
         desired_y = self.entity.y + self.dy
 
-        # TODO Get within bounds (turns out I don't need to do this?).
+        # Get within bounds.
+        if (
+            (desired_x > floor.height - 1 or desired_x < 0)
+            or (desired_y > floor.width - 1 or desired_y < 0)
+        ):
+            engine.message_log.add("Out of bounds", color="red")
+            return turnable
+
         # Get blocking tiles.
         if not floor.tiles[desired_x][desired_y].walkable:
             if self.entity == engine.player:
-                engine.message_log.add(
-                    "That way is blocked")
+                engine.message_log.add("That way is blocked", color="red")
             return turnable
+
         # Get blocking entities.
         if floor.blocking_entity_at(desired_x, desired_y):
             return turnable
@@ -306,6 +384,9 @@ class MeleeAction(ActionWithDirection):
             engine.message_log.add(
                 f"{target.og_name} has perished!"
             )
+            if self.entity == engine.player:
+                engine.message_log.add(
+                    f"You slayed {target.og_name}!", color="green")
             
             return turnable
         
@@ -313,16 +394,17 @@ class MeleeAction(ActionWithDirection):
         if target == engine.player:
             engine.message_log.add(
                 f"{self.entity.name} hits you for {self.entity.dmg} points!",
-                debug=True
+                debug=True, color="red"
             )
         elif self.entity == engine.player:
             engine.message_log.add(
                 f"You hit {target.name} for {engine.player.dmg} points!",
-                debug=True
+                debug=True, color="blue"
             )
         else:
             engine.message_log.add(
-                f"{self.entity.name} hits {target.name} for {self.entity.dmg} points! Lol!",
+                f"{self.entity.name} hits {target.name} for {self.entity.dmg}"
+                "points! Lol!",
                 debug=True
             )
         

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import copy
-import bisect
 import random
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .dungeon.room import Room
     from .dungeon.floor import Floor
+from .components.inventory import Inventory
 from .render_order import RenderOrder
 from .entities import Entity, Item, Creature, Player
 from .data.creatures import enemies, player
@@ -32,12 +32,6 @@ class Spawner:
         self.ascending_staircase.char = ASCENDING_STAIRCASE_TILE
 
 
-    def add_to_sorted_entities(self,
-        entities: list[Union[Player, Creature, Item]], entity: Entity) -> None:
-        """Keep entities list sorted when adding for render order"""
-        bisect.insort(entities, entity, key=lambda x: x.render_order.value)
-    
-    
     def spawn_staircase(
         self, floor: Floor, x: int, y: int, type: str) -> Entity:
         """Place a descending or ascending staircase somewhere in the level"""
@@ -53,7 +47,7 @@ class Spawner:
         staircase.x = x
         staircase.y = y
         
-        self.add_to_sorted_entities(floor.entities, staircase)
+        floor.add_entity(staircase)
         
         return staircase
         
@@ -62,7 +56,7 @@ class Spawner:
         """Place the player in a selected room"""
         x, y = room.get_center_cell()  # On top of a staircase.
         player.x, player.y =  x, y
-        self.add_to_sorted_entities(room.floor.entities, player)
+        room.floor.add_entity(player)
     
     
     def spawn_enemy(self, room: Room) -> None:
@@ -72,7 +66,7 @@ class Spawner:
         enemy: Creature = self._get_random_enemy_instance()
         enemy.x, enemy.y = x, y
         
-        self.add_to_sorted_entities(room.floor.entities, enemy)
+        room.floor.add_entity(enemy)
     
     
     def spawn_item(self, room: Room) -> None:
@@ -82,9 +76,6 @@ class Spawner:
     
     def get_player_instance(self) -> Player:
         """Load player data and create an instance out of it"""
-        # Prevent circular import.
-        from .components.component import Inventory
-
         player_obj = Player(
             x=-1, y=-1,
             name=player["name"],
@@ -108,7 +99,7 @@ class Spawner:
     def _get_random_enemy_instance(self) -> Creature:
         """Load enemy data and create an instance out of it"""
         # Prevent circular import.
-        from .components.component import HostileEnemyAI
+        from .components.ai import HostileEnemyAI
 
         # Fetch a random enemy data object.
         enemy_data: dict = random.choices(

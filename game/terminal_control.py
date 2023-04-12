@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import random
 import curses
-from functools import reduce
 from math import ceil
 from typing import TYPE_CHECKING, Optional
 
@@ -11,7 +10,7 @@ if TYPE_CHECKING:
     from .dungeon.dungeon import Dungeon
     from .entities import Entity, Item
     from .components.component import Inventory
-    from .message_log import MessageLog
+    from .message_log import Message, MessageLog
     from .gamestates import MenuOption
     from .save_handling import Save
 from .dungeon.floor import FloorBuilder
@@ -149,8 +148,10 @@ class TerminalController:
         window.addstr(0, 2, "MESSAGE LOG")
         cursor = 0
         for i in range(MESSAGE_LOG_HEIGHT - 2, 0, -1):
-            message = str(message_log.get(cursor))
-            window.addstr(i, 2, message)  # TODO color code the messages.
+            message: Message = message_log.get(cursor)
+            message_text = str(message)
+            color: str = message.color
+            window.addstr(i, 2, message_text, self.colors.get_color(color))
             cursor += 1
             if cursor > message_log.size() - 1:
                 break

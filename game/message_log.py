@@ -4,9 +4,14 @@ from collections import deque
 class Message:
     """Hold message content and other relevant info"""
     
-    def __init__(self, message: str):
+    def __init__(self, message: str, debug: bool = False, color: str = ""):
         self.message = message
+        self.debug = debug
+        self.color = color
         self.count = 1
+        
+        if debug:
+            self.message = "[DEBUG] " + self.message
     
     
     def __str__(self):
@@ -17,11 +22,12 @@ class Message:
 
 class MessageLog:
     """Message logger for game display"""
-    GREETING_MESSAGE = "Welcome to <unnamed game>!"
+    
+    START_MESSAGE = Message("Welcome to <unnamed game>!", color="blue")
     
     def __init__(self):
-        self.messages: deque = deque([Message(self.GREETING_MESSAGE)])
-        self.history: deque = deque([Message(self.GREETING_MESSAGE)])
+        self.messages: deque = deque([self.START_MESSAGE])
+        self.history: deque = deque([self.START_MESSAGE])
     
     
     def get(self, index: int) -> str:
@@ -32,14 +38,11 @@ class MessageLog:
         return len(self.messages)
 
 
-    def add(self, message: str, debug: bool = False) -> None:
+    def add(self, message: str, debug: bool = False, color: str = "") -> None:
         if isinstance(message, int):
             message = str(message)
 
-        if debug:
-            message = "[DEBUG] " + message
-        
-        new_message = Message(message)    
+        new_message = Message(message, debug, color)    
         
         # Message is the same as the previous.
         if new_message.message == self.messages[0].message:
@@ -51,4 +54,4 @@ class MessageLog:
     
     
     def clear(self) -> None:
-        self.messages = deque([Message(self.GREETING_MESSAGE)])
+        self.messages = deque([self.START_MESSAGE])

@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from .components.component import BaseComponent
     from .color import Color
     from .engine import Engine
+    from .dungeon.floor import Floor
 from .render_order import RenderOrder
 
 
@@ -48,7 +49,13 @@ class Entity:
 
 class Item(Entity):
     """A holdable or usable thing to a creature"""
-    pass
+    
+    def place(self, floor: Floor, x: int, y: int) -> None:
+        """Place this somewhere on the map"""
+        floor.add_entity(self)
+
+        self.x = x
+        self.y = y
 
 
 class Creature(Entity):

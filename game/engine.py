@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 import curses
 from typing import TYPE_CHECKING, Optional, Union, Any
 
@@ -35,6 +36,7 @@ class Engine:
     def run(self):
         """Starting the game"""
         # Main game loop.
+        # TODO exception handling for errors
         while True:
             self.display()
             turnable: bool = self.get_valid_action()
@@ -79,5 +81,5 @@ class Engine:
             and isinstance(self.gamestate, ExploreState)
         ):
             self.gamestate = GameOverState(self.player, self)
-            self.message_log.add("Game over!")
+            self.message_log.add("Game over!", color="blue")
 

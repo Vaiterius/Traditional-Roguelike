@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import bisect
 import random
 from typing import Iterator, Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .dungeon import Dungeon
-    from ..entities import Player
+    from ..entities import Entity, Player
     from ..tile import Tile
     from ..spawner import Spawner
 from .room import Room
@@ -73,6 +74,12 @@ class Floor:
             if entity.x == x and entity.y == y and entity.blocking:
                 return entity
         return None
+    
+    
+    def add_entity(self, entity: Entity) -> None:
+        """Keep entities list sorted when adding by render order"""
+        bisect.insort(
+            self.entities, entity, key=lambda x: x.render_order.value)
 
 
 class FloorBuilder:
