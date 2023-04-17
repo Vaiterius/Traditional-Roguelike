@@ -1,6 +1,7 @@
 # Numerical configurations.
 NUM_FLOORS: int = 5
 MAX_ENEMIES_PER_FLOOR = 5  # Add more as dungeon progresses.
+MAX_ITEMS_PER_FLOOR = 5  # Same here.
 MAX_ITEMS_PER_FLOOR = 3
 FLOOR_DIMENSIONS: tuple[int] = (80, 23)
 MIN_MAX_ROOMS: tuple[int] = (6, 9)

@@ -39,6 +39,15 @@ class ItemAction(Action):
         self.item = item
 
 
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+        
+        if self.item.get_component("consumable") is not None:
+            self.item.consumable.perform(engine)
+        
+        return turnable
+
+
 class PickUpItemAction(Action):
     """Pick an item from off the floor and add it to inventory"""
     
@@ -84,6 +93,9 @@ class DropItemAction(ItemAction):
 
         inventory: Inventory = self.entity.inventory
         floor: Floor = engine.dungeon.current_floor
+        
+        # TODO
+        # unequip item if it is equippable
 
         inventory.remove_item(self.item)
         self.item.place(floor, self.entity.x, self.entity.y)

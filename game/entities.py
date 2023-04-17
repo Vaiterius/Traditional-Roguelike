@@ -21,7 +21,7 @@ class Entity:
                  char: str,
                  color: Color,
                  render_order: RenderOrder,
-                 blocking: bool,):
+                 blocking: bool):
         self.x = x
         self.y = y
         self.name = name
@@ -49,6 +49,7 @@ class Entity:
 
 class Item(Entity):
     """A holdable or usable thing to a creature"""
+    parent: Optional[Creature]
     
     def place(self, floor: Floor, x: int, y: int) -> None:
         """Place this somewhere on the map"""

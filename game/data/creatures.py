@@ -1,4 +1,6 @@
-player: dict = {
+from typing import Any
+
+player: dict[str, Any] = {
     "name": "Player",
     "char": '@',
     "color": "blue",
@@ -7,7 +9,7 @@ player: dict = {
     "dmg": 5
 }
 
-enemies: dict[str, dict] = {
+enemies: dict[str, dict[str, Any]] = {
     # Rare enemies (spawn % <10).
     "vampire": {
         "name": "Vampire",

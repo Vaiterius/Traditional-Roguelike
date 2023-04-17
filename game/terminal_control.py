@@ -55,7 +55,7 @@ class TerminalController:
         self.colors = Color()  # Fetch available character tile colors.
         
         # Keep track for enemies around sidebar.
-        self.enemies_in_fov = []
+        self.entities_in_fov = []
         
         curses.curs_set(0)  # Hide cursor.
         
@@ -104,8 +104,8 @@ class TerminalController:
         # Display tiles.
         window.erase()
         window.border()
-        player_info_temp = f"Dungeon Level {floor.dungeon.current_floor_idx + 1}"
-        window.addstr(0, 2, player_info_temp)
+        dungeon_level = f"DUNGEON LEVEL {floor.dungeon.current_floor_idx + 1}"
+        window.addstr(0, 2, f"[ {dungeon_level} ]")
         for x in range(MAP_HEIGHT):
             for y in range(MAP_WIDTH):
                 window.addstr(
@@ -122,7 +122,7 @@ class TerminalController:
                 and not isinstance(entity, Player)
                 and entity.render_order != RenderOrder.CORPSE
             ):
-                self.enemies_in_fov.append(entity)
+                self.entities_in_fov.append(entity)
             window.addstr(
                 entity.x + 1,
                 entity.y + 1,
@@ -145,7 +145,7 @@ class TerminalController:
         window.erase()
         window.border()
 
-        window.addstr(0, 2, "MESSAGE LOG")
+        window.addstr(0, 2, "[ MESSAGE LOG ]")
         cursor = 0
         for i in range(MESSAGE_LOG_HEIGHT - 2, 0, -1):
             message: Message = message_log.get(cursor)
@@ -173,7 +173,7 @@ class TerminalController:
         window.erase()
         
         # PLAYER SECTION #
-        PLAYER_SECTION_HEADER = "PLAYER"
+        PLAYER_SECTION_HEADER = "[ PLAYER ]"
         PLAYER_START_X = 0
         PLAYER_HEIGHT = 7
         player_subwindow = window.subwin(
@@ -183,7 +183,10 @@ class TerminalController:
             self.floor_width + 2)
         player_subwindow.erase()
         player_subwindow.border()
-        player_subwindow.addstr(0, 2, PLAYER_SECTION_HEADER)
+        player_header_center_y = self._get_message_center_x(
+            PLAYER_SECTION_HEADER, SIDEBAR_WIDTH)
+        player_subwindow.addstr(
+            0, player_header_center_y, PLAYER_SECTION_HEADER)
         player_subwindow.addstr(
             1, 1, player.char, self.colors.get_color(player.color))
         player_subwindow.addstr(1, 3, player.name)
@@ -216,7 +219,7 @@ class TerminalController:
 
 
         # ATTRIBUTES SECTION #
-        ATTRIBUTES_SECTION_HEADER = "ATTRIBUTES"
+        ATTRIBUTES_SECTION_HEADER = "[ ATTRIBUTES ]"
         ATTRIBUTES_START_X = PLAYER_START_X + PLAYER_HEIGHT
         ATTRIBUTES_HEIGHT = 6
         attributes_subwindow = window.subwin(
@@ -226,7 +229,10 @@ class TerminalController:
             self.floor_width + 2)
         attributes_subwindow.erase()
         attributes_subwindow.border()
-        attributes_subwindow.addstr(0, 2, ATTRIBUTES_SECTION_HEADER)
+        attributes_header_center_y = self._get_message_center_x(
+            ATTRIBUTES_SECTION_HEADER, SIDEBAR_WIDTH)
+        attributes_subwindow.addstr(
+            0, attributes_header_center_y, ATTRIBUTES_SECTION_HEADER)
         attributes_subwindow.addstr(1, 1, f"STR: {player.str}")
         attributes_subwindow.addstr(2, 1, f"AGI: {player.agi}")
         attributes_subwindow.addstr(3, 1, f"CON: {player.con}")
@@ -234,7 +240,7 @@ class TerminalController:
 
 
         # STANDING ON SECTION #
-        STANDING_ON_SECTION_HEADER = "STANDING ON"
+        STANDING_ON_SECTION_HEADER = "[ STANDING ON ]"
         STANDING_ON_START_X = ATTRIBUTES_START_X + ATTRIBUTES_HEIGHT
         STANDING_ON_HEIGHT = 6
         standing_on_subwindow = window.subwin(
@@ -244,7 +250,10 @@ class TerminalController:
             self.floor_width + 2)
         standing_on_subwindow.erase()
         standing_on_subwindow.border()
-        standing_on_subwindow.addstr(0, 2, STANDING_ON_SECTION_HEADER)
+        standing_on_header_center_y = self._get_message_center_x(
+            STANDING_ON_SECTION_HEADER, SIDEBAR_WIDTH)
+        standing_on_subwindow.addstr(
+            0, standing_on_header_center_y - 1, STANDING_ON_SECTION_HEADER)
         
         # Display non-blocking entities that player is current on the tile of.
         # Filter for same tile as player but do not show player.
@@ -270,126 +279,159 @@ class TerminalController:
 
 
         # ENEMIES AROUND SECTION #
-        ENEMIES_AROUND_SECTION_HEADER = "ENEMIES AROUND"
-        ENEMIES_AROUND_START_X = STANDING_ON_START_X + STANDING_ON_HEIGHT
-        ENEMIES_AROUND_HEIGHT = 11
-        enemies_around_subwindow = window.subwin(
-            ENEMIES_AROUND_HEIGHT,
+        ENTITIES_SECTION_HEADER = "[ ENTITIES ]"
+        ENTITIES_START_X = STANDING_ON_START_X + STANDING_ON_HEIGHT
+        ENTITIES_HEIGHT = SIDEBAR_HEIGHT - ENTITIES_START_X
+        entities_subwindow = window.subwin(
+            ENTITIES_HEIGHT,
             SIDEBAR_WIDTH,
-            ENEMIES_AROUND_START_X,
+            ENTITIES_START_X,
             self.floor_width + 2)
-        enemies_around_subwindow.erase()
-        enemies_around_subwindow.border()
-        enemies_around_subwindow.addstr(0, 2, ENEMIES_AROUND_SECTION_HEADER)
+        entities_subwindow.erase()
+        entities_subwindow.border()
+        entities_header_center_y: int = self._get_message_center_x(
+            ENTITIES_SECTION_HEADER, SIDEBAR_WIDTH)
+        entities_subwindow.addstr(
+            0, entities_header_center_y, ENTITIES_SECTION_HEADER)
 
-        # Display surrounding enemies and their health bars.
-        displayable_enemies_in_fov: list[Creature] = self.enemies_in_fov[:4]
-        # Can only show 4 enemies at a time.
+        # Display surrounding entities and their health bars.
+        max_entities_for_display: int = 6
+        displayable_entities_in_fov: list[Creature] = \
+            self.entities_in_fov[:max_entities_for_display]
+        # Show a certain number of entities at a time.
         enemy_iter: int = 1
-        for enemy in displayable_enemies_in_fov:
-            hp_percent = enemy.hp / enemy.max_hp
-            enemies_around_subwindow.addstr(
+        for entity in displayable_entities_in_fov:
+            hp_percent = entity.hp / entity.max_hp
+            entities_subwindow.addstr(
             # Display enemy name.
-            enemy_iter, 1, f"{enemy.char} {enemy.name}",
-            self.colors.get_color(enemy.color))
+            enemy_iter, 1, f"{entity.char} {entity.name}",
+            self.colors.get_color(entity.color))
             
-            # Display enemy healthbar.
+            # Display entity healthbar if they are a creature.
             enemy_hp_bar: str = get_filled_bar(hp_percent, SIDEBAR_WIDTH - 2)
-            enemies_around_subwindow.addstr(
+            entities_subwindow.addstr(
                 enemy_iter + 1, 1,
                 enemy_hp_bar,
                 self.colors.get_color("green"))
             red_enemy_hp_bar: str = get_unfilled_bar(
                 len(enemy_hp_bar), SIDEBAR_WIDTH - 2)
-            enemies_around_subwindow.addstr(
+            entities_subwindow.addstr(
                 enemy_iter + 1, 1 + len(enemy_hp_bar),
                 red_enemy_hp_bar,
                 self.colors.get_color("red"))
             enemy_iter += 2
 
-        # Rest of enemies don't fit on the sidebar, so count the rest.
-        remaining_enemies_in_fov: int = len(self.enemies_in_fov) \
-                                        - len(displayable_enemies_in_fov)
-        if remaining_enemies_in_fov > 0:
-            enemies_around_subwindow.addstr(
-                9, 1, f"    and {remaining_enemies_in_fov} more...")
+        # Rest of entities don't fit on the sidebar, so count the rest.
+        remaining_entities_in_fov: int = len(self.entities_in_fov) \
+                                        - len(displayable_entities_in_fov)
+        if remaining_entities_in_fov > 0:
+            entities_subwindow.addstr(
+                ENTITIES_HEIGHT - 2, 1,
+                f"    and {remaining_entities_in_fov} more...")
         
         # Then reset.
-        self.enemies_in_fov = []
+        self.entities_in_fov = []
 
 
-        # HELP SECTION #
-        HELP_SECTION_HEADER = "HELP"
-        HELP_START_X = ENEMIES_AROUND_START_X + ENEMIES_AROUND_HEIGHT
-        HELP_HEIGHT = 5
-        help_subwindow = window.subwin(
-            HELP_HEIGHT,
-            SIDEBAR_WIDTH,
-            HELP_START_X,
-            self.floor_width + 2)
-        help_subwindow.erase()
-        help_subwindow.border()
-        help_subwindow.addstr(0, 2, HELP_SECTION_HEADER)
-        help_subwindow.addstr(1, 1, "Press:")
-        help_subwindow.addstr(2, 1, "'?' for commands list")
-        help_subwindow.addstr(3, 1, "'/' for symbol legend")
-        
         window.refresh()
         player_subwindow.refresh()
         attributes_subwindow.refresh()
         standing_on_subwindow.refresh()
-        enemies_around_subwindow.refresh()
-        help_subwindow.refresh()
+        entities_subwindow.refresh()
+        # help_subwindow.refresh()
 
 
     def display_inventory(self,
                           inventory: Inventory,
                           cursor_index: int) -> int:
         """Display the inventory menu for player to select through"""
-        INVENTORY_HEIGHT: int = inventory.max_slots + 2
-        INVENTORY_WIDTH: int = 40
 
-        # Topleft corner where the new window will be positioned at.
-        origin_x = (self.game_height // 2) - (INVENTORY_HEIGHT // 2)
-        origin_y = (self.game_width // 2) - (INVENTORY_WIDTH // 2)
+        # SELECTION MENU WINDOW #
+        SELECTION_WINDOW_HEIGHT: int = inventory.max_slots + 3
+        SELECTION_WINDOW_WIDTH: int = 28
+        # ITEM INFO WINDOW #
+        ITEM_INFO_HEIGHT: int = SELECTION_WINDOW_HEIGHT
+        ITEM_INFO_WIDTH: int = 38
+        
+        COMBINED_WIDTH: int = SELECTION_WINDOW_WIDTH + ITEM_INFO_WIDTH
 
-        # Create the inventory window itself.
-        window = curses.newwin(
-            INVENTORY_HEIGHT, INVENTORY_WIDTH, origin_x, origin_y)
+        # Topleft corner point for the selection window.
+        selection_window_origin_x: int = (self.game_height // 2) - \
+            SELECTION_WINDOW_HEIGHT // 2
+        selection_window_origin_y: int = (self.game_width // 2) - \
+            COMBINED_WIDTH // 2
+        # Topleft corner point for the item info window.
+        item_info_window_origin_x: int = (self.game_height // 2) - \
+            SELECTION_WINDOW_HEIGHT // 2
+        item_info_window_origin_y: int = selection_window_origin_y + \
+            SELECTION_WINDOW_WIDTH
+
+        # Create the selection window itself.
+        selection_window = curses.newwin(
+            SELECTION_WINDOW_HEIGHT, SELECTION_WINDOW_WIDTH,
+            selection_window_origin_x, selection_window_origin_y
+        )
+        # Create the item info window itself.
+        item_info_window = curses.newwin(
+            ITEM_INFO_HEIGHT, ITEM_INFO_WIDTH,
+            item_info_window_origin_x, item_info_window_origin_y
+        )
         
         HEADER_TEXT = "INVENTORY"
         
-        window.erase()
-        window.border()
-        window.addstr(
-            0, (INVENTORY_WIDTH // 2) - (len(HEADER_TEXT) // 2), HEADER_TEXT)
+        selection_window.erase()
+        selection_window.border()
+        item_info_window.erase()
+        item_info_window.border()
+        selection_window.addstr(0, 2, HEADER_TEXT, curses.A_REVERSE)
 
         # Validate cursor position.
         if cursor_index < 0:
             cursor_index = 0
         elif cursor_index > inventory.max_slots - 1:
             cursor_index = inventory.max_slots - 1
-            
-        window.addstr(cursor_index + 1, 2, ">")
 
-        # Show inventory items.
+        # List out inventory items.
         SINGLE_DIGIT_ADDON = ' '  # Line up the numbers neatly.
         for index in range(inventory.max_slots):
             item: Optional[Item] = inventory.get_item(index)
             
-            index += 1  # Shift from 0-9 numbering to 1-10.
+            # Shift from 0-9 numbering to 1-10.
+            index += 1
             if index > 9:
                 SINGLE_DIGIT_ADDON = ''
             
+            # Highlight the currently selected index item.
+            optional_highlight = curses.A_NORMAL
+            if index == cursor_index + 1:
+                optional_highlight = curses.A_REVERSE
+            
+            # Fill the slot value.
+            slot_value: str = SINGLE_DIGIT_ADDON + "(" + str(index) + ") "
             if item:
-                window.addstr(
-                    index, 4,
-                    SINGLE_DIGIT_ADDON + str(index) + ") " + item.name)
+                slot_value += item.name
             else:
-                window.addstr(
-                    index, 4, SINGLE_DIGIT_ADDON + str(index) + ") N/A")
+                slot_value += "<Empty>"
+            
+            selection_window.addstr(
+                index + 1, 2, slot_value, optional_highlight)
         
-        window.refresh()
+        # Display currently-selected item's info.
+        selected_item: Optional[Item] = inventory.get_item(cursor_index)
+        if selected_item is None:
+            item_info_window.addstr(1, 1, "<Empty>")
+        else:
+            item_info_window.addstr(1, 1, f"Name: {selected_item.name}")
+            # TODO Item description.
+            # TODO Item stats.
+            if selected_item.get_component("consumable"):
+                pass
+            elif selected_item.get_component("equippable"):
+                pass
+            item_info_window.addstr(2, 1, "Item info not implemented.")
+        
+        selection_window.refresh()
+        item_info_window.refresh()
         
         return cursor_index
     
