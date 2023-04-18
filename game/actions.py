@@ -180,7 +180,6 @@ class StartNewGameAction(FromSavedataAction):
         
         engine.dungeon.generate()
         engine.dungeon.spawn_player(engine.player)
-        engine.dungeon.current_floor.first_room.explore(engine)
         
         return turnable
 
@@ -233,7 +232,6 @@ class DescendStairsAction(Action):
         engine.dungeon.current_floor_idx += 1
         room_to_spawn = engine.dungeon.current_floor.first_room
         engine.dungeon.spawner.spawn_player(engine.player, room_to_spawn)
-        room_to_spawn.explore(self)
         
         engine.message_log.add(
             "You descend a level...", color="blue")
@@ -268,7 +266,6 @@ class AscendStairsAction(Action):
         room_to_spawn = engine.dungeon.current_floor.last_room
         engine.dungeon.spawner.spawn_player(
             engine.player, room_to_spawn)
-        room_to_spawn.explore(self)
         
         engine.message_log.add(
             "You ascend a level...", color="blue")
@@ -276,37 +273,37 @@ class AscendStairsAction(Action):
         return turnable
 
 
-class ExploreAction(Action):
-    """Reveal the room and tunnels the player is in"""
+# class ExploreAction(Action):
+#     """Reveal the room and tunnels the player is in"""
     
-    def perform(self, engine: Engine) -> bool:
-        turnable: bool = False
+#     def perform(self, engine: Engine) -> bool:
+#         turnable: bool = False
 
-        floor = engine.dungeon.current_floor
+#         floor = engine.dungeon.current_floor
 
-        player_x = engine.player.x
-        player_y = engine.player.y
+#         player_x = engine.player.x
+#         player_y = engine.player.y
 
-        # Reveal room.
-        for room in floor.unexplored_rooms:
-            if (
-                player_x >= room.x1
-                and player_x <= room.x2
-                and player_y >= room.y1
-                and player_y <= room.y2
-            ):
-                room.explore(engine)
+#         # Reveal room.
+#         for room in floor.unexplored_rooms:
+#             if (
+#                 player_x >= room.x1
+#                 and player_x <= room.x2
+#                 and player_y >= room.y1
+#                 and player_y <= room.y2
+#             ):
+#                 room.explore(engine)
         
-        # Reveal one surrounding tile distance of tunnel.
-        tiles = floor.tiles
-        for x in range(player_x - 1, player_x + 2):
-            for y in range(player_y - 1, player_y + 2):
-                if tiles[x][y].char == WALL_TILE:
-                    tiles[x][y] = wall_tile
-                else:
-                    tiles[x][y] = floor_tile
+#         # Reveal one surrounding tile distance of tunnel.
+#         tiles = floor.tiles
+#         for x in range(player_x - 1, player_x + 2):
+#             for y in range(player_y - 1, player_y + 2):
+#                 if tiles[x][y].char == WALL_TILE:
+#                     tiles[x][y] = wall_tile
+#                 else:
+#                     tiles[x][y] = floor_tile
                     
-        return turnable
+#         return turnable
 
 
 class ActionWithDirection(Action):
@@ -367,8 +364,8 @@ class WalkAction(ActionWithDirection):
         self.entity.move(dx=self.dx, dy=self.dy)
         
         # Explore environment around player.
-        if self.entity == engine.player:
-            ExploreAction(self.entity).perform(engine)
+        # if self.entity == engine.player:
+        #     ExploreAction(self.entity).perform(engine)
         
         return turnable
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import traceback
 import curses
 from typing import TYPE_CHECKING, Optional, Union, Any
 
@@ -11,6 +10,7 @@ if TYPE_CHECKING:
     from .message_log import MessageLog
     from .save_handling import Save
 from .gamestates import *
+from .fov import compute_fov
 
 
 class Engine:
@@ -47,6 +47,25 @@ class Engine:
 
     def display(self) -> None:
         """Display the game to the screen"""
+        # Player's field of view.
+        if isinstance(self.gamestate, ExploreState):
+            tiles: list[list[Tile]] = self.dungeon.current_floor.tiles
+            
+            def mark_visible(x: int, y: int) -> None:
+                if tiles[x][y].char == WALL_TILE:
+                    tiles[x][y] = wall_tile
+                else:
+                    tiles[x][y] = floor_tile
+            
+            def is_blocking(x: int, y: int) -> bool:
+                return not tiles[x][y].walkable
+            
+            compute_fov(
+                origin=(self.player.x, self.player.y),
+                is_blocking=is_blocking,
+                mark_visible=mark_visible
+            )
+        
         self.gamestate.render(self)
 
 

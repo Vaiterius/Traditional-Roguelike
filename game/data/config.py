@@ -1,4 +1,5 @@
 # Numerical configurations.
+MAX_FOV_DISTANCE: int = 9
 NUM_FLOORS: int = 5
 MAX_ENEMIES_PER_FLOOR = 5  # Add more as dungeon progresses.
 MAX_ITEMS_PER_FLOOR = 5  # Same here.
