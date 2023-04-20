@@ -15,15 +15,23 @@ class Tile:
         self.explored = explored
 
 
-# Walls and floors.
-wall_tile = Tile(
-    char=WALL_TILE, color="off_white", walkable=False, explored=True)
-floor_tile = Tile(
-    char=FLOOR_TILE, color="off_white", walkable=True, explored=True)
+# WALLS AND FLOORS #
 
-main_menu_tile = Tile(
-    char=WALL_TILE, color="grey", walkable=False, explored=False
+# Tiles in FOV.
+wall_tile = Tile(
+    char=WALL_TILE, color="white", walkable=False, explored=True)
+floor_tile = Tile(
+    char=FLOOR_TILE, color="white", walkable=True, explored=True)
+
+# Tiles explored but not in FOV.
+wall_tile_dim = Tile(
+    char=WALL_TILE, color="grey", walkable=False, explored=True
 )
+floor_tile_dim = Tile(
+    char=FLOOR_TILE, color="grey", walkable=True, explored=True
+)
+
+# Tiles unexplored.
 wall_tile_shrouded = Tile(
     char=WALL_TILE, color="black", walkable=False, explored=False)
 floor_tile_shrouded = Tile(

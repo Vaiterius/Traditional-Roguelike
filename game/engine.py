@@ -31,6 +31,9 @@ class Engine:
         self.terminal_controller = terminal_controller
         
         self.gamestate = gamestate
+        
+        # Displayed and refreshed at runtime.
+        self.tiles_in_fov: dict[tuple[int, int], Tile] = {}
 
 
     def run(self):
@@ -49,16 +52,18 @@ class Engine:
         """Display the game to the screen"""
         # Player's field of view.
         if isinstance(self.gamestate, ExploreState):
-            tiles: list[list[Tile]] = self.dungeon.current_floor.tiles
+            floor: Floor = self.dungeon.current_floor
             
             def mark_visible(x: int, y: int) -> None:
-                if tiles[x][y].char == WALL_TILE:
-                    tiles[x][y] = wall_tile
+                if floor.tiles[x][y].char == WALL_TILE:
+                    floor.explored_tiles[(x, y)] = wall_tile_dim
+                    self.tiles_in_fov[(x, y)] = wall_tile
                 else:
-                    tiles[x][y] = floor_tile
+                    floor.explored_tiles[(x, y)] = floor_tile_dim
+                    self.tiles_in_fov[(x, y)] = floor_tile
             
             def is_blocking(x: int, y: int) -> bool:
-                return not tiles[x][y].walkable
+                return not floor.tiles[x][y].walkable
             
             compute_fov(
                 origin=(self.player.x, self.player.y),
@@ -67,6 +72,7 @@ class Engine:
             )
         
         self.gamestate.render(self)
+        self.tiles_in_fov = {}  # Refresh.
 
 
     def get_valid_action(self) -> bool:
@@ -81,8 +87,9 @@ class Engine:
 
         # DEBUG
         if self.message_log:
-            self.message_log.add(f"action_or_state: {action_or_state.__class__.__name__}", True)
-        return self.gamestate.perform(self, action_or_state)  # Can be turnable.
+            self.message_log.add(
+                f"action_or_state: {action_or_state.__class__.__name__}", True)
+        return self.gamestate.perform(self, action_or_state)
 
 
     def process(self) -> None:

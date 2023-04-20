@@ -181,6 +181,8 @@ class StartNewGameAction(FromSavedataAction):
         engine.dungeon.generate()
         engine.dungeon.spawn_player(engine.player)
         
+        save_current_game(engine)
+        
         return turnable
 
 
@@ -273,39 +275,6 @@ class AscendStairsAction(Action):
         return turnable
 
 
-# class ExploreAction(Action):
-#     """Reveal the room and tunnels the player is in"""
-    
-#     def perform(self, engine: Engine) -> bool:
-#         turnable: bool = False
-
-#         floor = engine.dungeon.current_floor
-
-#         player_x = engine.player.x
-#         player_y = engine.player.y
-
-#         # Reveal room.
-#         for room in floor.unexplored_rooms:
-#             if (
-#                 player_x >= room.x1
-#                 and player_x <= room.x2
-#                 and player_y >= room.y1
-#                 and player_y <= room.y2
-#             ):
-#                 room.explore(engine)
-        
-#         # Reveal one surrounding tile distance of tunnel.
-#         tiles = floor.tiles
-#         for x in range(player_x - 1, player_x + 2):
-#             for y in range(player_y - 1, player_y + 2):
-#                 if tiles[x][y].char == WALL_TILE:
-#                     tiles[x][y] = wall_tile
-#                 else:
-#                     tiles[x][y] = floor_tile
-                    
-#         return turnable
-
-
 class ActionWithDirection(Action):
     """Base action with x,y directioning"""
 
@@ -362,10 +331,6 @@ class WalkAction(ActionWithDirection):
         turnable = True
 
         self.entity.move(dx=self.dx, dy=self.dy)
-        
-        # Explore environment around player.
-        # if self.entity == engine.player:
-        #     ExploreAction(self.entity).perform(engine)
         
         return turnable
 

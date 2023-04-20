@@ -63,18 +63,3 @@ class Room:
         return rand_x, rand_y
     
     
-    # def explore(self, engine: Engine) -> None:
-    #     """Explore and reveal room"""
-    #     self.explored = True
-
-    #     tiles: list[list[Tile]] = self.floor.tiles
-    #     for x in range(self.x1 - 1, self.x2 + 1):
-    #         for y in range(self.y1 - 1, self.y2 + 1):
-                
-    #             if tiles[x][y].char == WALL_TILE:
-    #                 tiles[x][y] = wall_tile
-    #             else:
-    #                 tiles[x][y] = floor_tile
-                
-    
-    

@@ -1,45 +1,3 @@
-from __future__ import annotations
-
-import math
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .entities import Entity, Player
-    from .dungeon.floor import Floor
-from .entities import Creature
-
-
-
-def distance_from(x1: int, y1: int, x2: int, y2: int) -> float:
-    """Distance formula"""
-    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-
-
-def in_player_fov(
-    player: Player, entity: Entity, floor: Floor) -> bool:
-    """Return whether player is able to see an entity"""
-    TILE_RANGE: int = 10
-    
-    # Able to see discovered items and other non-creatures on the map.
-    if not isinstance(entity, Creature) and floor.tiles[entity.x][entity.y].explored:
-        return True
-    
-    # Save resources and compute if within reasonable range.
-    if distance_from(entity.x, entity.y, player.x, player.y) <= TILE_RANGE:
-
-        # Line of sight is blocked.
-        paths: list[tuple[int, int]] = bresenham_path_to(
-            entity.x, entity.y, player.x, player.y)
-        blocked: bool = any(
-            [not floor.tiles[x][y].walkable for x,y in paths])
-        
-        if blocked or not floor.tiles[entity.x][entity.y].explored:
-            return False
-        
-        return True
-    return False
-
-
 def bresenham_path_to(x1: int, y1: int, x2: int, y2: int) -> list[tuple[int, int]]:
     """Get a set coordinate points following a path to desired x and y.
     Useful for FOV and basic pathfinding.
@@ -89,3 +47,4 @@ def bresenham_path_to(x1: int, y1: int, x2: int, y2: int) -> list[tuple[int, int
     if swapped:
         points.reverse()
     return points
+

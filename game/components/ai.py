@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import random
 from typing import TYPE_CHECKING
 
@@ -8,7 +9,7 @@ if TYPE_CHECKING:
     from ..entities import Entity
 from ..components.component import BaseComponent
 from ..actions import Action, BumpAction
-from ..pathfinding import distance_from, bresenham_path_to
+from ..pathfinding import bresenham_path_to
 
 
 class BaseAI(Action, BaseComponent):
@@ -32,9 +33,9 @@ class BaseAI(Action, BaseComponent):
         boundary between them
         """
         player_x, player_y = engine.player.x, engine.player.y
-        distance_from_player: float = distance_from(
-            player_x, player_y,
-            self.entity.x, self.entity.y
+        distance_from_player: float = math.dist(
+            (player_x, player_y),
+            (self.entity.x, self.entity.y)
         )
         
         # Checking for blocked tiles in enemy paths.

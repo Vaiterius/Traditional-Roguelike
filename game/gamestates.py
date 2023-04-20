@@ -123,7 +123,7 @@ class State(AbstractState):
         """Display the map, message_log, and sidebars"""
         engine.terminal_controller.ensure_right_terminal_size()
         engine.terminal_controller.display_map(
-            engine.dungeon.current_floor, engine.player)
+            engine.dungeon.current_floor, engine.tiles_in_fov)
         engine.terminal_controller.display_message_log(engine.message_log)
         engine.terminal_controller.display_sidebar(
             engine.dungeon, engine.player)

@@ -18,7 +18,6 @@ from .tile import *
 from .data.config import *
 from .entities import Creature, Player
 from .color import Color
-from .pathfinding import in_player_fov
 from .render_order import RenderOrder
 from .data.config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
 from .save_handling import fetch_save
@@ -93,7 +92,9 @@ class TerminalController:
         self.screen.refresh()
     
     
-    def display_map(self, floor: Floor, player: Player) -> None:
+    def display_map(self,
+                    floor: Floor,
+                    tiles_in_fov: dict[tuple[int, int], Tile]) -> None:
         """Display the dungeon map itself"""
         MAP_HEIGHT: int = self.map_height
         MAP_WIDTH: int = self.map_width
@@ -106,29 +107,32 @@ class TerminalController:
         window.border()
         dungeon_level = f"DUNGEON LEVEL {floor.dungeon.current_floor_idx + 1}"
         window.addstr(0, 2, f"[ {dungeon_level} ]")
-        for x in range(MAP_HEIGHT):
-            for y in range(MAP_WIDTH):
-                window.addstr(
-                    x + 1, y + 1,
-                    floor.tiles[x][y].char,
-                    self.colors.get_color(floor.tiles[x][y].color))
+        for pos, tile in floor.explored_tiles.items():
+            x, y = pos
+            window.addstr(
+                x + 1, y + 1, tile.char, self.colors.get_color(tile.color))
+        for pos, tile in tiles_in_fov.items():
+            x, y = pos
+            window.addstr(
+                x + 1, y + 1, tile.char, self.colors.get_color(tile.color))
 
         # Display entities (they should be in sorted render order).
+        entities: list[Entity] = []
         for entity in floor.entities:
-            if not in_player_fov(player, entity, floor):
+            if not (entity.x, entity.y) in tiles_in_fov:
                 continue
-            if (  # Filter for live enemies to be displayed in the sidebar.
-                isinstance(entity, Creature)
-                and not isinstance(entity, Player)
-                and entity.render_order != RenderOrder.CORPSE
+            if (  # Filter non-enemies and non-items.
+                (isinstance(entity, Creature)
+                or isinstance(entity, Item))
+                and (not isinstance(entity, Player)
+                and entity.render_order != RenderOrder.CORPSE)
             ):
                 self.entities_in_fov.append(entity)
             window.addstr(
-                entity.x + 1,
-                entity.y + 1,
-                entity.char,
+                entity.x + 1, entity.y + 1, entity.char,
                 self.colors.get_color(entity.color)
             )
+            entities.append(entity.name)
         
         window.refresh()
     
@@ -682,9 +686,9 @@ class TerminalController:
         num_rooms: int = random.randint(15, 20)
         floor: Floor = (
             FloorBuilder((self.game_width - 2, self.game_height - 2))
-            .place_walls(tile_type=main_menu_tile)
-            .place_rooms(num_rooms, MIN_MAX_ROOM_WIDTH, MIN_MAX_ROOM_HEIGHT)
-            .place_tunnels()
+            .place_walls(tile_type=wall_tile_dim)
+            .place_rooms(num_rooms, MIN_MAX_ROOM_WIDTH, MIN_MAX_ROOM_HEIGHT, floor_tile_dim)
+            .place_tunnels(floor_tile_dim)
         ).build(dungeon=None)
         return floor.tiles
 

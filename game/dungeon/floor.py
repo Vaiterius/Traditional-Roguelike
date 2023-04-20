@@ -22,6 +22,8 @@ class Floor:
         self.height = height
 
         self.tiles: list[list[Tile]] = []
+        self.explored_tiles: dict[tuple[int, int], Tile] = {}
+        
         self.rooms: list[Room] = []
         self.entities: list[Union[Player, Creature, Item]] = []
         
@@ -109,7 +111,8 @@ class FloorBuilder:
     def place_rooms(self,
                     num_rooms: int,
                     min_max_room_width: tuple[int, int],
-                    min_max_room_height: tuple[int, int]):
+                    min_max_room_height: tuple[int, int],
+                    tile_type: Tile = floor_tile_shrouded):
         """Algorithm to scatter randomly-sized rooms across the floor"""
         min_room_width, max_room_width = min_max_room_width
         min_room_height, max_room_height = min_max_room_height
@@ -143,14 +146,14 @@ class FloorBuilder:
             # Start "digging" the room.
             for x in range(room.x1, room.x2):
                 for y in range(room.y1, room.y2):
-                    self._floor.tiles[x][y] = floor_tile_shrouded
+                    self._floor.tiles[x][y] = tile_type
             
             self._floor.rooms.append(room)
         
         return self
     
     
-    def place_tunnels(self):
+    def place_tunnels(self, tile_type: Tile = floor_tile_dim):
         """Build a tunnel path from one room to the next"""
         rooms: list[Room] = self._floor.rooms
         for room in rooms:
@@ -160,7 +163,7 @@ class FloorBuilder:
                 r2_cell = rooms[-2].get_random_cell()
 
                 for x, y in self._get_tunnel_set(r1_cell, r2_cell):
-                    self._floor.tiles[x][y] = floor_tile_shrouded
+                    self._floor.tiles[x][y] = tile_type
         
         return self
     
