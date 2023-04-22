@@ -62,6 +62,7 @@ class PickUpItemAction(Action):
         for item in floor.items:
             if item.x == self.entity.x and item.y == self.entity.y:
                 item_to_pick_up = item
+                break
         
         # No item found underneath entity.
         if item_to_pick_up is None:
@@ -78,6 +79,7 @@ class PickUpItemAction(Action):
         # Pick up the item.
         floor.entities.remove(item)
         inventory.add_item(item)
+        item.parent = self.entity
         
         engine.message_log.add(
             f"You picked up: {item.name.lower()}", color="blue")

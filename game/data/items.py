@@ -1,13 +1,20 @@
 from typing import Any
 
-potions: dict[str, dict[str, Any]] = {
+restoration_potions: dict[str, dict[str, Any]] = {
     "potion_of_restore_health": {
         "name": "Potion of Restore Health",
-        "char": '?',
+        "char": '!',
         "color": "white",
-        "yield": 5,
-        "spawn_chance": 25
+        "yield": 10,
+        "spawn_chance": 50
     },
+    "potion_of_restore_magicka": {
+        "name": "Potion of Restore Magicka",
+        "char": "!",
+        "color": "white",
+        "yield": 10,
+        "spawn_chance": 50
+    }
 }
 
 weapons: dict[str, dict[str, Any]] = {}

@@ -439,7 +439,6 @@ class ExploreState(State):
 
     def on_enter(self, engine: Engine) -> None:
         self.render(engine)
-        engine.get_valid_action()
 
 
     def handle_input(
@@ -467,6 +466,7 @@ class ExploreState(State):
             action_or_state = DescendStairsAction(self.parent)
         elif player_input == '<':
             action_or_state = AscendStairsAction(self.parent)
+        # Pick up item.
         elif player_input == 'p':
             action_or_state = PickUpItemAction(self.parent)
         
@@ -477,7 +477,7 @@ class ExploreState(State):
                 self.parent, self, self.confirm_box_savequit, "save and quit"
             )
             self.bypassable = True
-        elif player_input == 'i':
+        elif player_input == '\t' or player_input == 'i':
             return InventoryMenuState(self.parent)
         elif player_input == 'm':
             return MainMenuState(self.parent)
@@ -501,7 +501,7 @@ class ExploreState(State):
 
 class InventoryMenuState(IndexableOptionsState):
     """Handles selection/dropping/using of items in player inventory"""
-    
+
     def handle_input(
         self, player_input: str) -> Optional[Union[Action, State]]:
         
@@ -515,17 +515,25 @@ class InventoryMenuState(IndexableOptionsState):
                 self.cursor_index += 1
                 action_or_state = DoNothingAction(self.parent)
         
+        # Use item.
         elif player_input in CONFIRM_KEYS:
-            action_or_state = DoNothingAction(self.parent)  # TODO
+            item: Optional[Item] = self.parent.inventory.get_item(
+                self.cursor_index)
+            if item is not None and item.get_component("consumable") is not None:
+                action_or_state = item.consumable.get_action_or_state(
+                    self.parent)
+            else:
+                action_or_state = DoNothingAction(self.parent)
         
-        # TEST
+        # Drop Item.
         elif player_input == 'd':
             item: Optional[Item] = self.parent.inventory.get_item(
                 self.cursor_index)
             if item:
                 action_or_state = DropItemAction(self.parent, item)
-        # Change state.
-        elif player_input == 'i':
+        # Switch back from inventory.
+        elif player_input == '\t' or player_input == 'i' or \
+            player_input in BACK_KEYS:
             action_or_state = ExploreState(self.parent)
         
         return action_or_state
@@ -535,7 +543,9 @@ class InventoryMenuState(IndexableOptionsState):
         self, engine: Engine, action_or_state: Union[Action, State]) -> bool:
         turnable: bool = super().perform(engine, action_or_state)
 
-        if isinstance(action_or_state, DropItemAction):
+        # An item was activated.
+        if isinstance(action_or_state, DropItemAction) or \
+            isinstance(action_or_state, ItemAction):
             engine.gamestate = ExploreState(self.parent)
         
         return turnable

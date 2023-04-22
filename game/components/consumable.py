@@ -33,12 +33,47 @@ class Consumable(BaseComponent):
             consumer.inventory.remove_item(self.owner)
 
 
-class HealingConsumable(Consumable):
-    """Apply healing effects on consumption"""
+class RestoreConsumable(Consumable):
+    """Restore some attribute on consumption"""
+    
+    def __init__(self, yield_amount: int):
+        self.yield_amount = yield_amount
+
+
+class RestoreHealthConsumable(RestoreConsumable):
+    """Restore health on consumption"""
     
     def perform(self, engine: Engine) -> None:
+        consumer: Creature = self.owner.parent
         
-        # TODO have the item heal its consumer.
+        consumer.set_hp(consumer.hp + self.yield_amount)
+        engine.message_log.add(
+            f"{consumer.name} drinks {self.owner.name} for "
+            f"{self.yield_amount} hp!"
+        )
+        
+        return super().perform(engine)
+
+
+class RestoreMagickaConsumable(RestoreConsumable):
+    """Restore magicka on consumption"""
+
+    def perform(self, engine: Engine) -> None:
+        consumer: Creature = self.owner.parent
+        
+        # Only creatures that are able to wield magic can gain the effect.
+        if not consumer.get_component("mp"):
+            engine.message_log.add(
+                f"{consumer.name} attempts to drink a potion of magicka... "
+                "but to no effect."
+                )
+            return super().perform(engine)  # Consume it as well.
+        
+        consumer.set_mp(consumer.mp + self.yield_amount)
+        engine.message_log.add(
+            f"{consumer.name} drinks {self.owner.name} for "
+            f"{self.yield_amount} hp!"
+        )
         
         return super().perform(engine)
         

@@ -11,6 +11,7 @@ from .components.inventory import Inventory
 from .render_order import RenderOrder
 from .entities import Entity, Item, Creature, Player
 from .data.creatures import enemies, player
+from .data.items import restoration_potions
 from .data.config import DESCENDING_STAIRCASE_TILE, ASCENDING_STAIRCASE_TILE
 
 class Spawner:
@@ -71,7 +72,12 @@ class Spawner:
     
     def spawn_item(self, room: Room) -> None:
         """Spawn a random item and place it inside a room"""
-        pass
+        x, y = room.get_random_empty_cell()
+        
+        item: Item = self._get_random_item_instance()
+        item.x, item.y = x, y
+        
+        room.floor.add_entity(item)
     
     
     def get_player_instance(self) -> Player:
@@ -88,13 +94,13 @@ class Spawner:
         )
         player_obj.add_component("inventory", Inventory(num_slots=16))
         # TODO remove test items
-        test_item_1 = Item(-1, -1, "test_item_1", "?", "default", RenderOrder.ITEM, False)
-        test_item_2 = Item(-1, -1, "test_item_2", "?", "default", RenderOrder.ITEM, False)
-        test_item_3 = Item(-1, -1, "test_item_3", "?", "default", RenderOrder.ITEM, False)
+        test_item_1 = Item(-1, -1, "test_item_1", "`", "default", RenderOrder.ITEM, False)
+        test_item_2 = Item(-1, -1, "test_item_2", "`", "default", RenderOrder.ITEM, False)
+        test_item_3 = Item(-1, -1, "test_item_3", "`", "default", RenderOrder.ITEM, False)
         player_obj.inventory.add_items([test_item_1, test_item_2, test_item_3])
         
         return player_obj
-    
+
 
     def _get_random_enemy_instance(self) -> Creature:
         """Load enemy data and create an instance out of it"""
@@ -122,7 +128,37 @@ class Spawner:
         return enemy
     
     
+    # TODO for now, this will only spawn health/magicka potions
     def _get_random_item_instance(self) -> Item:
         """Load item data and create an instance out of it"""
-        pass
+        # Prevent circular import.
+        from .components.consumable import (
+            RestoreHealthConsumable, RestoreMagickaConsumable)
+        
+        # Fetch a random potion data object.
+        potion_data: dict = random.choices(
+            population=list(restoration_potions.values()),
+            weights=[
+                potion["spawn_chance"]
+                for potion in restoration_potions.values()]
+        )[0]
+        
+        # Create the instance and spawn the item.
+        potion = Item(
+            x=-1, y=-1,
+            name=potion_data["name"],
+            char=potion_data["char"],
+            color=potion_data["color"],
+            render_order=RenderOrder.ITEM,
+            blocking=False
+        )
+        name: str = potion_data["name"]
+        if name == "Potion of Restore Health":
+            potion.add_component(
+                "consumable", RestoreHealthConsumable(potion_data["yield"]))
+        elif name == "Potion of Restore Magicka":
+            potion.add_component(
+                "consumable", RestoreMagickaConsumable(potion_data["yield"]))
+        
+        return potion
 

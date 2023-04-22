@@ -16,6 +16,7 @@ class Dungeon:
                  spawner: Spawner,
                  num_floors: int,
                  max_enemies_per_floor: int,
+                 max_items_per_floor: int,
                  floor_dimensions: tuple[int, int],
                  min_max_rooms: tuple[int, int],
                  min_max_room_width: tuple[int, int],
@@ -25,6 +26,7 @@ class Dungeon:
         
         self.num_floors = num_floors
         self.max_enemies_per_floor = max_enemies_per_floor
+        self.max_items_per_floor = max_items_per_floor
         self.floor_dimensions = floor_dimensions
         self.min_max_rooms = min_max_rooms
         self.min_max_room_width = min_max_room_width
@@ -70,12 +72,13 @@ class Dungeon:
                 ascending = True
             
             # Placing entities.
+            # TODO randomize num_items and num_enemies.
             floor: Floor = (
                 floor_builder
                     .place_staircases(self.spawner,
                                       descending,
                                       ascending)
-                    .place_items(self.spawner)
+                    .place_items(self.spawner, self.max_items_per_floor)
                     .place_creatures(self.spawner,
                                     self.max_enemies_per_floor)
                     .build(self))

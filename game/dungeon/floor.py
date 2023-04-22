@@ -185,15 +185,20 @@ class FloorBuilder:
     
     
     # TODO
-    def place_items(self, spawner: Spawner):
+    def place_items(self, spawner: Spawner, max_items_per_floor: int):
         """Scatter random items throughout the level"""
+        for _ in range(max_items_per_floor):
+            room: Room = random.choice(self._floor.rooms)
+            spawner.spawn_item(room)
+        
         return self
     
     
     def place_creatures(self, spawner: Spawner, max_creatures_per_floor: int):
         """Create and place enemies throughout the rooms in the level"""
         for _ in range(max_creatures_per_floor):
-            room: Room = random.choice(self._floor.rooms)
+            # Don't include the room the player spawns in.
+            room: Room = random.choice(self._floor.rooms[1:])
             spawner.spawn_enemy(room)
         
         return self

@@ -143,4 +143,9 @@ class Player(Creature):
         self.agi = -1
         self.con = -1
         self.wis = -1
+    
+    
+    def set_mp(self, new_mp: int) -> None:
+        # New MP cannot be lower than 0 or higher than max MP.
+        self.mp = max(0, min(self.max_mp, new_mp))
 

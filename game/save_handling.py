@@ -45,6 +45,7 @@ def get_new_game(slot_index: int) -> Save:
         spawner=spawner,
         num_floors=NUM_FLOORS,
         max_enemies_per_floor=MAX_ENEMIES_PER_FLOOR,
+        max_items_per_floor=MAX_ITEMS_PER_FLOOR,
         floor_dimensions=FLOOR_DIMENSIONS,
         min_max_rooms=MIN_MAX_ROOMS,
         min_max_room_width=MIN_MAX_ROOM_WIDTH,

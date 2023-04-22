@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from .dungeon.floor import Floor
     from .dungeon.dungeon import Dungeon
-    from .entities import Entity, Item
+    from .entities import Entity
     from .components.component import Inventory
     from .message_log import Message, MessageLog
     from .gamestates import MenuOption
@@ -16,13 +16,14 @@ if TYPE_CHECKING:
 from .dungeon.floor import FloorBuilder
 from .tile import *
 from .data.config import *
-from .entities import Creature, Player
+from .entities import Creature, Player, Item
 from .color import Color
 from .render_order import RenderOrder
 from .data.config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
 from .save_handling import fetch_save
 
 
+# TODO turn progress bar into a class
 def get_filled_bar(percent: float, width: int) -> str:
     """Return a filled progress bar as a string of block letters"""
     bar = ""
@@ -282,7 +283,7 @@ class TerminalController:
                 4, 1, f"   and {remaining_entities} more...")
 
 
-        # ENEMIES AROUND SECTION #
+        # ENTITIES AROUND SECTION #
         ENTITIES_SECTION_HEADER = "[ ENTITIES ]"
         ENTITIES_START_X = STANDING_ON_START_X + STANDING_ON_HEIGHT
         ENTITIES_HEIGHT = SIDEBAR_HEIGHT - ENTITIES_START_X
@@ -303,27 +304,33 @@ class TerminalController:
         displayable_entities_in_fov: list[Creature] = \
             self.entities_in_fov[:max_entities_for_display]
         # Show a certain number of entities at a time.
-        enemy_iter: int = 1
+        entity_iter: int = 1
         for entity in displayable_entities_in_fov:
-            hp_percent = entity.hp / entity.max_hp
             entities_subwindow.addstr(
             # Display enemy name.
-            enemy_iter, 1, f"{entity.char} {entity.name}",
+            entity_iter, 1, f"{entity.char} {entity.name}",
             self.colors.get_color(entity.color))
             
             # Display entity healthbar if they are a creature.
-            enemy_hp_bar: str = get_filled_bar(hp_percent, SIDEBAR_WIDTH - 2)
-            entities_subwindow.addstr(
-                enemy_iter + 1, 1,
-                enemy_hp_bar,
-                self.colors.get_color("green"))
-            red_enemy_hp_bar: str = get_unfilled_bar(
-                len(enemy_hp_bar), SIDEBAR_WIDTH - 2)
-            entities_subwindow.addstr(
-                enemy_iter + 1, 1 + len(enemy_hp_bar),
-                red_enemy_hp_bar,
-                self.colors.get_color("red"))
-            enemy_iter += 2
+            if isinstance(entity, Creature):
+                hp_percent = entity.hp / entity.max_hp
+                enemy_hp_bar: str = get_filled_bar(
+                    hp_percent, SIDEBAR_WIDTH - 2)
+                entities_subwindow.addstr(
+                    entity_iter + 1, 1,
+                    enemy_hp_bar,
+                    self.colors.get_color("green"))
+                red_enemy_hp_bar: str = get_unfilled_bar(
+                    len(enemy_hp_bar), SIDEBAR_WIDTH - 2)
+                entities_subwindow.addstr(
+                    entity_iter + 1, 1 + len(enemy_hp_bar),
+                    red_enemy_hp_bar,
+                    self.colors.get_color("red"))
+
+                entity_iter += 2
+                continue
+
+            entity_iter += 1
 
         # Rest of entities don't fit on the sidebar, so count the rest.
         remaining_entities_in_fov: int = len(self.entities_in_fov) \
@@ -687,7 +694,10 @@ class TerminalController:
         floor: Floor = (
             FloorBuilder((self.game_width - 2, self.game_height - 2))
             .place_walls(tile_type=wall_tile_dim)
-            .place_rooms(num_rooms, MIN_MAX_ROOM_WIDTH, MIN_MAX_ROOM_HEIGHT, floor_tile_dim)
+            .place_rooms(num_rooms,
+                         MIN_MAX_ROOM_WIDTH,
+                         MIN_MAX_ROOM_HEIGHT,
+                         floor_tile_dim)
             .place_tunnels(floor_tile_dim)
         ).build(dungeon=None)
         return floor.tiles
