@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from ..gamestates import State
     from ..engine import Engine
 from ..actions import Action, ItemAction
-from .component import BaseComponent
+from .base_component import BaseComponent
 
 
 class Consumable(BaseComponent):
@@ -33,6 +33,7 @@ class Consumable(BaseComponent):
             consumer.inventory.remove_item(self.owner)
 
 
+# TODO disallow entity from drinking if health/magicka is already full?
 class RestoreConsumable(Consumable):
     """Restore some attribute on consumption"""
     
@@ -46,7 +47,7 @@ class RestoreHealthConsumable(RestoreConsumable):
     def perform(self, engine: Engine) -> None:
         consumer: Creature = self.owner.parent
         
-        consumer.set_hp(consumer.hp + self.yield_amount)
+        consumer.fighter.heal(self.yield_amount)
         engine.message_log.add(
             f"{consumer.name} drinks {self.owner.name} for "
             f"{self.yield_amount} hp!"
@@ -61,18 +62,11 @@ class RestoreMagickaConsumable(RestoreConsumable):
     def perform(self, engine: Engine) -> None:
         consumer: Creature = self.owner.parent
         
-        # Only creatures that are able to wield magic can gain the effect.
-        if not consumer.get_component("mp"):
-            engine.message_log.add(
-                f"{consumer.name} attempts to drink a potion of magicka... "
-                "but to no effect."
-                )
-            return super().perform(engine)  # Consume it as well.
-        
         consumer.set_mp(consumer.mp + self.yield_amount)
+        consumer.fighter.recharge(self.yield_amount)
         engine.message_log.add(
             f"{consumer.name} drinks {self.owner.name} for "
-            f"{self.yield_amount} hp!"
+            f"{self.yield_amount} mp!"
         )
         
         return super().perform(engine)

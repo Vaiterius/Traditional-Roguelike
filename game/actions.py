@@ -210,6 +210,7 @@ class DoNothingAction(Action):
         return turnable
 
 
+# TODO refactor into a parent TakeStarsAction
 class DescendStairsAction(Action):
     """Descend a flight of stairs to the next dungeon level"""
     
@@ -349,9 +350,9 @@ class MeleeAction(ActionWithDirection):
         desired_y = self.entity.y + self.dy
 
         target: Entity = floor.blocking_entity_at(desired_x, desired_y)
-        target.set_hp(target.hp - self.entity.dmg)
+        target.fighter.take_damage(self.entity.fighter.base_damage)
         
-        if target.is_dead:
+        if target.fighter.is_dead:
             # Change sorted render order position.
             floor.entities.remove(target)
             bisect.insort(
@@ -366,20 +367,23 @@ class MeleeAction(ActionWithDirection):
             
             return turnable
         
-        # Log info to message log.
+        # Log battle info.
         if target == engine.player:
+            damage_taken: int = self.entity.fighter.base_damage
             engine.message_log.add(
-                f"{self.entity.name} hits you for {self.entity.dmg} points!",
+                f"{self.entity.name} hits you for {damage_taken} points!",
                 debug=True, color="red"
             )
         elif self.entity == engine.player:
+            damage_taken: int = engine.player.fighter.base_damage
             engine.message_log.add(
-                f"You hit {target.name} for {engine.player.dmg} points!",
+                f"You hit {target.name} for {damage_taken} points!",
                 debug=True, color="blue"
             )
         else:
+            damage_taken: int = self.entity.fighter.base_damage
             engine.message_log.add(
-                f"{self.entity.name} hits {target.name} for {self.entity.dmg}"
+                f"{self.entity.name} hits {target.name} for {damage_taken}"
                 "points! Lol!",
                 debug=True
             )

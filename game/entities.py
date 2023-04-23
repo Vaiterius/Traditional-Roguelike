@@ -4,7 +4,7 @@ import copy
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from .components.component import BaseComponent
+    from .components.base_component import BaseComponent
     from .color import Color
     from .engine import Engine
     from .dungeon.floor import Floor
@@ -69,40 +69,13 @@ class Creature(Entity):
                  char: str,
                  color: Color,
                  render_order: RenderOrder,
-                 hp: int,
-                 dmg: int,
                  blocking: bool = True,
                  energy: int = 0):
         super().__init__(x, y, name, char, color, render_order, blocking)
         self.og_name = name  # Track old name after name change upon death.
-        self.max_hp = hp
-        self.hp = hp  # Starting health.
-        self.dmg = dmg
         self.energy_gain_per_turn = energy
         self.energy = energy
-
-
-    @property
-    def is_dead(self) -> bool:
-        return self.hp <= 0
     
-    def set_hp(self, new_hp: int) -> None:
-        # New HP cannot be lower than 0 or higher than max HP.
-        self.hp = max(0, min(self.max_hp, new_hp))
-        if self.is_dead:
-            self.die()
-    
-
-    def die(self) -> None:
-        """RIP bozo"""
-        # Creature dies.
-        self.ai = None
-        self.blocking = False
-        self.char = "%"
-        self.color = "blood_red"
-        self.name = f"Remains of {self.name}"
-        self.render_order = RenderOrder.CORPSE
-
 
     def move(self, dx: int, dy: int) -> None:
         self.x += dx
@@ -120,32 +93,5 @@ class Creature(Entity):
 
 
 class Player(Creature):
-    """A special and heroic creature that you control"""
-    
-    def __init__(self,
-                 x: int,
-                 y: int,
-                 name: str,
-                 char: str,
-                 color: Color,
-                 render_order: RenderOrder,
-                 hp: int,
-                 mp: int,
-                 dmg: int,
-                 blocking: bool = True):
-        super().__init__(
-            x, y, name, char, color, render_order, hp, dmg, blocking)
-        self.max_mp = mp
-        self.mp = mp  # Starting mp.
-        
-        # TODO Attributes.
-        self.str = -1
-        self.agi = -1
-        self.con = -1
-        self.wis = -1
-    
-    
-    def set_mp(self, new_mp: int) -> None:
-        # New MP cannot be lower than 0 or higher than max MP.
-        self.mp = max(0, min(self.max_mp, new_mp))
+    """A special and heroic creature controlled by you, Player"""
 

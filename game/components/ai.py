@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..engine import Engine
     from ..entities import Entity
-from ..components.component import BaseComponent
+from .base_component import BaseComponent
 from ..actions import Action, BumpAction
 from ..pathfinding import bresenham_path_to
 

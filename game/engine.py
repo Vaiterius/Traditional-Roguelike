@@ -99,14 +99,17 @@ class Engine:
         if isinstance(self.gamestate, ExploreState):
             creatures = self.dungeon.current_floor.creatures
             for creature in creatures:
-                if creature.get_component("ai") and not creature.is_dead:
+                if not creature.get_component("ai") or \
+                    not creature.get_component("fighter"):
+                    continue
+                if not creature.fighter.is_dead:
                     creature.take_turn(self)
         
-        # Check if player has died.
-        if (
-            self.player.is_dead
-            and isinstance(self.gamestate, ExploreState)
-        ):
-            self.gamestate = GameOverState(self.player, self)
-            self.message_log.add("Game over!", color="blue")
+            # Check if player has died.
+            if (
+                self.player.fighter.is_dead
+                and isinstance(self.gamestate, ExploreState)
+            ):
+                self.gamestate = GameOverState(self.player, self)
+                self.message_log.add("Game over!", color="blue")
 

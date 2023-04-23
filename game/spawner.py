@@ -8,10 +8,12 @@ if TYPE_CHECKING:
     from .dungeon.room import Room
     from .dungeon.floor import Floor
 from .components.inventory import Inventory
+from .components.fighter import Fighter
 from .render_order import RenderOrder
 from .entities import Entity, Item, Creature, Player
 from .data.creatures import enemies, player
-from .data.items import restoration_potions
+from .data.items.potions import restoration_potions
+from .data.items.armor import armor
 from .data.config import DESCENDING_STAIRCASE_TILE, ASCENDING_STAIRCASE_TILE
 
 class Spawner:
@@ -88,9 +90,18 @@ class Spawner:
             char=player["char"],
             color=player["color"],
             render_order=RenderOrder.CREATURE,
-            hp=player["hp"],
-            mp=player["mp"],
-            dmg=player["dmg"]
+        )
+        player_obj.add_component(
+            name="fighter",
+            component=Fighter(
+                health=player["hp"],
+                magicka=player["mp"],
+                base_damage=player["dmg"],
+                base_agility=-1,
+                base_power=-1,
+                base_sage=-1,
+                base_vitality=-1
+            )
         )
         player_obj.add_component("inventory", Inventory(num_slots=16))
         # TODO remove test items
@@ -120,9 +131,19 @@ class Spawner:
             char=enemy_data["char"],
             color=enemy_data["color"],
             render_order=RenderOrder.CREATURE,
-            hp=enemy_data["hp"],
-            dmg=enemy_data["dmg"],
             energy=enemy_data["energy"]
+        )
+        enemy.add_component(
+            name="fighter",
+            component=Fighter(
+                health=enemy_data["hp"],
+                magicka=-1,
+                base_damage=enemy_data["dmg"],
+                base_agility=-1,
+                base_power=-1,
+                base_sage=-1,
+                base_vitality=-1
+            )
         )
         enemy.add_component("ai", HostileEnemyAI(enemy))
         return enemy

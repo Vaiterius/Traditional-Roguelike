@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .dungeon.floor import Floor
     from .dungeon.dungeon import Dungeon
     from .entities import Entity
-    from .components.component import Inventory
+    from .components.base_component import Inventory
     from .message_log import Message, MessageLog
     from .gamestates import MenuOption
     from .save_handling import Save
@@ -197,8 +197,9 @@ class TerminalController:
         player_subwindow.addstr(1, 3, player.name)
 
         # Show player health bar.
-        player_subwindow.addstr(2, 1, f"HP: {player.hp}/{player.max_hp}")
-        hp_percent = player.hp / player.max_hp
+        hp, max_hp = player.fighter.health, player.fighter.max_health
+        player_subwindow.addstr(2, 1, f"HP: {hp}/{max_hp}")
+        hp_percent = hp / max_hp
         hp_bar: str = get_filled_bar(hp_percent, SIDEBAR_WIDTH - 2)
         player_subwindow.addstr(
             3, 1, hp_bar,
@@ -210,8 +211,9 @@ class TerminalController:
             self.colors.get_color("red"))
 
         # Show player magicka bar.
-        player_subwindow.addstr(4, 1, f"MP: {player.mp}/{player.max_mp}")
-        mp_percent = player.mp / player.max_mp
+        mp, max_mp = player.fighter.magicka, player.fighter.max_magicka
+        player_subwindow.addstr(4, 1, f"MP: {mp}/{max_mp}")
+        mp_percent = mp / max_mp
         mp_bar: str = get_filled_bar(mp_percent, SIDEBAR_WIDTH - 2)
         player_subwindow.addstr(
             5, 1, mp_bar,
@@ -238,10 +240,12 @@ class TerminalController:
             ATTRIBUTES_SECTION_HEADER, SIDEBAR_WIDTH)
         attributes_subwindow.addstr(
             0, attributes_header_center_y, ATTRIBUTES_SECTION_HEADER)
-        attributes_subwindow.addstr(1, 1, f"STR: {player.str}")
-        attributes_subwindow.addstr(2, 1, f"AGI: {player.agi}")
-        attributes_subwindow.addstr(3, 1, f"CON: {player.con}")
-        attributes_subwindow.addstr(4, 1, f"WIS: {player.wis}")
+        attributes_subwindow.addstr(1, 1, f"POW: {player.fighter.base_power}")
+        attributes_subwindow.addstr(
+            2, 1, f"AGI: {player.fighter.base_agility}")
+        attributes_subwindow.addstr(
+            3, 1, f"VIT: {player.fighter.base_vitality}")
+        attributes_subwindow.addstr(4, 1, f"SGE: {player.fighter.base_sage}")
 
 
         # STANDING ON SECTION #
@@ -313,7 +317,7 @@ class TerminalController:
             
             # Display entity healthbar if they are a creature.
             if isinstance(entity, Creature):
-                hp_percent = entity.hp / entity.max_hp
+                hp_percent = entity.fighter.health / entity.fighter.max_health
                 enemy_hp_bar: str = get_filled_bar(
                     hp_percent, SIDEBAR_WIDTH - 2)
                 entities_subwindow.addstr(
@@ -408,9 +412,10 @@ class TerminalController:
             item: Optional[Item] = inventory.get_item(index)
             
             # Shift from 0-9 numbering to 1-10.
+            slot_char = chr(97 + index)
             index += 1
-            if index > 9:
-                SINGLE_DIGIT_ADDON = ''
+            # if index > 9:
+            #     SINGLE_DIGIT_ADDON = ''
             
             # Highlight the currently selected index item.
             optional_highlight = curses.A_NORMAL
@@ -418,7 +423,8 @@ class TerminalController:
                 optional_highlight = curses.A_REVERSE
             
             # Fill the slot value.
-            slot_value: str = SINGLE_DIGIT_ADDON + "(" + str(index) + ") "
+            # slot_value: str = SINGLE_DIGIT_ADDON + "(" + str(index) + ") "
+            slot_value: str = slot_char + ") "
             if item:
                 slot_value += item.name
             else:

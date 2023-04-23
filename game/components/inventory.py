@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from ..entities import Item
-from .component import BaseComponent
+from .base_component import BaseComponent
 
 
 # TODO split inventory list by item type (e.g. weapons, armor)
