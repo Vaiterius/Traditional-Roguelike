@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-import bisect
+import random
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -10,7 +10,9 @@ if TYPE_CHECKING:
     from .entities import Creature, Entity, Item
     from .save_handling import Save
     from .components.inventory import Inventory
+    from .components.fighter import Fighter
     from .dungeon.floor import Floor
+from .message_log import MessageType
 from .tile import *
 from .save_handling import (
     save_current_game,
@@ -349,44 +351,70 @@ class MeleeAction(ActionWithDirection):
         desired_x = self.entity.x + self.dx
         desired_y = self.entity.y + self.dy
 
-        target: Entity = floor.blocking_entity_at(desired_x, desired_y)
-        target.fighter.take_damage(self.entity.fighter.base_damage)
+        main: Creature = self.entity
+        main_fighter: Fighter = main.fighter
+        target: Creature = floor.blocking_entity_at(desired_x, desired_y)
+        target_fighter: Fighter = target.fighter
         
-        if target.fighter.is_dead:
-            # Change sorted render order position.
-            floor.entities.remove(target)
-            bisect.insort(
-                floor.entities, target, key=lambda x: x.render_order.value)
-            
-            engine.message_log.add(
-                f"{target.og_name} has perished!"
-            )
-            if self.entity == engine.player:
-                engine.message_log.add(
-                    f"You slayed {target.og_name}!", color="green")
-            
+        target_slain_message: str = f"{target.og_name} has perished!"
+        battle_message: str = ""
+        message_type: MessageType = MessageType.INFO
+        message_color: str = ""
+
+        # Chance to hit opponent fails.
+        missed: bool = main_fighter.hit_chance / 100 <= random.random()
+        if missed:
+            if target == engine.player:
+                battle_message += f"{main.og_name} missed you"
+                message_color = "blue"
+                message_type = MessageType.ENEMY_ATTACK
+            elif main == engine.player:
+                battle_message += f"You missed {target.og_name}"
+                message_color = "red"
+                message_type = MessageType.PLAYER_ATTACK
+            else: return turnable
+
+            engine.message_log.add(message=battle_message,
+                                   type=message_type,
+                                   color=message_color)
+
             return turnable
         
-        # Log battle info.
+        # Modify damage given/received based on opponents' stats.
+        # TODO add critical hit message.
+        damage_given: int = main_fighter.get_modified_damage()
+        target_fighter.take_damage(damage_given)
+        
+        # Log hit success.
         if target == engine.player:
-            damage_taken: int = self.entity.fighter.base_damage
-            engine.message_log.add(
-                f"{self.entity.name} hits you for {damage_taken} points!",
-                debug=True, color="red"
-            )
-        elif self.entity == engine.player:
-            damage_taken: int = engine.player.fighter.base_damage
-            engine.message_log.add(
-                f"You hit {target.name} for {damage_taken} points!",
-                debug=True, color="blue"
-            )
-        else:
-            damage_taken: int = self.entity.fighter.base_damage
-            engine.message_log.add(
-                f"{self.entity.name} hits {target.name} for {damage_taken}"
-                "points! Lol!",
-                debug=True
-            )
+            battle_message = f"{main.name} hits you for {damage_given} pts"
+            message_type = MessageType.ENEMY_ATTACK
+            message_color = "red"
+        elif main == engine.player:
+            battle_message = f"You hit {target.name} for {damage_given} pts"
+            message_type = MessageType.PLAYER_ATTACK
+            message_color="blue"
+        else: return turnable
+        
+        engine.message_log.add(message=battle_message,
+                               type=message_type,
+                               color=message_color)
+
+        # Target opponent has been slain.
+        if target_fighter.is_dead:
+            floor.entities.remove(target)
+            floor.add_entity(target)
+            engine.message_log.add(target_slain_message)
+            
+            if main == engine.player:
+                battle_message = f"You slayed {target.og_name}"
+                message_type = MessageType.INFO
+                message_color = "green"
+            else: return turnable
+            
+            engine.message_log.add(message=battle_message,
+                                   type=message_type,
+                                   color=message_color)
         
         return turnable
 

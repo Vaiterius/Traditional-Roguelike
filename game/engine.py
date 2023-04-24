@@ -51,7 +51,7 @@ class Engine:
     def display(self) -> None:
         """Display the game to the screen"""
         # Player's field of view.
-        if isinstance(self.gamestate, ExploreState) or isinstance(self.gamestate, InventoryMenuState):
+        if isinstance(self.gamestate, ExploreState):
             floor: Floor = self.dungeon.current_floor
             
             def mark_visible(x: int, y: int) -> None:
@@ -85,10 +85,10 @@ class Engine:
  
             action_or_state = self.gamestate.handle_input(player_input)
 
-        # DEBUG
-        if self.message_log:
-            self.message_log.add(
-                f"action_or_state: {action_or_state.__class__.__name__}", True)
+        # TODO remove - DEBUG
+        # if self.message_log:
+        #     self.message_log.add(
+        #         f"action_or_state: {action_or_state.__class__.__name__}", True)
         turnable: bool = self.gamestate.perform(self, action_or_state)
         return turnable
 

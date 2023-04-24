@@ -8,6 +8,35 @@ from .base_component import BaseComponent
 from ..render_order import RenderOrder
 
 
+def get_modifier_from_attribute(attribute: int) -> int:
+    """Table conversion of attribute to modifier"""
+    if attribute <= 1:
+        return -5
+    elif attribute in range(2, 4):
+        return -4
+    elif attribute in range(4, 6):
+        return -3
+    elif attribute in range(6, 8):
+        return -2
+    elif attribute in range(8, 10):
+        return -1
+    elif attribute in range(10, 12):
+        return 0
+    elif attribute in range(12, 14):
+        return 1
+    elif attribute in range(14, 16):
+        return 2
+    elif attribute in range(16, 18):
+        return 3
+    elif attribute in range(18, 20):
+        return 4
+    elif attribute == 20:
+        return 5
+    else:
+        # Add one for every point higher than the max.
+        return 5 + (attribute - 20)
+
+
 class Fighter(BaseComponent):
     """Attaches to an entity that is able to do combat e.g. player, enemies"""
 
@@ -24,11 +53,18 @@ class Fighter(BaseComponent):
         self.max_magicka = magicka
         self._magicka = magicka
         self.base_damage = base_damage
-        # Skill points.
+        self.crit_damage_bonus: int = 50  # TODO add to data
+        
+        # Attributes.
         self.base_power = base_power
         self.base_agility = base_agility
         self.base_vitality = base_vitality
         self.base_sage = base_sage
+        
+        # Combat chances.
+        self.hit_chance: int = 50
+        self.crit_chance: int = 5
+
     
     # HEALTH #
     
@@ -47,6 +83,7 @@ class Fighter(BaseComponent):
         if self.is_dead:
             self.die()
     
+    
     # MAGICKA #
     
     @property
@@ -62,6 +99,7 @@ class Fighter(BaseComponent):
         # New MP cannot be lower than 0 or higher than max MP.
         self._magicka = max(0, min(self.max_magicka, new_magicka))
 
+
     # COMBAT #
     
     def heal(self, amount: int) -> None:
@@ -72,6 +110,11 @@ class Fighter(BaseComponent):
     def recharge(self, amount: int) -> None:
         """Recover MP by some amount"""
         self.magicka += amount
+    
+    
+    def get_modified_damage(self) -> int:
+        """Get modified base damage with attack-based skill points applied"""
+        return self.base_damage
     
     
     def take_damage(self, amount: int) -> None:
@@ -90,6 +133,6 @@ class Fighter(BaseComponent):
         creature.blocking = False
         creature.char = "%"
         creature.color = "blood_red"
-        creature.name = f"Remains of {creature.name}"
+        creature.name = f"Remains of {creature.og_name}"
         creature.render_order = RenderOrder.CORPSE
 

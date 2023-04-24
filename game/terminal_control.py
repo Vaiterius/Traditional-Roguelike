@@ -158,7 +158,7 @@ class TerminalController:
             color: str = message.color
             window.addstr(i, 2, message_text, self.colors.get_color(color))
             cursor += 1
-            if cursor > message_log.size() - 1:
+            if cursor > message_log.size - 1:
                 break
         
         window.refresh()
