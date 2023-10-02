@@ -79,7 +79,7 @@ class WanderingAI(BaseAI):
             return
 
         # Decide if creature wants to randomly walk to a tile.
-        to_walk_or_not_to_walk_that_is_the_question: bool = random.random()
+        to_walk_or_not_to_walk_that_is_the_question: float = random.random()
         if to_walk_or_not_to_walk_that_is_the_question >= self.CHANCE_TO_WALK:
             # Pick a random, valid direction to walk to.
             dx, dy = random.choice(list(self.DIRECTIONS.values()))
@@ -89,7 +89,7 @@ class WanderingAI(BaseAI):
 
 
 class HostileEnemyAI(BaseAI):
-    """AI that targets and fights the playe; pseudo-pathfinding algorithm"""
+    """AI that targets and fights the player; pseudo-pathfinding algorithm"""
 
     def perform(self, engine: Engine):
         player_x = engine.player.x

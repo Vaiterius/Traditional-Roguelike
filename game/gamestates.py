@@ -479,8 +479,10 @@ class ExploreState(State):
             self.bypassable = True
         elif player_input == '\t' or player_input == 'i':
             return InventoryMenuState(self.parent)
+        
+        # TODO remove for final version of gameplay.
         elif player_input == 'm':
-            return MainMenuState(self.parent)
+            return MainMenuState(self.parent)  # Head out without saving.
         
         return action_or_state
     

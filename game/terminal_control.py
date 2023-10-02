@@ -240,12 +240,12 @@ class TerminalController:
             ATTRIBUTES_SECTION_HEADER, SIDEBAR_WIDTH)
         attributes_subwindow.addstr(
             0, attributes_header_center_y, ATTRIBUTES_SECTION_HEADER)
-        attributes_subwindow.addstr(1, 1, f"POW: {player.fighter.base_power}")
+        attributes_subwindow.addstr(1, 1, f"POW: {player.fighter.power}")
         attributes_subwindow.addstr(
-            2, 1, f"AGI: {player.fighter.base_agility}")
+            2, 1, f"AGI: {player.fighter.agility}")
         attributes_subwindow.addstr(
-            3, 1, f"VIT: {player.fighter.base_vitality}")
-        attributes_subwindow.addstr(4, 1, f"SGE: {player.fighter.base_sage}")
+            3, 1, f"VIT: {player.fighter.vitality}")
+        attributes_subwindow.addstr(4, 1, f"SGE: {player.fighter.sage}")
 
 
         # STANDING ON SECTION #

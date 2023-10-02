@@ -91,16 +91,17 @@ class Spawner:
             color=player["color"],
             render_order=RenderOrder.CREATURE,
         )
+        # Refer to fighter.py for base stats.
         player_obj.add_component(
             name="fighter",
             component=Fighter(
                 health=player["hp"],
                 magicka=player["mp"],
                 base_damage=player["dmg"],
-                base_agility=-1,
-                base_power=-1,
-                base_sage=-1,
-                base_vitality=-1
+                base_agility=2,
+                base_power=3,
+                base_sage=1,
+                base_vitality=4
             )
         )
         player_obj.add_component("inventory", Inventory(num_slots=16))

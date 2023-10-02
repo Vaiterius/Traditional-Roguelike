@@ -16,7 +16,7 @@ class Consumable(BaseComponent):
     
     def get_action_or_state(self, consumer: Creature) -> Union[Action, State]:
         """
-        Get an action or state to be performed on using consuming this item
+        Get an action or state to be performed on consuming this item
         """
         return ItemAction(consumer, self.owner)
     
@@ -62,7 +62,6 @@ class RestoreMagickaConsumable(RestoreConsumable):
     def perform(self, engine: Engine) -> None:
         consumer: Creature = self.owner.parent
         
-        consumer.set_mp(consumer.mp + self.yield_amount)
         consumer.fighter.recharge(self.yield_amount)
         engine.message_log.add(
             f"{consumer.name} drinks {self.owner.name} for "

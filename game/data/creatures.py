@@ -4,8 +4,8 @@ player: dict[str, Any] = {
     "name": "Player",
     "char": '@',
     "color": "blue",
-    "hp": 500,
-    "mp": 500,
+    "hp": 50,
+    "mp": 50,
     "dmg": 5
 }
 

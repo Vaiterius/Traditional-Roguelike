@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-import random
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -351,8 +350,9 @@ class MeleeAction(ActionWithDirection):
         desired_x = self.entity.x + self.dx
         desired_y = self.entity.y + self.dy
 
-        main: Creature = self.entity
-        main_fighter: Fighter = main.fighter
+        # Prepare both parties and their respective fighter components.
+        initiator: Creature = self.entity
+        initiator_fighter: Fighter = initiator.fighter
         target: Creature = floor.blocking_entity_at(desired_x, desired_y)
         target_fighter: Fighter = target.fighter
         
@@ -362,13 +362,13 @@ class MeleeAction(ActionWithDirection):
         message_color: str = ""
 
         # Chance to hit opponent fails.
-        missed: bool = main_fighter.hit_chance / 100 <= random.random()
+        missed: bool = initiator_fighter.check_hit_success()
         if missed:
             if target == engine.player:
-                battle_message += f"{main.og_name} missed you"
+                battle_message += f"{initiator.og_name} missed you"
                 message_color = "blue"
                 message_type = MessageType.ENEMY_ATTACK
-            elif main == engine.player:
+            elif initiator == engine.player:
                 battle_message += f"You missed {target.og_name}"
                 message_color = "red"
                 message_type = MessageType.PLAYER_ATTACK
@@ -382,15 +382,15 @@ class MeleeAction(ActionWithDirection):
         
         # Modify damage given/received based on opponents' stats.
         # TODO add critical hit message.
-        damage_given: int = main_fighter.get_modified_damage()
+        damage_given: int = initiator_fighter.damage
         target_fighter.take_damage(damage_given)
         
         # Log hit success.
         if target == engine.player:
-            battle_message = f"{main.name} hits you for {damage_given} pts"
+            battle_message = f"{initiator.name} hits you for {damage_given} pts"
             message_type = MessageType.ENEMY_ATTACK
             message_color = "red"
-        elif main == engine.player:
+        elif initiator == engine.player:
             battle_message = f"You hit {target.name} for {damage_given} pts"
             message_type = MessageType.PLAYER_ATTACK
             message_color="blue"
@@ -406,7 +406,7 @@ class MeleeAction(ActionWithDirection):
             floor.add_entity(target)
             engine.message_log.add(target_slain_message)
             
-            if main == engine.player:
+            if initiator == engine.player:
                 battle_message = f"You slayed {target.og_name}"
                 message_type = MessageType.INFO
                 message_color = "green"
