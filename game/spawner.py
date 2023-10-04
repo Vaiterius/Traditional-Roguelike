@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .dungeon.floor import Floor
 from .components.inventory import Inventory
 from .components.fighter import Fighter
+from .components.leveler import Leveler
 from .render_order import RenderOrder
 from .entities import Entity, Item, Creature, Player
 from .data.creatures import enemies, player
@@ -91,12 +92,12 @@ class Spawner:
             color=player["color"],
             render_order=RenderOrder.CREATURE,
         )
-        # Refer to fighter.py for base stats.
+
         player_obj.add_component(
             name="fighter",
-            component=Fighter(
-                health=player["hp"],
-                magicka=player["mp"],
+            component=Fighter(  # Refer to fighter.py for base stats.
+                base_health=player["hp"],
+                base_magicka=player["mp"],
                 base_damage=player["dmg"],
                 base_agility=2,
                 base_power=3,
@@ -104,7 +105,9 @@ class Spawner:
                 base_vitality=4
             )
         )
+        player_obj.add_component("leveler", Leveler(start_level=1))
         player_obj.add_component("inventory", Inventory(num_slots=16))
+
         # TODO remove test items
         test_item_1 = Item(-1, -1, "test_item_1", "`", "default", RenderOrder.ITEM, False)
         test_item_2 = Item(-1, -1, "test_item_2", "`", "default", RenderOrder.ITEM, False)
@@ -134,11 +137,12 @@ class Spawner:
             render_order=RenderOrder.CREATURE,
             energy=enemy_data["energy"]
         )
+
         enemy.add_component(
             name="fighter",
             component=Fighter(
-                health=enemy_data["hp"],
-                magicka=-1,
+                base_health=enemy_data["hp"],
+                base_magicka=-1,
                 base_damage=enemy_data["dmg"],
                 base_agility=-1,
                 base_power=-1,
@@ -146,7 +150,9 @@ class Spawner:
                 base_vitality=-1
             )
         )
+        enemy.add_component("leveler", Leveler())
         enemy.add_component("ai", HostileEnemyAI(enemy))
+
         return enemy
     
     

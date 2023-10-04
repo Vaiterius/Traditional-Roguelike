@@ -225,32 +225,36 @@ class TerminalController:
             self.colors.get_color("red"))
 
 
-        # ATTRIBUTES SECTION #
-        ATTRIBUTES_SECTION_HEADER = "[ ATTRIBUTES ]"
-        ATTRIBUTES_START_X = PLAYER_START_X + PLAYER_HEIGHT
-        ATTRIBUTES_HEIGHT = 6
-        attributes_subwindow = window.subwin(
-            ATTRIBUTES_HEIGHT,
+        # STATS SECTION #
+        STATS_SECTION_HEADER = "[ STATS ]"
+        STATS_START_X = PLAYER_START_X + PLAYER_HEIGHT
+        STATS_HEIGHT = 6
+        stats_subwindow = window.subwin(
+            STATS_HEIGHT,
             SIDEBAR_WIDTH,
-            ATTRIBUTES_START_X,
+            STATS_START_X,
             self.floor_width + 2)
-        attributes_subwindow.erase()
-        attributes_subwindow.border()
+        stats_subwindow.erase()
+        stats_subwindow.border()
         attributes_header_center_y = self._get_message_center_x(
-            ATTRIBUTES_SECTION_HEADER, SIDEBAR_WIDTH)
-        attributes_subwindow.addstr(
-            0, attributes_header_center_y, ATTRIBUTES_SECTION_HEADER)
-        attributes_subwindow.addstr(1, 1, f"POW: {player.fighter.power}")
-        attributes_subwindow.addstr(
+            STATS_SECTION_HEADER, SIDEBAR_WIDTH)
+        stats_subwindow.addstr(
+            0, attributes_header_center_y, STATS_SECTION_HEADER)
+        stats_subwindow.addstr(1, 1, f"POW: {player.fighter.power}")
+        stats_subwindow.addstr(
             2, 1, f"AGI: {player.fighter.agility}")
-        attributes_subwindow.addstr(
+        stats_subwindow.addstr(
             3, 1, f"VIT: {player.fighter.vitality}")
-        attributes_subwindow.addstr(4, 1, f"SGE: {player.fighter.sage}")
+        stats_subwindow.addstr(4, 1, f"SGE: {player.fighter.sage}")
+        stats_subwindow.addstr(1, 9, f"LVL: {player.leveler.level}")
+        stats_subwindow.addstr(2, 9, f"XP: {player.leveler.experience}")
+        stats_subwindow.addstr(3, 9, f"XP for next: {player.leveler.experience_left_to_level_up}")
+        stats_subwindow.addstr(4, 9, f"Total XP: {player.leveler.total_experience}")
 
 
         # STANDING ON SECTION #
         STANDING_ON_SECTION_HEADER = "[ STANDING ON ]"
-        STANDING_ON_START_X = ATTRIBUTES_START_X + ATTRIBUTES_HEIGHT
+        STANDING_ON_START_X = STATS_START_X + STATS_HEIGHT
         STANDING_ON_HEIGHT = 6
         standing_on_subwindow = window.subwin(
             STANDING_ON_HEIGHT,
@@ -310,10 +314,13 @@ class TerminalController:
         # Show a certain number of entities at a time.
         entity_iter: int = 1
         for entity in displayable_entities_in_fov:
+            # Display enemy name and level if they are a creature.
+            entity_title: str = f"{entity.char} {entity.name}"
+            if entity.get_component("leveler"):
+                entity_title += f" Lvl. {entity.leveler.level}"
             entities_subwindow.addstr(
-            # Display enemy name.
-            entity_iter, 1, f"{entity.char} {entity.name}",
-            self.colors.get_color(entity.color))
+                entity_iter, 1, entity_title, self.colors.get_color(
+                    entity.color))
             
             # Display entity healthbar if they are a creature.
             if isinstance(entity, Creature):
@@ -350,7 +357,7 @@ class TerminalController:
 
         window.refresh()
         player_subwindow.refresh()
-        attributes_subwindow.refresh()
+        stats_subwindow.refresh()
         standing_on_subwindow.refresh()
         entities_subwindow.refresh()
         # help_subwindow.refresh()

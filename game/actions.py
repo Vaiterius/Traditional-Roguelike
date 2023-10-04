@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from .save_handling import Save
     from .components.inventory import Inventory
     from .components.fighter import Fighter
+    from .components.leveler import Leveler
     from .dungeon.floor import Floor
 from .message_log import MessageType
 from .tile import *
@@ -350,11 +351,14 @@ class MeleeAction(ActionWithDirection):
         desired_x = self.entity.x + self.dx
         desired_y = self.entity.y + self.dy
 
-        # Prepare both parties and their respective fighter components.
+        # Prepare both parties and their respective combat components.
         initiator: Creature = self.entity
         initiator_fighter: Fighter = initiator.fighter
+        initiator_leveler: Leveler = initiator.leveler
+
         target: Creature = floor.blocking_entity_at(desired_x, desired_y)
         target_fighter: Fighter = target.fighter
+        target_leveler: Leveler = target.leveler
         
         target_slain_message: str = f"{target.og_name} has perished!"
         battle_message: str = ""
@@ -374,9 +378,8 @@ class MeleeAction(ActionWithDirection):
                 message_type = MessageType.PLAYER_ATTACK
             else: return turnable
 
-            engine.message_log.add(message=battle_message,
-                                   type=message_type,
-                                   color=message_color)
+            engine.message_log.add(
+                message=battle_message, type=message_type, color=message_color)
 
             return turnable
         
@@ -387,34 +390,47 @@ class MeleeAction(ActionWithDirection):
         
         # Log hit success.
         if target == engine.player:
-            battle_message = f"{initiator.name} hits you for {damage_given} pts"
+            battle_message = f"{initiator.og_name} hits you for {damage_given} pts"
             message_type = MessageType.ENEMY_ATTACK
             message_color = "red"
         elif initiator == engine.player:
-            battle_message = f"You hit {target.name} for {damage_given} pts"
+            battle_message = f"You hit {target.og_name} for {damage_given} pts"
             message_type = MessageType.PLAYER_ATTACK
             message_color="blue"
         else: return turnable
         
-        engine.message_log.add(message=battle_message,
-                               type=message_type,
-                               color=message_color)
+        engine.message_log.add(
+            message=battle_message, type=message_type, color=message_color)
 
         # Target opponent has been slain.
         if target_fighter.is_dead:
+            experience_drop: int = target.leveler.experience_drop
             floor.entities.remove(target)
             floor.add_entity(target)
             engine.message_log.add(target_slain_message)
+
+            # Absorb experience.
+            leveled_up: bool = False
+            initiator_leveler.absorb(
+                incoming_experience=target_leveler.experience_drop)
+            engine.message_log.add(f"Can level up?: {initiator_leveler.can_level_up}.")
+            if initiator_leveler.can_level_up:
+                initiator_leveler.level_up()
+                leveled_up = True
             
-            if initiator == engine.player:
-                battle_message = f"You slayed {target.og_name}"
-                message_type = MessageType.INFO
-                message_color = "green"
-            else: return turnable
+            if initiator != engine.player:
+                return turnable
             
-            engine.message_log.add(message=battle_message,
-                                   type=message_type,
-                                   color=message_color)
+            # Player related messages from here on out.
+            engine.message_log.add(
+                message=f"You slayed {target.og_name} " \
+                        f"and gained {experience_drop} EXP!",
+                type=MessageType.INFO, color="green")
+            
+            if leveled_up:
+                engine.message_log.add(
+                    message=f"Leveled up to {initiator_leveler.level}",
+                    type=MessageType.INFO, color="green")
         
         return turnable
 

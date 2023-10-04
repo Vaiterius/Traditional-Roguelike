@@ -42,17 +42,17 @@ class Fighter(BaseComponent):
     """Attaches to an entity that is able to do combat e.g. player, enemies"""
 
     def __init__(self,
-                 health: int,
-                 magicka: int,
+                 base_health: int,
+                 base_magicka: int,
                  base_damage: int,
                  base_power: int,
                  base_agility: int,
                  base_vitality: int,
                  base_sage: int):
-        self._max_health = health
-        self._max_magicka = magicka
-        self._health = health
-        self._magicka = magicka
+        self._base_max_health = base_health
+        self._base_max_magicka = base_magicka
+        self._health = base_health
+        self._magicka = base_magicka
         self._base_damage = base_damage
         
         # Attributes.
@@ -79,7 +79,7 @@ class Fighter(BaseComponent):
     @property
     def max_health(self) -> int:
         """Max health based on vitality level"""
-        base_max: int = self._max_health
+        base_max: int = self._base_max_health
         for curr_point in range(0, self.vitality - 1):
             if curr_point % 5 == 0:  
                 base_max += 3  # Every 5 points.
@@ -112,7 +112,7 @@ class Fighter(BaseComponent):
     @property
     def max_magicka(self) -> int:
         """Max magicka based on sage level"""
-        base_max: int = self._max_magicka
+        base_max: int = self._base_max_magicka
         for curr_point in range(0, self.sage - 1):
             if curr_point % 5 == 0:  
                 base_max += 3  # Every 5 points.
