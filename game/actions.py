@@ -413,8 +413,7 @@ class MeleeAction(ActionWithDirection):
             leveled_up: bool = False
             initiator_leveler.absorb(
                 incoming_experience=target_leveler.experience_drop)
-            engine.message_log.add(f"Can level up?: {initiator_leveler.can_level_up}.")
-            if initiator_leveler.can_level_up:
+            while initiator_leveler.can_level_up:
                 initiator_leveler.level_up()
                 leveled_up = True
             

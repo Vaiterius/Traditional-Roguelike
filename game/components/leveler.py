@@ -7,9 +7,11 @@ if TYPE_CHECKING:
     from .fighter import Fighter
 
 
-def experience_needed(level: int) -> int:
+def experience_needed_for_level(level: int) -> int:
     """Linear growth formula (for now)"""
-    return round((5 * level) + 5)
+    if level < 2:
+        return 0
+    return round((5 * (level - 1)) + 5)
 
 
 class Leveler(BaseComponent):
@@ -18,14 +20,13 @@ class Leveler(BaseComponent):
     def __init__(self, start_level: int = 1, base_drop_amount: int = 5):
         self._start_level = start_level
         self._current_level = start_level
-
-        # Scale drop amount based on starting level.
-        DROP_SCALER: float = 1.5
-        self._base_drop_amount = round(
-            base_drop_amount + ((start_level - 1) * DROP_SCALER))
+        self._base_drop_amount = base_drop_amount
 
         self._total_experience: int = 0
         self._current_experience: int = 0
+
+
+    # LEVELING #
     
     @property
     def level(self) -> int:
@@ -33,7 +34,15 @@ class Leveler(BaseComponent):
     
     @property
     def can_level_up(self) -> bool:
-        return self.experience >= experience_needed(self.level + 1)
+        return self.experience >= experience_needed_for_level(self.level + 1)
+    
+    def level_up(self) -> None:
+        """Expend experience points towards leveling up, leaving leftovers"""
+        self._current_experience -= experience_needed_for_level(self.level + 1)
+        self._current_level += 1
+
+
+    # EXPERIENCE #
     
     @property
     def experience(self) -> int:
@@ -45,19 +54,23 @@ class Leveler(BaseComponent):
     
     @property
     def experience_left_to_level_up(self) -> int:
-        return experience_needed(self._current_level + 1) - self.experience
+        return experience_needed_for_level(
+            self._current_level + 1) - self.experience
     
     @property
     def experience_drop(self) -> int:
-        return self._base_drop_amount
+        """Scale drop experience based on level"""
+        DROP_SCALER: float = 1.5
+        return round(self._base_drop_amount + ((self.level - 1) * DROP_SCALER))
     
     def absorb(self, incoming_experience: int) -> None:
-        self._current_experience += incoming_experience
-        self._total_experience += incoming_experience
-    
-    def level_up(self) -> None:
-        self._current_experience -= experience_needed(self._current_level + 1)
-        self._current_level += 1
+        if incoming_experience < 0:
+            incoming_experience = 0
+        self._current_experience += round(incoming_experience)
+        self._total_experience += round(incoming_experience)
+
+
+    # ATTRIBUTE LEVELING #
     
     def increase_power(self) -> None:
         self.owner.get_component("fighter").power += 1

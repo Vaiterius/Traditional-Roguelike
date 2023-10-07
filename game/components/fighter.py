@@ -69,6 +69,10 @@ class Fighter(BaseComponent):
         self._crit_damage_bonus: float = 0.50
         self._double_hit_chance: float = 0.05
 
+        # Update and recalculate for modifiers.
+        self._health = self.max_health
+        self._magicka = self.max_magicka
+
     
     # HEALTH #
     
