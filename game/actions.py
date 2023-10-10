@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Optional
 
+from game.entities import Entity
+
 if TYPE_CHECKING:
     from pathlib import Path
     from .engine import Engine
@@ -204,6 +206,21 @@ class ContinueGameAction(FromSavedataAction):
         return turnable
 
 
+class LevelUpAction(Action):
+    """Handle all logic for leveling up an entity"""
+
+    def __init__(self, entity: Entity, attribute: Fighter.AttributeType):
+        super().__init__(entity)
+        self.attribute = attribute
+    
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+
+
+
+        return turnable
+
+
 class DoNothingAction(Action):
     """Do nothing this turn"""
 
@@ -292,7 +309,7 @@ class ActionWithDirection(Action):
 class BumpAction(ActionWithDirection):
     """Action to decide what happens when a creature moves to a desired tile"""
 
-    def perform(self, engine: Engine) -> bool:
+    def perform(self, engine: Engine) -> None:
         floor = engine.dungeon.current_floor
 
         desired_x = self.entity.x + self.dx

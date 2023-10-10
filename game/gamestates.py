@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from .entities import Entity
     from .engine import Engine
 from .actions import *
+from .components.fighter import Fighter
 from .save_handling import Save, get_new_game, fetch_saves
 
 # In order, if applicable: arrow keys, numpad keys, and vi keys.
@@ -133,7 +134,8 @@ class IndexableOptionsState(State):
     
     def __init__(self, parent: Entity):
         super().__init__(parent)
-        self.cursor_index = 0
+        self.cursor_index_y = 0
+        self.cursor_index_x = 0  # 2D selection support.
 
 
 class ConfirmBox:
@@ -161,17 +163,17 @@ class ConfirmBoxState(IndexableOptionsState):
         
         action_or_state: Optional[Union[Action, State]] = None
         if player_input in CONFIRM_KEYS:
-            if self.cursor_index == 0:  # Selected confirm.
+            if self.cursor_index_y == 0:  # Selected confirm.
                 self.confirm_box.result = True
             action_or_state = self.parent_state
             
         elif player_input in MOVE_KEYS:
             x, y = MOVE_KEYS[player_input]
             if x == 0 and y == -1:  # Move cursor left.
-                self.cursor_index -= 1
+                self.cursor_index_y -= 1
                 action_or_state = DoNothingAction(self.parent)
             elif x == 0 and y == 1:  # Move cursor right.
-                self.cursor_index += 1
+                self.cursor_index_y += 1
                 action_or_state = DoNothingAction(self.parent)
         
         return action_or_state
@@ -179,8 +181,8 @@ class ConfirmBoxState(IndexableOptionsState):
     
     def render(self, engine: Engine) -> None:
         new_cursor_pos: int = engine.terminal_controller.display_confirm_box(
-            self.action_to_confirm, self.cursor_index)
-        self.cursor_index = new_cursor_pos
+            self.action_to_confirm, self.cursor_index_y)
+        self.cursor_index_y = new_cursor_pos
 
 
 @dataclass
@@ -209,15 +211,15 @@ class MainMenuState(IndexableOptionsState):
         action_or_state: Optional[Union[Action, State]] = None
         if player_input in CONFIRM_KEYS:  # Select item to use.
             action_or_state = \
-                self.menu_options[self.cursor_index].action_or_state
+                self.menu_options[self.cursor_index_y].action_or_state
             
         elif player_input in MOVE_KEYS:
             x, y = MOVE_KEYS[player_input]
             if x == -1 and y == 0:  # Move cursor up.
-                self.cursor_index -= 1
+                self.cursor_index_y -= 1
                 action_or_state = DoNothingAction(self.parent)
             elif x == 1 and y == 0:  # Move cursor down.
-                self.cursor_index += 1
+                self.cursor_index_y += 1
                 action_or_state = DoNothingAction(self.parent)
 
         elif player_input in EXIT_KEYS:
@@ -228,8 +230,8 @@ class MainMenuState(IndexableOptionsState):
     
     def render(self, engine: Engine) -> None:
         new_cursor_pos: int = engine.terminal_controller.display_main_menu(
-            self.menu_options, self.cursor_index)
-        self.cursor_index = new_cursor_pos
+            self.menu_options, self.cursor_index_y)
+        self.cursor_index_y = new_cursor_pos
 
 
 class ListSavesMenuState(IndexableOptionsState):
@@ -247,8 +249,8 @@ class ListSavesMenuState(IndexableOptionsState):
     
     def render(self, engine: Engine) -> None:
         new_cursor_pos: int = engine.terminal_controller.display_saves(
-            self.saves, self.cursor_index, self.TITLE)
-        self.cursor_index = new_cursor_pos
+            self.saves, self.cursor_index_y, self.TITLE)
+        self.cursor_index_y = new_cursor_pos
 
 
     def handle_input(
@@ -259,10 +261,10 @@ class ListSavesMenuState(IndexableOptionsState):
         if player_input in MOVE_KEYS:
             x, y = MOVE_KEYS[player_input]
             if x == -1 and y == 0:  # Move cursor up.
-                self.cursor_index -= 1
+                self.cursor_index_y -= 1
                 action_or_state = DoNothingAction(self.parent)
             elif x == 1 and y == 0:  # Move cursor down.
-                self.cursor_index += 1
+                self.cursor_index_y += 1
                 action_or_state = DoNothingAction(self.parent)
         
         return action_or_state
@@ -310,20 +312,20 @@ class StartNewGameMenuState(ListSavesMenuState):
         ):
             self.confirm_box_overwrite = None
             action_or_state = StartNewGameAction(
-                get_new_game(self.cursor_index),
-                self.saves_dir, self.cursor_index)
+                get_new_game(self.cursor_index_y),
+                self.saves_dir, self.cursor_index_y)
         
         # Player has confirmed to delete a save.
         if self.confirm_box_delete and self.confirm_box_delete.result is True:
             self.confirm_box_delete = None
             return DeleteSaveAction(
-                Save.get_empty(), self.saves_dir, self.cursor_index)
+                Save.get_empty(), self.saves_dir, self.cursor_index_y)
 
         self.bypassable = False
 
         if player_input in CONFIRM_KEYS:
             # Check if selected an occupied slot for overwrite, ask to confirm.
-            if not self.saves[self.cursor_index].is_empty:
+            if not self.saves[self.cursor_index_y].is_empty:
                 self.confirm_box_overwrite = ConfirmBox()
                 action_or_state = ConfirmBoxState(
                     self.parent, self,
@@ -331,12 +333,12 @@ class StartNewGameMenuState(ListSavesMenuState):
                 self.bypassable = True
             else:
                 action_or_state = StartNewGameAction(
-                    get_new_game(self.cursor_index),
-                    self.saves_dir, self.cursor_index)
+                    get_new_game(self.cursor_index_y),
+                    self.saves_dir, self.cursor_index_y)
         
         # Delete a save.
         elif player_input == 'x':
-            if not self.saves[self.cursor_index].is_empty:
+            if not self.saves[self.cursor_index_y].is_empty:
                 self.confirm_box_delete = ConfirmBox()
                 action_or_state = ConfirmBoxState(
                     self.parent, self, self.confirm_box_delete, "delete save")
@@ -368,21 +370,21 @@ class ContinueGameMenuState(ListSavesMenuState):
         if self.confirm_box_delete and self.confirm_box_delete.result is True:
             self.confirm_box_delete = None
             return DeleteSaveAction(
-                Save.get_empty(), self.saves_dir, self.cursor_index)
+                Save.get_empty(), self.saves_dir, self.cursor_index_y)
         
         self.bypassable = False
 
         if player_input in CONFIRM_KEYS:
-            save: Save = self.saves[self.cursor_index]
+            save: Save = self.saves[self.cursor_index_y]
             if save.is_empty:  # Can't continue an empty save.
                 action_or_state = DoNothingAction(self.parent)
             else:
                 action_or_state = ContinueGameAction(
-                    save, self.saves_dir, self.cursor_index)
+                    save, self.saves_dir, self.cursor_index_y)
         
         # Delete a save.
         elif player_input == 'x':
-            if not self.saves[self.cursor_index].is_empty:
+            if not self.saves[self.cursor_index_y].is_empty:
                 self.confirm_box_delete = ConfirmBox()
                 action_or_state = ConfirmBoxState(
                     self.parent, self, self.confirm_box_delete, "delete save")
@@ -480,6 +482,10 @@ class ExploreState(State):
         elif player_input == '\t' or player_input == 'i':
             return InventoryMenuState(self.parent)
         
+        # DEBUG TODO remove.
+        elif player_input == '0':
+            return LevelUpSelectionState(self.parent)
+        
         # TODO remove for final version of gameplay.
         elif player_input == 'm':
             return MainMenuState(self.parent)  # Head out without saving.
@@ -511,16 +517,16 @@ class InventoryMenuState(IndexableOptionsState):
         if player_input in MOVE_KEYS:
             x, y = MOVE_KEYS[player_input]
             if x == -1 and y == 0:  # Move cursor up.
-                self.cursor_index -= 1
+                self.cursor_index_y -= 1
                 action_or_state = DoNothingAction(self.parent)
             elif x == 1 and y == 0:  # Move cursor down.
-                self.cursor_index += 1
+                self.cursor_index_y += 1
                 action_or_state = DoNothingAction(self.parent)
         
         # Use item.
         elif player_input in CONFIRM_KEYS:
             item: Optional[Item] = self.parent.inventory.get_item(
-                self.cursor_index)
+                self.cursor_index_y)
             if item is not None and item.get_component("consumable") is not None:
                 action_or_state = item.consumable.get_action_or_state(
                     self.parent)
@@ -530,7 +536,7 @@ class InventoryMenuState(IndexableOptionsState):
         # Drop Item.
         elif player_input == 'd':
             item: Optional[Item] = self.parent.inventory.get_item(
-                self.cursor_index)
+                self.cursor_index_y)
             if item:
                 action_or_state = DropItemAction(self.parent, item)
         # Switch back from inventory.
@@ -555,6 +561,61 @@ class InventoryMenuState(IndexableOptionsState):
 
     def render(self, engine: Engine) -> None:
         new_cursor_pos: int = engine.terminal_controller.display_inventory(
-            engine.player.inventory, self.cursor_index)
-        self.cursor_index = new_cursor_pos
+            engine.player.inventory, self.cursor_index_y)
+        self.cursor_index_y = new_cursor_pos
+
+
+class LevelUpSelectionState(IndexableOptionsState):
+    """Handles selection of attributes upon levelup"""
+
+    def handle_input(self, player_input: str) -> Optional[Union[Action, State]]:
+        attributes: list[Fighter.AttributeType] = [
+            Fighter.AttributeType.POWER,
+            Fighter.AttributeType.AGILITY,
+            Fighter.AttributeType.VITALITY,
+            Fighter.AttributeType.SAGE
+        ]
+
+        action_or_state: Optional[Union[Action, State]] = None
+        # Cannot exit out until attribute is chosen.
+        if player_input in MOVE_KEYS:
+            x, y = MOVE_KEYS[player_input]
+            if x == -1 and y == 0:  # Move cursor up.
+                self.cursor_index_x -= 1
+            elif x == 0 and y == 1:  # Move cursor right.
+                self.cursor_index_y += 1
+            elif x == 1 and y == 0:  # Move cursor down.
+                self.cursor_index_x += 1
+            elif x == 0 and y == -1:  # Move cursor left.
+                self.cursor_index_y -= 1
+            
+            action_or_state = DoNothingAction(self.parent)
+        
+        # Select attribute.
+        elif player_input in CONFIRM_KEYS:
+            attribute: Fighter.AttributeType = attributes[self.cursor_index_y]
+            action_or_state = LevelUpAction(self.parent, attribute)
+        
+        return action_or_state
+    
+
+    def perform(self,
+                engine: Engine,
+                action_or_state: Union[Action, State]) -> bool:
+        turnable: bool = super().perform(engine, action_or_state)
+
+        # An attribute was selected.
+        if isinstance(action_or_state, LevelUpAction):
+            engine.gamestate = ExploreState(self.parent)
+        
+        return turnable
+    
+
+    def render(self, engine: Engine) -> None:
+        new_cursor_pos: int = \
+            engine.terminal_controller.display_levelup_selection(
+            engine.player.leveler, engine.player.fighter,
+            self.cursor_index_x, self.cursor_index_y
+        )
+        self.cursor_index_x, self.cursor_index_y = new_cursor_pos
 

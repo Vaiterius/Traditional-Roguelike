@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 import curses
 from math import ceil
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -10,6 +11,8 @@ if TYPE_CHECKING:
     from .dungeon.dungeon import Dungeon
     from .entities import Entity
     from .components.base_component import Inventory
+    from .components.leveler import Leveler
+    from .components.fighter import Fighter
     from .message_log import Message, MessageLog
     from .gamestates import MenuOption
     from .save_handling import Save
@@ -17,6 +20,7 @@ from .dungeon.floor import FloorBuilder
 from .tile import *
 from .data.config import *
 from .entities import Creature, Player, Item
+from .components.fighter import StatModifier
 from .color import Color
 from .render_order import RenderOrder
 from .data.config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
@@ -177,6 +181,7 @@ class TerminalController:
         
         window.erase()
         
+
         # PLAYER SECTION #
         PLAYER_SECTION_HEADER = "[ PLAYER ]"
         PLAYER_START_X = 0
@@ -338,7 +343,7 @@ class TerminalController:
                     red_enemy_hp_bar,
                     self.colors.get_color("red"))
 
-                entity_iter += 2
+                entity_iter += 2  # One more row offset for healthbar.
                 continue
 
             entity_iter += 1
@@ -360,7 +365,6 @@ class TerminalController:
         stats_subwindow.refresh()
         standing_on_subwindow.refresh()
         entities_subwindow.refresh()
-        # help_subwindow.refresh()
 
 
     def display_inventory(self,
@@ -458,6 +462,153 @@ class TerminalController:
         item_info_window.refresh()
         
         return cursor_index
+    
+
+    def display_stats(self) -> int:
+        """
+        Display more details on player's current combat stats and other
+        relevant info for this save.
+        """
+        pass
+    
+
+    # TODO create little wrapper class for curses window displaying?
+    def display_levelup_selection(self, 
+                                  leveler: Leveler, 
+                                  fighter: Fighter, 
+                                  cursor_index_x: int,
+                                  cursor_index_y: int) -> tuple[int, int]:
+        """Choose which attribute to level up.
+        
+        Upon character levelup, the player has the choice between increasing
+        their power, agility, vitality, or sage attributes. Will also have
+        an info panel to show new changes.
+        """
+        # Attribute selection and stats info windows.
+        ATTRIBUTE_SELECTION_HEIGHT: int = 9
+        ATTRIBUTE_SELECTION_WIDTH: int = self.game_width // 3
+        STATS_INFO_HEIGHT: int = 6
+        STATS_INFO_WIDTH: int = ATTRIBUTE_SELECTION_WIDTH
+
+        COMBINED_HEIGHT: int = ATTRIBUTE_SELECTION_WIDTH + STATS_INFO_WIDTH
+
+        # Topleft corners for windows.
+        attribute_selection_origin_x: int = self.game_height // 3
+        attribute_selection_origin_y: int = (self.game_width // 2) - \
+            (ATTRIBUTE_SELECTION_WIDTH // 2)
+        stats_info_origin_x: int = attribute_selection_origin_x + \
+            ATTRIBUTE_SELECTION_HEIGHT
+        stats_info_origin_y: int = attribute_selection_origin_y
+
+        # Create the windows.
+        attribute_selection_window = curses.newwin(
+            ATTRIBUTE_SELECTION_HEIGHT, ATTRIBUTE_SELECTION_WIDTH,
+            attribute_selection_origin_x, attribute_selection_origin_y
+        )
+        stats_info_window = curses.newwin(
+            STATS_INFO_HEIGHT, STATS_INFO_WIDTH,
+            stats_info_origin_x, stats_info_origin_y
+        )
+
+        HEADER_TEXT = "LEVEL UP!"
+
+        attribute_selection_window.erase()
+        attribute_selection_window.border()
+        stats_info_window.erase()
+        stats_info_window.border()
+        attribute_selection_window.addstr(0, 2, HEADER_TEXT, curses.A_REVERSE)
+
+        # Validate cursor position in 2D.
+        if cursor_index_x < 0:
+            cursor_index_x = 0
+        elif cursor_index_x > 1:
+            cursor_index_x = 1
+
+        if cursor_index_y < 0:
+            cursor_index_y = 0
+        elif cursor_index_y > 1:
+            cursor_index_y = 1
+        
+        # Fill attribute selection window.
+        subheader_1 = f"Level {leveler.level - 1} -> {leveler.level}"
+        subheader_2 = "Choose an attribute to increase:"
+        attribute_selection_window.addstr(1, 2, subheader_1)
+        attribute_selection_window.addstr(2, 2, subheader_2)
+
+        @dataclass
+        class AttributeInfo:
+            display_name: str
+            x: int
+            y: int
+            new_stats: list[str]
+        
+        ATTRIBUTE_INDICES: dict[tuple[int, int], AttributeInfo] = {
+            (0, 0): AttributeInfo(
+                display_name=" POWER ", x=4, y=5,
+                new_stats=[
+                    f"DMG (melee): {fighter.damage} dmg (+{StatModifier.add_damage(fighter.power + 1)})",
+                    f"DMG (bow): WIP",
+                    f"% to knock out: {round(fighter.knockout_chance * 100)}% (+3%)",
+                    f"Critcal hit DMG: +{round(fighter.critical_hit_damage_bonus * 100)}% dmg (+5%)"
+                ]
+            ),
+            (0, 1): AttributeInfo(
+                display_name=" VITALITY ", x=4, y=((ATTRIBUTE_SELECTION_WIDTH // 2) + 2),
+                new_stats=[
+                    f"Max HP: WIP",
+                    f"HP regen per 10 turns: WIP",
+                    f"HP potion yield: WIP",
+                    "Debuffs have shorter durations..."
+                ]
+            ),
+            (1, 0): AttributeInfo(
+                display_name=" AGILITY ", x=6, y=4,
+                new_stats=[
+                    f"% to hit (melee): WIP",
+                    f"% to hit (bow): WIP",
+                    f"% to land critical: WIP",
+                    f"% to double hit: WIP"
+                ]
+            ),
+            (1, 1): AttributeInfo(
+                display_name=" SAGE ", x=6, y=((ATTRIBUTE_SELECTION_WIDTH // 2) + 4),
+                new_stats=[
+                    f"Max MP: WIP",
+                    f"MP regen per 10 turns: WIP",
+                    f"MP potion yield: WIP",
+                    "Various spells are stronger..."
+                ]
+            )
+        }
+
+        selected_attribute: AttributeInfo = ATTRIBUTE_INDICES[
+            (cursor_index_x, cursor_index_y)
+        ]
+
+        for _, attribute in ATTRIBUTE_INDICES.items():
+            if attribute == selected_attribute:
+                attribute_selection_window.addstr(
+                    selected_attribute.x,
+                    selected_attribute.y,
+                    selected_attribute.display_name,
+                    curses.A_REVERSE
+                )
+            else:
+                attribute_selection_window.addstr(
+                    attribute.x,
+                    attribute.y,
+                    attribute.display_name,
+                    curses.A_NORMAL
+                )
+
+
+        for i in range(len(selected_attribute.new_stats)):
+            stats_info_window.addstr(i + 1, 2, selected_attribute.new_stats[i])
+
+        attribute_selection_window.refresh()
+        stats_info_window.refresh()
+
+        return cursor_index_x, cursor_index_y
     
     
     def display_saves(self,
