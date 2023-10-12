@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from .base_component import BaseComponent
 
-if TYPE_CHECKING:
-    from .fighter import Fighter
+# if TYPE_CHECKING:
+    # from .fighter import Fighter
+from .fighter import Fighter
 
 
 def experience_needed_for_level(level: int) -> int:
@@ -72,16 +73,14 @@ class Leveler(BaseComponent):
 
     # ATTRIBUTE LEVELING #
     
-    def increase_power(self) -> None:
-        self.owner.get_component("fighter").power += 1
-    
-    def increase_agility(self) -> None:
-        self.owner.get_component("fighter").agility += 1
-    
-    def increase_vitality(self) -> None:
-        self.owner.get_component("fighter").vitality += 1
-    
-    def increase_sage(self) -> None:
-        self.owner.get_component("fighter").sage += 1
+    def increment_attribute(self, attribute: Fighter.AttributeType) -> None:
+        if attribute == Fighter.AttributeType.POWER:
+            self.owner.fighter.power += 1
+        elif attribute == Fighter.AttributeType.AGILITY:
+            self.owner.fighter.agility += 1
+        elif attribute == Fighter.AttributeType.VITALITY:
+            self.owner.fighter.vitality += 1
+        elif attribute == Fighter.AttributeType.SAGE:
+            self.owner.fighter.sage += 1
     
     

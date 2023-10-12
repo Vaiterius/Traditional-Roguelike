@@ -12,6 +12,7 @@ class Color:
         for i in range(curses.COLORS):
             curses.init_pair(i + 1, i, -1)
         
+        # TODO chance to enum? VALUE = code number
         self.supported_colors = {
             # Default colors.
             "black": 1,
@@ -30,6 +31,7 @@ class Color:
             "blood_red": 53,
             "forest_green": 23,
             "brown": 131,
+            "gold": 221
         }
     
 

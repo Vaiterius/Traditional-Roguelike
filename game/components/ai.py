@@ -4,9 +4,12 @@ import math
 import random
 from typing import TYPE_CHECKING
 
+from game.engine import Engine
+
 if TYPE_CHECKING:
     from ..engine import Engine
     from ..entities import Entity
+    from .leveler import Leveler
 from .base_component import BaseComponent
 from ..actions import Action, BumpAction
 from ..pathfinding import bresenham_path_to
@@ -23,7 +26,15 @@ class BaseAI(Action, BaseComponent):
 
 
     def perform(self, engine: Engine):
-        pass
+        # Check for available level up.
+        leveler: Leveler = self.entity.get_component("leveler")
+
+        if leveler is None:
+            return
+        
+        # TODO randomly assign attribute points.
+        while leveler.can_level_up:
+            leveler.level_up()
 
 
     def update_agro_status(
@@ -68,6 +79,8 @@ class WanderingAI(BaseAI):
     }
 
     def perform(self, engine: Engine):
+        super().perform(engine)
+
         player_x = engine.player.x
         player_y = engine.player.y
 
@@ -92,6 +105,8 @@ class HostileEnemyAI(BaseAI):
     """AI that targets and fights the player; pseudo-pathfinding algorithm"""
 
     def perform(self, engine: Engine):
+        super().perform(engine)
+
         player_x = engine.player.x
         player_y = engine.player.y
 

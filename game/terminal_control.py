@@ -530,10 +530,11 @@ class TerminalController:
             cursor_index_y = 1
         
         # Fill attribute selection window.
-        subheader_1 = f"Level {leveler.level - 1} -> {leveler.level}"
+        subheader_1 = f"Level {leveler.level} -> {leveler.level + 1}"
         subheader_2 = "Choose an attribute to increase:"
         attribute_selection_window.addstr(1, 2, subheader_1)
         attribute_selection_window.addstr(2, 2, subheader_2)
+
 
         @dataclass
         class AttributeInfo:
@@ -542,38 +543,88 @@ class TerminalController:
             y: int
             new_stats: list[str]
         
+        
+        def get_percent(decimal: float) -> int:
+            return round(decimal * 100)
+
+        
+        # Variables to prevent strings from getting too long.
+        # Power stats.
+        melee_damage: int = fighter.damage
+        melee_damage_add: int = StatModifier.DAMAGE_PER_POINT
+        knockout_chance: int = get_percent(fighter.knockout_chance)
+        knockout_chance_add: int = get_percent(
+            StatModifier.KNOCKOUT_CHANCE_PER_POINT)
+        critical_damage: int = get_percent(fighter.critical_hit_damage_bonus)
+        critical_damage_add: int = get_percent(
+            StatModifier.CRITICAL_HIT_DAMAGE_BONUS_PER_POINT)
+        # Vitality stats.
+        max_health: int = fighter.max_health
+        max_health_add: int = (
+            StatModifier.JUICE_PER_3_POINTS
+            if (fighter.vitality - 1) % 3 == 0
+            else StatModifier.JUICE_PER_POINT
+        )
+        # Agility stats.
+        hit_chance: int = get_percent(fighter.hit_chance)
+        hit_chance_add: int = get_percent(StatModifier.HIT_CHANCE_PER_POINT)
+        critical_hit_chance: int = get_percent(fighter.critical_hit_chance)
+        critical_hit_chance_add: int = get_percent(
+            StatModifier.CRITICAL_HIT_CHANCE_PER_POINT)
+        double_hit_chance: int = get_percent(fighter.double_hit_chance)
+        double_hit_chance_add: int = get_percent(
+            StatModifier.DOUBLE_HIT_CHANCE_PER_POINT)
+        # Sage stats.
+        max_magicka: int = fighter.max_magicka
+        max_magicka_add: int = (
+            StatModifier.JUICE_PER_3_POINTS
+            if (fighter.sage - 1) % 3 == 0
+            else StatModifier.JUICE_PER_POINT
+        )
+
+        # Selection of attribute based on cursor index position.
+        # Connects to LevelUpSelectionState attributes dictionary.
         ATTRIBUTE_INDICES: dict[tuple[int, int], AttributeInfo] = {
             (0, 0): AttributeInfo(
-                display_name=" POWER ", x=4, y=5,
+                display_name=" POWER ",
+                x=4, y=5,
                 new_stats=[
-                    f"DMG (melee): {fighter.damage} dmg (+{StatModifier.add_damage(fighter.power + 1)})",
+                    f"DMG (melee): {melee_damage} dmg "
+                        f"(+{melee_damage_add})",
                     f"DMG (bow): WIP",
-                    f"% to knock out: {round(fighter.knockout_chance * 100)}% (+3%)",
-                    f"Critcal hit DMG: +{round(fighter.critical_hit_damage_bonus * 100)}% dmg (+5%)"
+                    f"% to knock out: {knockout_chance}% "
+                        f"(+{knockout_chance_add}%)",
+                    f"Critcal hit DMG: +{critical_damage}% dmg "
+                        f"(+{critical_damage_add}%)"
                 ]
             ),
             (0, 1): AttributeInfo(
-                display_name=" VITALITY ", x=4, y=((ATTRIBUTE_SELECTION_WIDTH // 2) + 2),
+                display_name=" VITALITY ",
+                x=4, y=((ATTRIBUTE_SELECTION_WIDTH // 2) + 2),
                 new_stats=[
-                    f"Max HP: WIP",
+                    f"Max HP: {max_health} pts (+{max_health_add})",
                     f"HP regen per 10 turns: WIP",
                     f"HP potion yield: WIP",
                     "Debuffs have shorter durations..."
                 ]
             ),
             (1, 0): AttributeInfo(
-                display_name=" AGILITY ", x=6, y=4,
+                display_name=" AGILITY ",
+                x=6, y=4,
                 new_stats=[
-                    f"% to hit (melee): WIP",
+                    f"% to hit (melee): {hit_chance}% (+{hit_chance_add}%)",
                     f"% to hit (bow): WIP",
-                    f"% to land critical: WIP",
-                    f"% to double hit: WIP"
+                    f"% to land critical: {critical_hit_chance}% "
+                        f"(+{critical_hit_chance_add}%)",
+                    f"% to double hit: {double_hit_chance}% "
+                        f"(+{double_hit_chance_add}%)"
                 ]
             ),
             (1, 1): AttributeInfo(
-                display_name=" SAGE ", x=6, y=((ATTRIBUTE_SELECTION_WIDTH // 2) + 4),
+                display_name=" SAGE ",
+                x=6, y=((ATTRIBUTE_SELECTION_WIDTH // 2) + 4),
                 new_stats=[
-                    f"Max MP: WIP",
+                    f"Max MP: {max_magicka} pts (+{max_magicka_add})",
                     f"MP regen per 10 turns: WIP",
                     f"MP potion yield: WIP",
                     "Various spells are stronger..."
@@ -585,23 +636,26 @@ class TerminalController:
             (cursor_index_x, cursor_index_y)
         ]
 
+        # Highlight the currently selected attribute.
         for _, attribute in ATTRIBUTE_INDICES.items():
             if attribute == selected_attribute:
                 attribute_selection_window.addstr(
                     selected_attribute.x,
                     selected_attribute.y,
                     selected_attribute.display_name,
-                    curses.A_REVERSE
+                    curses.A_REVERSE,
                 )
             else:
                 attribute_selection_window.addstr(
                     attribute.x,
                     attribute.y,
                     attribute.display_name,
-                    curses.A_NORMAL
+                    self.colors.get_color("gold")
                 )
 
 
+        # TODO make numeric stat modifiers green characters.
+        # Display attribute info on the bottom.
         for i in range(len(selected_attribute.new_stats)):
             stats_info_window.addstr(i + 1, 2, selected_attribute.new_stats[i])
 

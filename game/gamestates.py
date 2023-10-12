@@ -483,8 +483,8 @@ class ExploreState(State):
             return InventoryMenuState(self.parent)
         
         # DEBUG TODO remove.
-        elif player_input == '0':
-            return LevelUpSelectionState(self.parent)
+        # elif player_input == '0':
+        #     return LevelUpSelectionState(self.parent)
         
         # TODO remove for final version of gameplay.
         elif player_input == 'm':
@@ -569,12 +569,12 @@ class LevelUpSelectionState(IndexableOptionsState):
     """Handles selection of attributes upon levelup"""
 
     def handle_input(self, player_input: str) -> Optional[Union[Action, State]]:
-        attributes: list[Fighter.AttributeType] = [
-            Fighter.AttributeType.POWER,
-            Fighter.AttributeType.AGILITY,
-            Fighter.AttributeType.VITALITY,
-            Fighter.AttributeType.SAGE
-        ]
+        attributes: list[Fighter.AttributeType] = {
+            (0, 0): Fighter.AttributeType.POWER,
+            (0, 1): Fighter.AttributeType.VITALITY,
+            (1, 0): Fighter.AttributeType.AGILITY,
+            (1, 1): Fighter.AttributeType.SAGE
+        }
 
         action_or_state: Optional[Union[Action, State]] = None
         # Cannot exit out until attribute is chosen.
@@ -593,7 +593,9 @@ class LevelUpSelectionState(IndexableOptionsState):
         
         # Select attribute.
         elif player_input in CONFIRM_KEYS:
-            attribute: Fighter.AttributeType = attributes[self.cursor_index_y]
+            attribute: Fighter.AttributeType = attributes[
+                (self.cursor_index_x, self.cursor_index_y)
+            ]
             action_or_state = LevelUpAction(self.parent, attribute)
         
         return action_or_state
@@ -606,12 +608,17 @@ class LevelUpSelectionState(IndexableOptionsState):
 
         # An attribute was selected.
         if isinstance(action_or_state, LevelUpAction):
+            # Player still has enough experience to level up another time.
+            if engine.player.leveler.can_level_up:
+                return turnable
+
             engine.gamestate = ExploreState(self.parent)
         
         return turnable
     
 
     def render(self, engine: Engine) -> None:
+        super().display_main(engine)
         new_cursor_pos: int = \
             engine.terminal_controller.display_levelup_selection(
             engine.player.leveler, engine.player.fighter,

@@ -97,6 +97,10 @@ class Engine:
         """Proccess world's turn from player's input"""
         # Handle enemy turns.
         if isinstance(self.gamestate, ExploreState):
+            if self.player.leveler.can_level_up:
+                self.gamestate = LevelUpSelectionState(self.player)
+                return
+
             creatures = self.dungeon.current_floor.creatures
             for creature in creatures:
                 if not creature.get_component("ai") or \

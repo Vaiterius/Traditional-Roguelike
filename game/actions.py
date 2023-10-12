@@ -215,8 +215,14 @@ class LevelUpAction(Action):
     
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
+        
+        leveler: Leveler = self.entity.leveler
+        leveler.level_up()
+        leveler.increment_attribute(self.attribute)
 
-
+        engine.message_log.add(
+            message=f"Leveled up to {leveler.level}",
+            type=MessageType.INFO, color="green")
 
         return turnable
 
@@ -426,27 +432,15 @@ class MeleeAction(ActionWithDirection):
             floor.add_entity(target)
             engine.message_log.add(target_slain_message)
 
+            if initiator == engine.player:
+                engine.message_log.add(
+                    message=f"You slayed {target.og_name} " \
+                            f"and gained {experience_drop} EXP!",
+                    type=MessageType.INFO, color="green")
+
             # Absorb experience.
-            leveled_up: bool = False
             initiator_leveler.absorb(
                 incoming_experience=target_leveler.experience_drop)
-            while initiator_leveler.can_level_up:
-                initiator_leveler.level_up()
-                leveled_up = True
-            
-            if initiator != engine.player:
-                return turnable
-            
-            # Player related messages from here on out.
-            engine.message_log.add(
-                message=f"You slayed {target.og_name} " \
-                        f"and gained {experience_drop} EXP!",
-                type=MessageType.INFO, color="green")
-            
-            if leveled_up:
-                engine.message_log.add(
-                    message=f"Leveled up to {initiator_leveler.level}",
-                    type=MessageType.INFO, color="green")
         
         return turnable
 

@@ -42,6 +42,14 @@ from ..render_order import RenderOrder
 # TODO turn these static methods into decorators for fighter properties?
 class StatModifier:
     """Util functions that modify combat bonuses based on attribute level"""
+    JUICE_PER_3_POINTS = 3
+    JUICE_PER_POINT = 2
+    DAMAGE_PER_POINT = 1
+    HIT_CHANCE_PER_POINT = 0.02
+    CRITICAL_HIT_CHANCE_PER_POINT = 0.01
+    CRITICAL_HIT_DAMAGE_BONUS_PER_POINT = 0.05
+    KNOCKOUT_CHANCE_PER_POINT = 0.03
+    DOUBLE_HIT_CHANCE_PER_POINT = 0.03
     
     @staticmethod
     def add_max_points(attribute: int) -> int:
@@ -49,45 +57,43 @@ class StatModifier:
         
         `attribute` is either vitality or sage.
         """
-        INT_EVERY_5_POINTS = 3
-        INT_EVERY_1_POINT = 2
         extra_points = 0
         for current_point in range(0, attribute - 1):
-            if current_point % 5 == 0:
-                extra_points += INT_EVERY_5_POINTS
+            if current_point % 3 == 0:
+                extra_points += StatModifier.JUICE_PER_3_POINTS
             else:
-                extra_points += INT_EVERY_1_POINT
+                extra_points += StatModifier.JUICE_PER_POINT
         return extra_points
     
     @staticmethod
     def add_damage(power: int) -> int:
         """1 damage bonus for every power level"""
-        return power - 1
+        return power - 1  # Offset, level 1 is base (+0)
     
     @staticmethod
     def add_hit_chance(agility: int) -> float:
         """2% bonus for every agility level"""
-        return agility * 0.02
+        return agility * StatModifier.HIT_CHANCE_PER_POINT
     
     @staticmethod
     def add_critical_hit_chance(agility: int) -> float:
         """1% bonus for every agility level"""
-        return agility * 0.01
+        return agility * StatModifier.CRITICAL_HIT_CHANCE_PER_POINT
     
     @staticmethod
     def add_critical_hit_damage_bonus(power: int) -> float:
         """5% bonus for every power level"""
-        return power * 0.05
+        return power * StatModifier.CRITICAL_HIT_DAMAGE_BONUS_PER_POINT
     
     @staticmethod
     def add_knockout_chance(power: int) -> float:
         """3% bonus for every power level"""
-        return power * 0.03
+        return power * StatModifier.KNOCKOUT_CHANCE_PER_POINT
     
     @staticmethod
     def add_double_hit_chance(agility: int) -> float:
         """3% bonus for every agility level"""
-        return agility * 0.03
+        return agility * StatModifier.DOUBLE_HIT_CHANCE_PER_POINT
 
 
 class Fighter(BaseComponent):
@@ -108,25 +114,25 @@ class Fighter(BaseComponent):
                  base_agility: int,
                  base_vitality: int,
                  base_sage: int):
-        self._base_max_health = base_health
-        self._base_max_magicka = base_magicka
+        self._max_health = base_health
+        self._max_magicka = base_magicka
         self._health = base_health
         self._magicka = base_magicka
-        self._base_damage = base_damage
+        self._damage = base_damage
         
         # Attributes.
-        self._base_power = base_power
-        self._base_agility = base_agility
-        self._base_vitality = base_vitality
-        self._base_sage = base_sage
+        self._power = base_power
+        self._agility = base_agility
+        self._vitality = base_vitality
+        self._sage = base_sage
         
         # TODO add to data file?
         # Combat chances.
-        self._BASE_HIT_CHANCE: float = 0.75
-        self._BASE_KNOCKOUT_CHANCE: float = 0.05
-        self._BASE_CRITICAL_CHANCE: float = 0.01
-        self._BASE_CRITICAL_DAMAGE_BONUS: float = 0.50
-        self._BASE_DOUBLE_HIT_CHANCE: float = 0.05
+        self._HIT_CHANCE: float = 0.75
+        self._KNOCKOUT_CHANCE: float = 0.05
+        self._CRITICAL_CHANCE: float = 0.01
+        self._CRITICAL_DAMAGE_BONUS: float = 0.50
+        self._DOUBLE_HIT_CHANCE: float = 0.05
 
         # Update and recalculate after modifiers.
         self._health = self.max_health
@@ -142,7 +148,7 @@ class Fighter(BaseComponent):
     @property
     def max_health(self) -> int:
         """Max health based on vitality level"""
-        return self._base_max_health + \
+        return self._max_health + \
             StatModifier.add_max_points(self.vitality)
     
     @property
@@ -150,7 +156,7 @@ class Fighter(BaseComponent):
         return self._health
     
     def heal(self, amount: int) -> None:
-        """Recover HP by some amount"""
+        """Recover HP by some amount. Will call health setter."""
         self.health += amount
     
     @health.setter
@@ -170,20 +176,20 @@ class Fighter(BaseComponent):
     @property
     def max_magicka(self) -> int:
         """Max magicka based on sage level"""
-        return self._base_max_magicka + StatModifier.add_max_points(self.sage)
+        return self._max_magicka + StatModifier.add_max_points(self.sage)
     
     @property
     def magicka(self) -> int:
         return self._magicka
     
     def recharge(self, amount: int) -> None:
-        """Recover MP by some amount"""
+        """Recover MP by some amount. Will call magicka setter."""
         self.magicka += amount
     
     @magicka.setter
     def magicka(self, new_magicka: int) -> None:
         # New MP cannot be lower than 0 or higher than max MP.
-        self.magicka = max(0, min(self.max_magicka, new_magicka))
+        self._magicka = max(0, min(self.max_magicka, new_magicka))
     
 
     # TODO provide tests
@@ -192,38 +198,38 @@ class Fighter(BaseComponent):
     # POWER.
     @property
     def power(self) -> int:
-        return self._base_power
+        return self._power
     
     @power.setter
     def power(self, new_power: int) -> None:
-        self.power = max(1, new_power)
+        self._power = max(1, new_power)
     
     # AGILITY.
     @property
     def agility(self) -> int:
-        return self._base_agility
+        return self._agility
     
     @agility.setter
     def agility(self, new_agility: int) -> None:
-        self.agility = max(1, new_agility)
+        self._agility = max(1, new_agility)
     
     # VITALITY.
     @property
     def vitality(self) -> int:
-        return self._base_vitality
+        return self._vitality
     
     @vitality.setter
     def vitality(self, new_vitality: int) -> None:
-        self.vitality = max(1, new_vitality)
+        self._vitality = max(1, new_vitality)
 
     # SAGE.
     @property
     def sage(self) -> int:
-        return self._base_sage
+        return self._sage
     
     @sage.setter
     def sage(self, new_sage: int) -> None:
-        self.sage = max(1, new_sage)
+        self._sage = max(1, new_sage)
 
 
     # COMBAT #
@@ -232,7 +238,7 @@ class Fighter(BaseComponent):
     @property
     def damage(self) -> int:
         """Get modified damage from power level"""
-        return self._base_damage + StatModifier.add_damage(self.power)
+        return self._damage + StatModifier.add_damage(self.power)
     
     # TODO incorporate this to the above, with a condition check of crit success.
     @property
@@ -264,7 +270,7 @@ class Fighter(BaseComponent):
     # MELEE HIT CHANCE.
     @property
     def hit_chance(self) -> float:
-        return self._BASE_HIT_CHANCE + \
+        return self._HIT_CHANCE + \
             StatModifier.add_hit_chance(self.agility)
 
     def check_hit_success(self) -> bool:
@@ -274,12 +280,12 @@ class Fighter(BaseComponent):
     # CRITICAL HIT CHANCE.
     @property
     def critical_hit_chance(self) -> float:
-        return self._BASE_CRITICAL_CHANCE + \
+        return self._CRITICAL_CHANCE + \
             StatModifier.add_critical_hit_chance(self.agility)
     
     @property
     def critical_hit_damage_bonus(self) -> float:
-        return self._BASE_CRITICAL_DAMAGE_BONUS + \
+        return self._CRITICAL_DAMAGE_BONUS + \
             StatModifier.add_critical_hit_damage_bonus(self.power)
     
     def check_critical_hit_success(self) -> bool:
@@ -289,7 +295,7 @@ class Fighter(BaseComponent):
     # KNOCKOUT CHANCE.
     @property
     def knockout_chance(self) -> float:
-        return self._BASE_KNOCKOUT_CHANCE + \
+        return self._KNOCKOUT_CHANCE + \
             StatModifier.add_knockout_chance(self.power)
     
     def check_knockout_success(self) -> bool:
@@ -299,7 +305,7 @@ class Fighter(BaseComponent):
     # DOUBLE HIT CHANCE.
     @property
     def double_hit_chance(self) -> float:
-        return self._BASE_DOUBLE_HIT_CHANCE + \
+        return self._DOUBLE_HIT_CHANCE + \
             StatModifier.add_double_hit_chance(self.agility)
     
     def check_double_hit_success(self) -> bool:

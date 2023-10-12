@@ -150,7 +150,7 @@ class Spawner:
                 base_vitality=-1
             )
         )
-        enemy.add_component("leveler", Leveler())
+        enemy.add_component("leveler", Leveler(base_drop_amount=5))
         enemy.add_component("ai", HostileEnemyAI(enemy))
 
         return enemy
