@@ -49,7 +49,7 @@ class StatModifier:
     CRITICAL_HIT_CHANCE_PER_POINT = 0.01
     CRITICAL_HIT_DAMAGE_BONUS_PER_POINT = 0.05
     KNOCKOUT_CHANCE_PER_POINT = 0.03
-    DOUBLE_HIT_CHANCE_PER_POINT = 0.03
+    DOUBLE_HIT_CHANCE_PER_POINT = 0.01
     
     @staticmethod
     def add_max_points(attribute: int) -> int:
@@ -130,13 +130,13 @@ class Fighter(BaseComponent):
         # Combat chances.
         self._HIT_CHANCE: float = 0.75
         self._KNOCKOUT_CHANCE: float = 0.05
-        self._CRITICAL_CHANCE: float = 0.01
+        self._CRITICAL_CHANCE: float = 0.02
         self._CRITICAL_DAMAGE_BONUS: float = 0.50
-        self._DOUBLE_HIT_CHANCE: float = 0.05
+        self._DOUBLE_HIT_CHANCE: float = 0.01
 
-        # Update and recalculate after modifiers.
-        self._health = self.max_health
-        self._magicka = self.max_magicka
+        # After modifiers.
+        self.complete_heal()
+        self.complete_recharge()
 
     
     # HEALTH #
@@ -158,6 +158,10 @@ class Fighter(BaseComponent):
     def heal(self, amount: int) -> None:
         """Recover HP by some amount. Will call health setter."""
         self.health += amount
+    
+    def complete_heal(self) -> None:
+        """Completely refill health points"""
+        self.health = self.max_health
     
     @health.setter
     def health(self, new_health: int) -> None:
@@ -185,6 +189,10 @@ class Fighter(BaseComponent):
     def recharge(self, amount: int) -> None:
         """Recover MP by some amount. Will call magicka setter."""
         self.magicka += amount
+    
+    def complete_recharge(self) -> None:
+        """Completely refill magicka points"""
+        self.magicka = self.max_magicka
     
     @magicka.setter
     def magicka(self, new_magicka: int) -> None:
@@ -240,7 +248,6 @@ class Fighter(BaseComponent):
         """Get modified damage from power level"""
         return self._damage + StatModifier.add_damage(self.power)
     
-    # TODO incorporate this to the above, with a condition check of crit success.
     @property
     def critical_damage(self) -> int:
         """Strengthened modified damage due to critical hit success"""
@@ -275,7 +282,7 @@ class Fighter(BaseComponent):
 
     def check_hit_success(self) -> bool:
         """Attempt to hit opponent succeeds or not"""
-        return self.hit_chance <= random.random()
+        return self.hit_chance >= random.random()
     
     # CRITICAL HIT CHANCE.
     @property
@@ -290,7 +297,7 @@ class Fighter(BaseComponent):
     
     def check_critical_hit_success(self) -> bool:
         """A hit that turns out to be a critical hit"""
-        return self.critical_hit_chance <= random.random()
+        return self.critical_hit_chance >= random.random()
     
     # KNOCKOUT CHANCE.
     @property
@@ -300,7 +307,7 @@ class Fighter(BaseComponent):
     
     def check_knockout_success(self) -> bool:
         """A hit that knocks out the target creature"""
-        return self.knockout_chance <= random.random()
+        return self.knockout_chance >= random.random()
     
     # DOUBLE HIT CHANCE.
     @property
@@ -310,5 +317,5 @@ class Fighter(BaseComponent):
     
     def check_double_hit_success(self) -> bool:
         """A hit attempt that strikes the target creature twice"""
-        return self.double_hit_chance <= random.random()
+        return self.double_hit_chance >= random.random()
     

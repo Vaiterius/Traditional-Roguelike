@@ -99,13 +99,14 @@ class Spawner:
                 base_health=player["hp"],
                 base_magicka=player["mp"],
                 base_damage=player["dmg"],
-                base_agility=2,
-                base_power=3,
+                base_agility=1,
+                base_power=1,
                 base_sage=1,
-                base_vitality=4
+                base_vitality=1
             )
         )
-        player_obj.add_component("leveler", Leveler(start_level=1))
+        player_obj.add_component("leveler", Leveler(start_level=10))
+        player_obj.leveler.set_starting_attributes()
         player_obj.add_component("inventory", Inventory(num_slots=16))
 
         # TODO remove test items
@@ -142,15 +143,17 @@ class Spawner:
             name="fighter",
             component=Fighter(
                 base_health=enemy_data["hp"],
-                base_magicka=-1,
+                base_magicka=1,
                 base_damage=enemy_data["dmg"],
-                base_agility=-1,
-                base_power=-1,
-                base_sage=-1,
-                base_vitality=-1
+                base_agility=1,
+                base_power=1,
+                base_sage=1,
+                base_vitality=1
             )
         )
-        enemy.add_component("leveler", Leveler(base_drop_amount=5))
+        enemy.add_component(
+            "leveler", Leveler(start_level=1, base_drop_amount=5))
+        enemy.leveler.set_starting_attributes()
         enemy.add_component("ai", HostileEnemyAI(enemy))
 
         return enemy

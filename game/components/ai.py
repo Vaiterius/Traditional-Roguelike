@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from ..engine import Engine
     from ..entities import Entity
     from .leveler import Leveler
+from .fighter import Fighter
 from .base_component import BaseComponent
 from ..actions import Action, BumpAction
 from ..pathfinding import bresenham_path_to
@@ -28,12 +29,14 @@ class BaseAI(Action, BaseComponent):
     def perform(self, engine: Engine):
         # Check for available level up.
         leveler: Leveler = self.entity.get_component("leveler")
+        fighter: Fighter = self.entity.get_component("fighter")
 
-        if leveler is None:
+        if leveler is None or fighter is None:
             return
         
-        # TODO randomly assign attribute points.
+        # Randomly assign an attribute point, though probably never needed.
         while leveler.can_level_up:
+            leveler.increment_attribute(leveler.get_random_attribute())
             leveler.level_up()
 
 

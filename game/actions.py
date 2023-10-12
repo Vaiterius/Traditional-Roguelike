@@ -235,7 +235,6 @@ class DoNothingAction(Action):
         return turnable
 
 
-# TODO refactor into a parent TakeStarsAction
 class DescendStairsAction(Action):
     """Descend a flight of stairs to the next dungeon level"""
     
@@ -389,8 +388,8 @@ class MeleeAction(ActionWithDirection):
         message_color: str = ""
 
         # Chance to hit opponent fails.
-        missed: bool = initiator_fighter.check_hit_success()
-        if missed:
+        did_hit: bool = initiator_fighter.check_hit_success()
+        if not did_hit:
             if target == engine.player:
                 battle_message += f"{initiator.og_name} missed you"
                 message_color = "blue"
@@ -399,7 +398,8 @@ class MeleeAction(ActionWithDirection):
                 battle_message += f"You missed {target.og_name}"
                 message_color = "red"
                 message_type = MessageType.PLAYER_ATTACK
-            else: return turnable
+            else:
+                return turnable
 
             engine.message_log.add(
                 message=battle_message, type=message_type, color=message_color)
@@ -407,23 +407,43 @@ class MeleeAction(ActionWithDirection):
             return turnable
         
         # Modify damage given/received based on opponents' stats.
-        # TODO add critical hit message.
-        damage_given: int = initiator_fighter.damage
-        target_fighter.take_damage(damage_given)
+
+        # Do it again if succeeds double hit check.
+        did_double_hit: bool = initiator_fighter.check_double_hit_success()
+        if did_double_hit:
+            engine.message_log.add(
+                "Double hit!", color=(
+                    "green" if initiator == engine.player else "red"))
+        for i in range(2 if did_double_hit else 1):
+            # Critical hit check.
+            did_critical: bool = initiator_fighter.check_critical_hit_success()
+            damage_given: int = 0
+            if did_critical:
+                damage_given = initiator_fighter.critical_damage
+            else:
+                damage_given = initiator_fighter.damage
+            target_fighter.take_damage(damage_given)
+            
+            # Log hit success.
+            if target == engine.player:
+                battle_message = f"{initiator.og_name} hits you for " \
+                                 f"{damage_given} pts"
+                message_type = MessageType.ENEMY_ATTACK
+                message_color = "red"
+            elif initiator == engine.player:
+                battle_message = f"You hit {target.og_name} for " \
+                                 f"{damage_given} pts"
+                message_type = MessageType.PLAYER_ATTACK
+                message_color="blue"
+            else:
+                return turnable
+
+            battle_message += " !!!" if did_critical else ""
+            
+            engine.message_log.add(
+                message=battle_message, type=message_type, color=message_color)
         
-        # Log hit success.
-        if target == engine.player:
-            battle_message = f"{initiator.og_name} hits you for {damage_given} pts"
-            message_type = MessageType.ENEMY_ATTACK
-            message_color = "red"
-        elif initiator == engine.player:
-            battle_message = f"You hit {target.og_name} for {damage_given} pts"
-            message_type = MessageType.PLAYER_ATTACK
-            message_color="blue"
-        else: return turnable
-        
-        engine.message_log.add(
-            message=battle_message, type=message_type, color=message_color)
+        # TODO add check for player or enemy knockout.
 
         # Target opponent has been slain.
         if target_fighter.is_dead:

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import random
 from typing import TYPE_CHECKING
-from .base_component import BaseComponent
 
-# if TYPE_CHECKING:
-    # from .fighter import Fighter
+from .base_component import BaseComponent
 from .fighter import Fighter
 
 
@@ -16,7 +15,11 @@ def experience_needed_for_level(level: int) -> int:
 
 
 class Leveler(BaseComponent):
-    """System for leveling up entities' stats"""
+    """System for leveling up entities' stats.
+    
+    Should be initialized after `Fighter` due to its dependence on attribute
+    modification.
+    """
 
     def __init__(self, start_level: int = 1, base_drop_amount: int = 5):
         self._start_level = start_level
@@ -72,6 +75,22 @@ class Leveler(BaseComponent):
 
 
     # ATTRIBUTE LEVELING #
+
+    def set_starting_attributes(self) -> None:
+        """
+        If starting level is greater than 1, immediately call this after
+        initialization. Refer to this class' docstring on why.
+        """
+        fighter: Fighter = self.owner.fighter
+
+        # TODO adjust this for player selection during character class choosing.
+        for i in range(self._start_level - 1):
+            self.increment_attribute(self.get_random_attribute())
+        
+        # Refill if vitality is increased.
+        fighter.complete_heal()
+        fighter.complete_recharge()
+        
     
     def increment_attribute(self, attribute: Fighter.AttributeType) -> None:
         if attribute == Fighter.AttributeType.POWER:
@@ -83,4 +102,6 @@ class Leveler(BaseComponent):
         elif attribute == Fighter.AttributeType.SAGE:
             self.owner.fighter.sage += 1
     
-    
+    def get_random_attribute(self) -> Fighter.AttributeType:
+        return random.choice(list(Fighter.AttributeType))
+
