@@ -48,6 +48,8 @@ class ItemAction(Action):
         
         if self.item.get_component("consumable") is not None:
             self.item.consumable.perform(engine)
+        elif self.item.get_component("equippable") is not None:
+            self.item.equippable.perform(engine)
         
         return turnable
 

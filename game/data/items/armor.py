@@ -1,6 +1,6 @@
 from typing import Any
 
-from ...armor_types import ArmorType
+from ...item_types import ArmorType
 
 armor: dict[str, dict[str, Any]] = {
     "leather_cap": {
@@ -12,11 +12,12 @@ armor: dict[str, dict[str, Any]] = {
         "dmg_reduct": 4,
         "coverage": 5,
         "stat_bonuses": {
-            "power": -1,
-            "agility": 1,
+            "power": 0,
+            "agility": 0,
             "vitality": 0,
             "sage": 0,
-        }
+        },
+        "spawn_chance": 50
     },
     "leather_chestpiece": {
         "name": "Leather Chestpiece",
@@ -27,25 +28,27 @@ armor: dict[str, dict[str, Any]] = {
         "dmg_reduct": "9",
         "coverage": 30,
         "stat_bonuses": {
-            "power": -1,
-            "agility": 1,
+            "power": 0,
+            "agility": 0,
             "vitality": 0,
             "sage": 0,
-        }
+        },
+        "spawn_chance": 50
     },
     "leather_trousers": {
         "name": "Leather Trousers",
         "desc": "...",
         "char": "[",
         "color": "white",
-        "type": ArmorType.LEG,
+        "type": ArmorType.LEGS,
         "dmg_reduct": 7,
         "coverage": 25,
         "stat_bonuses": {
-            "power": -1,
-            "agility": 1,
+            "power": 0,
+            "agility": 0,
             "vitality": 0,
             "sage": 0,
-        }
+        },
+        "spawn_chance": 50
     },
 }

@@ -3,15 +3,15 @@ Power:
 ------
 ✔️(BASE 5pts) increased melee damage (+1pt per point)
 (BASE 0%) increased bow projectile damage (+2% per point)
-✔️(BASE 5%) increased chance to knock out (+3% per point)
+✔️(BASE 2%) increased chance to knock out (+1% per point)
 ✔️(BASE 50%) increased critical hit damage bonus (+5% per point)
 
 Agility:
 --------
 ✔️(BASE 75%) increased melee hit chance (+2% per point)
 (BASE 60%) increased projectile hit chance (+3% per point)
-✔️(BASE 5%) increased critical hit chance (+1% per point)
-✔️(BASE 10%) increased double hit chance (+3% per point)
+✔️(BASE 2%) increased critical hit chance (+1% per point)
+✔️(BASE 1%) increased double hit chance (+1% per point)
 
 Vitality:
 ---------
@@ -48,7 +48,7 @@ class StatModifier:
     HIT_CHANCE_PER_POINT = 0.02
     CRITICAL_HIT_CHANCE_PER_POINT = 0.01
     CRITICAL_HIT_DAMAGE_BONUS_PER_POINT = 0.05
-    KNOCKOUT_CHANCE_PER_POINT = 0.03
+    KNOCKOUT_CHANCE_PER_POINT = 0.01
     DOUBLE_HIT_CHANCE_PER_POINT = 0.01
     
     @staticmethod
@@ -129,7 +129,7 @@ class Fighter(BaseComponent):
         # TODO add to data file?
         # Combat chances.
         self._HIT_CHANCE: float = 0.75
-        self._KNOCKOUT_CHANCE: float = 0.05
+        self._KNOCKOUT_CHANCE: float = 0.02
         self._CRITICAL_CHANCE: float = 0.02
         self._CRITICAL_DAMAGE_BONUS: float = 0.50
         self._DOUBLE_HIT_CHANCE: float = 0.01

@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from ..entities import Creature
     from ..gamestates import State
     from ..engine import Engine
+from ..item_types import PotionType
 from ..actions import Action, ItemAction
 from .base_component import BaseComponent
 
@@ -13,19 +14,14 @@ from .base_component import BaseComponent
 class Consumable(BaseComponent):
     """An item that can be consumed by a creature"""
     
-    
     def get_action_or_state(self, consumer: Creature) -> Union[Action, State]:
-        """
-        Get an action or state to be performed on consuming this item
-        """
+        """Get an action or state to be performed on consuming this item"""
         return ItemAction(consumer, self.owner)
-    
-    
+
     def perform(self, engine: Engine) -> None:
         """Perform this consumable's action"""
         self.consume()
-    
-    
+
     def consume(self) -> None:
         """Remove from inventory and consume the item, deleting it"""
         consumer: Creature = self.owner.parent
@@ -33,41 +29,38 @@ class Consumable(BaseComponent):
             consumer.inventory.remove_item(self.owner)
 
 
-# TODO disallow entity from drinking if health/magicka is already full?
+# TODO disallow entity from drinking if health/magicka is already full.
 class RestoreConsumable(Consumable):
-    """Restore some attribute on consumption"""
-    
+    """Restore health or magicka on consumption"""
+
     def __init__(self, yield_amount: int):
-        self.yield_amount = yield_amount
-
-
-class RestoreHealthConsumable(RestoreConsumable):
-    """Restore health on consumption"""
+        self._potion_type: PotionType = None
+        self._yield_amount = yield_amount
+    
+    @property
+    def potion_type(self) -> PotionType:
+        return self._potion_type
+    
+    @potion_type.setter
+    def potion_type(self, new_potion_type: PotionType) -> None:
+        self._potion_type = new_potion_type
     
     def perform(self, engine: Engine) -> None:
         consumer: Creature = self.owner.parent
+        point_regain_type: str = ""
+
+        if self.potion_type == PotionType.HEALTH:
+            point_regain_type = "hp"
+            consumer.fighter.heal(self._yield_amount)
+        elif self._potion_type == PotionType.MAGICKA:
+            point_regain_type = "mp"
+            consumer.fighter.recharge(self._yield_amount)
         
-        consumer.fighter.heal(self.yield_amount)
         engine.message_log.add(
             f"{consumer.name} drinks {self.owner.name} for "
-            f"{self.yield_amount} hp!"
+            f"{self._yield_amount} {point_regain_type}!"
         )
         
         return super().perform(engine)
 
-
-class RestoreMagickaConsumable(RestoreConsumable):
-    """Restore magicka on consumption"""
-
-    def perform(self, engine: Engine) -> None:
-        consumer: Creature = self.owner.parent
-        
-        consumer.fighter.recharge(self.yield_amount)
-        engine.message_log.add(
-            f"{consumer.name} drinks {self.owner.name} for "
-            f"{self.yield_amount} mp!"
-        )
-        
-        return super().perform(engine)
-        
         

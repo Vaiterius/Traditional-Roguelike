@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .dungeon.room import Room
@@ -11,9 +11,12 @@ from .components.inventory import Inventory
 from .components.fighter import Fighter
 from .components.leveler import Leveler
 from .render_order import RenderOrder
-from .entities import Entity, Item, Creature, Player
+from .entities import Entity, Item, Potion, Weapon, Armor, Creature, Player
+from .item_types import WeaponType, ArmorType, PotionType
+
 from .data.creatures import enemies, player
 from .data.items.potions import restoration_potions
+from .data.items.weapons import weapons
 from .data.items.armor import armor
 from .data.config import DESCENDING_STAIRCASE_TILE, ASCENDING_STAIRCASE_TILE
 
@@ -157,39 +160,117 @@ class Spawner:
         enemy.add_component("ai", HostileEnemyAI(enemy))
 
         return enemy
-    
-    
-    # TODO for now, this will only spawn health/magicka potions
+
+
     def _get_random_item_instance(self) -> Item:
         """Load item data and create an instance out of it"""
-        # Prevent circular import.
-        from .components.consumable import (
-            RestoreHealthConsumable, RestoreMagickaConsumable)
-        
-        # Fetch a random potion data object.
-        potion_data: dict = random.choices(
-            population=list(restoration_potions.values()),
+        factory_pool: dict = [
+            {
+                "factory": WeaponFactory(item_pool=weapons),
+                "spawn_chance": 10
+            },
+            {
+                "factory": ArmorFactory(item_pool=armor),
+                "spawn_chance": 10
+            },
+            {
+                "factory": PotionFactory(item_pool=restoration_potions),
+                "spawn_chance": 50
+            },
+        ]
+
+        item_factory: ItemFactory = random.choices(
+            population=factory_pool,
             weights=[
-                potion["spawn_chance"]
-                for potion in restoration_potions.values()]
+                factory["spawn_chance"]
+                for factory in factory_pool
+            ]
+        )[0]["factory"]
+
+        return item_factory.get_random_item()
+
+
+class ItemFactory:
+    """Base factory for spitting out items to spawn throughout the dungeon"""
+
+    def __init__(self, item_pool: dict[str, dict[str, Any]]):
+        self._item_pool = list(item_pool.values())
+        self._item_data: dict = random.choices(
+            population=self._item_pool,
+            weights=[
+                item["spawn_chance"]
+                for item in self._item_pool
+            ]
         )[0]
-        
-        # Create the instance and spawn the item.
-        potion = Item(
+    
+    def get_instance_from_class(self, item_class: Item) -> Item:
+        return item_class(
             x=-1, y=-1,
-            name=potion_data["name"],
-            char=potion_data["char"],
-            color=potion_data["color"],
+            name=self._item_data["name"],
+            char=self._item_data["char"],
+            color=self._item_data["color"],
             render_order=RenderOrder.ITEM,
             blocking=False
         )
-        name: str = potion_data["name"]
-        if name == "Potion of Restore Health":
-            potion.add_component(
-                "consumable", RestoreHealthConsumable(potion_data["yield"]))
-        elif name == "Potion of Restore Magicka":
-            potion.add_component(
-                "consumable", RestoreMagickaConsumable(potion_data["yield"]))
+
+
+class WeaponFactory(ItemFactory):
+    """Process for instantiating a weapon from data"""
+    
+    def get_random_item(self) -> Weapon:
+        # Prevent circular import.
+        from .components.equippable import Equippable
+
+        weapon = self.get_instance_from_class(Weapon)
+        weapon.add_component("equippable", Equippable())
+
+        if self._item_data["type"] == WeaponType.SWORD:
+            weapon.weapon_type = WeaponType.SWORD
+        elif self._item_data["type"] == WeaponType.BOW:
+            weapon.weapon_type = WeaponType.BOW
+        
+        return weapon
+
+
+class ArmorFactory(ItemFactory):
+    """Process for instantiating an armor piece from data"""
+
+    def get_random_item(self) -> Armor:
+        # Prevent circular import.
+        from .components.equippable import Equippable
+
+        armor = self.get_instance_from_class(Armor)
+        armor.add_component("equippable", Equippable())
+
+        if self._item_data["type"] == ArmorType.HEAD:
+            armor.armor_type = ArmorType.HEAD
+        elif self._item_data["type"] == ArmorType.TORSO:
+            armor.armor_type = ArmorType.TORSO
+        elif self._item_data["type"] == ArmorType.LEGS:
+            armor.armor_type = ArmorType.LEGS
+        
+        return armor
+
+
+class PotionFactory(ItemFactory):
+    """Process for instantiating a potion item from data"""
+
+    def get_random_item(self) -> Potion:
+        # Prevent circular import.
+        from .components.consumable import RestoreConsumable
+
+        potion = self.get_instance_from_class(Potion)
+        potion.add_component(
+            "consumable",
+            RestoreConsumable(yield_amount=self._item_data["yield"])
+        )
+
+        # Create restore health potion.
+        if self._item_data["type"] == PotionType.HEALTH:
+            potion.consumable.potion_type = PotionType.HEALTH
+        # Create restore magicka potion.
+        elif self._item_data["type"] == PotionType.MAGICKA:
+            potion.consumable.potion_type = PotionType.MAGICKA
         
         return potion
 

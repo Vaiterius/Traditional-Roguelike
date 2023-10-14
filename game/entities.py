@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .color import Color
     from .engine import Engine
     from .dungeon.floor import Floor
+    from .item_types import WeaponType, ArmorType, PotionType
 from .render_order import RenderOrder
 
 
@@ -57,6 +58,20 @@ class Item(Entity):
 
         self.x = x
         self.y = y
+
+
+class Potion(Item):
+    """An item to be consumed"""
+
+
+class Weapon(Item):
+    """An item that deals damage"""
+    weapon_type: WeaponType
+
+
+class Armor(Item):
+    """An item to be worn and offers protection"""
+    armor_type: ArmorType
 
 
 class Creature(Entity):

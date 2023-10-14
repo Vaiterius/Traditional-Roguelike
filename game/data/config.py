@@ -1,6 +1,6 @@
 # Numerical configurations.
 MAX_FOV_DISTANCE: int = 8
-NUM_FLOORS: int = 5
+NUM_FLOORS: int = 32
 MAX_ENEMIES_PER_FLOOR = 5  # Add more as dungeon progresses.
 MAX_ITEMS_PER_FLOOR = 5  # Same here.
 FLOOR_DIMENSIONS: tuple[int] = (80, 23)
