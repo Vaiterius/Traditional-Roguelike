@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from .components.fighter import Fighter
     from .components.leveler import Leveler
     from .dungeon.floor import Floor
+    from .components.equippable import Equippable
 from .message_log import MessageType
 from .tile import *
 from .save_handling import (
@@ -76,7 +77,7 @@ class PickUpItemAction(Action):
             return turnable
 
         # Not enough space in carrier's inventory.
-        if inventory.size > inventory.max_slots:
+        if inventory.size >= inventory.max_slots:
             if self.entity == engine.player:
                 engine.message_log.add(
                     "There is not enough space in your inventory", color="red")
@@ -102,8 +103,10 @@ class DropItemAction(ItemAction):
         inventory: Inventory = self.entity.inventory
         floor: Floor = engine.dungeon.current_floor
         
-        # TODO
-        # unequip item if it is equippable
+        # Unequip item if it is equipped.
+        equippable: Equippable = self.item.get_component("equippable")
+        if equippable and inventory.is_equipped(self.item):
+            equippable.perform(engine)
 
         inventory.remove_item(self.item)
         self.item.place(floor, self.entity.x, self.entity.y)

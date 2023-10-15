@@ -111,12 +111,6 @@ class Spawner:
         player_obj.add_component("leveler", Leveler(start_level=10))
         player_obj.leveler.set_starting_attributes()
         player_obj.add_component("inventory", Inventory(num_slots=16))
-
-        # TODO remove test items
-        test_item_1 = Item(-1, -1, "test_item_1", "`", "default", RenderOrder.ITEM, False)
-        test_item_2 = Item(-1, -1, "test_item_2", "`", "default", RenderOrder.ITEM, False)
-        test_item_3 = Item(-1, -1, "test_item_3", "`", "default", RenderOrder.ITEM, False)
-        player_obj.inventory.add_items([test_item_1, test_item_2, test_item_3])
         
         return player_obj
 
@@ -167,15 +161,15 @@ class Spawner:
         factory_pool: dict = [
             {
                 "factory": WeaponFactory(item_pool=weapons),
-                "spawn_chance": 10
+                "spawn_chance": 33
             },
             {
                 "factory": ArmorFactory(item_pool=armor),
-                "spawn_chance": 10
+                "spawn_chance": 33
             },
             {
                 "factory": PotionFactory(item_pool=restoration_potions),
-                "spawn_chance": 50
+                "spawn_chance": 33
             },
         ]
 
@@ -219,10 +213,12 @@ class WeaponFactory(ItemFactory):
     
     def get_random_item(self) -> Weapon:
         # Prevent circular import.
-        from .components.equippable import Equippable
+        from .components.equippable import Wieldable
 
         weapon = self.get_instance_from_class(Weapon)
-        weapon.add_component("equippable", Equippable())
+        weapon.add_component(
+            "equippable", Wieldable(damage_bonus=self._item_data["dmg"])
+        )
 
         if self._item_data["type"] == WeaponType.SWORD:
             weapon.weapon_type = WeaponType.SWORD
@@ -237,10 +233,15 @@ class ArmorFactory(ItemFactory):
 
     def get_random_item(self) -> Armor:
         # Prevent circular import.
-        from .components.equippable import Equippable
+        from .components.equippable import Wearable
 
         armor = self.get_instance_from_class(Armor)
-        armor.add_component("equippable", Equippable())
+        armor.add_component(
+            "equippable",
+            Wearable(
+                damage_reduction=self._item_data["dmg_reduct"],
+                coverage=self._item_data["coverage"])
+        )
 
         if self._item_data["type"] == ArmorType.HEAD:
             armor.armor_type = ArmorType.HEAD

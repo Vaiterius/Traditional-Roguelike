@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from .dungeon.floor import Floor
     from .dungeon.dungeon import Dungeon
     from .entities import Entity
-    from .components.base_component import Inventory
+    from .components.inventory import Inventory
     from .components.leveler import Leveler
     from .components.fighter import Fighter
     from .message_log import Message, MessageLog
@@ -418,7 +418,7 @@ class TerminalController:
             cursor_index = inventory.max_slots - 1
 
         # List out inventory items.
-        SINGLE_DIGIT_ADDON = ' '  # Line up the numbers neatly.
+        # SINGLE_DIGIT_ADDON = ' '  # Line up the numbers neatly.
         for index in range(inventory.max_slots):
             item: Optional[Item] = inventory.get_item(index)
             
@@ -435,11 +435,13 @@ class TerminalController:
             
             # Fill the slot value.
             # slot_value: str = SINGLE_DIGIT_ADDON + "(" + str(index) + ") "
-            slot_value: str = slot_char + ") "
+            # TODO remove?
+            # slot_value: str = slot_char + ") "
+            slot_value: str = ""
             if item:
-                slot_value += item.name
+                slot_value += f"{'[E] ' if inventory.is_equipped(item) else ''}{item.name}"
             else:
-                slot_value += "<Empty>"
+                slot_value += f"<Empty>"
             
             selection_window.addstr(
                 index + 1, 2, slot_value, optional_highlight)
@@ -447,7 +449,7 @@ class TerminalController:
         # Display currently-selected item's info.
         selected_item: Optional[Item] = inventory.get_item(cursor_index)
         if selected_item is None:
-            item_info_window.addstr(1, 1, "<Empty>")
+            item_info_window.addstr(1, 1, "")
         else:
             item_info_window.addstr(1, 1, f"Name: {selected_item.name}")
             # TODO Item description.

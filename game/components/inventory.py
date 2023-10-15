@@ -1,16 +1,14 @@
-from __future__ import annotations
+from typing import Optional, Union
 
-from typing import TYPE_CHECKING, Optional, Union
-
-if TYPE_CHECKING:
-    from ..entities import Item, Weapon, Armor
-    from ..item_types import ArmorType
+from ..entities import Item, Weapon, Armor
+from ..item_types import ArmorType
 from .base_component import BaseComponent
 
 
-# TODO split inventory list by item type (e.g. weapons, armor)
 class Inventory(BaseComponent):
-    """Inventory space for player weapons, armor, potions, and other items"""
+    """
+    Inventory space and management for weapons, armor, potions, and other items
+    """
     
     def __init__(self, num_slots: int):
         self.max_slots = num_slots
@@ -31,7 +29,7 @@ class Inventory(BaseComponent):
     
     @property
     def weapon(self) -> Optional[Weapon]:
-        return self.equip_weapon
+        return self.equipped_weapon
     
     @property
     def head_armor(self) -> Optional[Armor]:
@@ -42,8 +40,31 @@ class Inventory(BaseComponent):
         return self.equipped_torso_armor
     
     @property
-    def leg_Armor(self) -> Optional[Armor]:
+    def leg_armor(self) -> Optional[Armor]:
         return self.equipped_leg_armor
+    
+    @property
+    def damage_bonus(self) -> int:
+        damage_bonus = 0
+        if self.weapon and self.weapon.get_component("equippable"):
+            damage_bonus += self.weapon.equippable.damage_bonus
+        return damage_bonus
+    
+    @property
+    def damage_reduction(self) -> float:
+        damage_reduction = 0.00
+
+        if self.head_armor and self.head_armor.get_component("equippable"):
+            damage_reduction += \
+                self.head_armor.equippable.damage_reduction
+        if self.torso_armor and self.torso_armor.get_component("equippable"):
+            damage_reduction += \
+                self.torso_armor.equippable.damage_reduction
+        if self.leg_armor and self.leg_armor.get_component("equippable"):
+            damage_reduction += \
+                self.leg_armor.equippable.damage_reduction
+        
+        return damage_reduction
     
 
     # ITEM MANAGEMENT #
@@ -87,12 +108,30 @@ class Inventory(BaseComponent):
         elif isinstance(item, Armor):
             self.equip_armor(item)
     
+    def unequip(self, item: Union[Weapon, Armor]) -> None:
+        if isinstance(item, Weapon):
+            self.unequip_weapon(item)
+        elif isinstance(item, Armor):
+            self.unequip_armor(item)
+    
+    def is_equipped(self, item: Union[Weapon, Armor]) -> bool:
+        return item in {
+            self.equipped_weapon,
+            self.equipped_head_armor,
+            self.equipped_torso_armor,
+            self.equipped_leg_armor
+        }
+    
 
     # WEAPON MANAGEMENT #
 
     def equip_weapon(self, weapon: Weapon) -> None:
         """Equip a weapon if one is not already equipped"""
         self.equipped_weapon = weapon
+    
+    def unequip_weapon(self, weapon: Weapon) -> None:
+        if self.equipped_weapon == weapon:
+            self.equipped_weapon = None
 
 
     # ARMOR MANAGEMENT #
@@ -105,4 +144,12 @@ class Inventory(BaseComponent):
             self.equipped_torso_armor = armor
         elif armor.armor_type == ArmorType.LEGS:
             self.equipped_leg_armor = armor
+    
+    def unequip_armor(self, armor: Armor) -> None:
+        if self.equipped_head_armor == armor:
+            self.equipped_head_armor = None
+        elif self.equipped_torso_armor == armor:
+            self.equipped_torso_armor = None
+        elif self.equipped_leg_armor == armor:
+            self.equipped_leg_armor = None
 

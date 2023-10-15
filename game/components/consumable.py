@@ -49,10 +49,17 @@ class RestoreConsumable(Consumable):
         consumer: Creature = self.owner.parent
         point_regain_type: str = ""
 
+        # Drink up if health/magicka bar isn't already full.
         if self.potion_type == PotionType.HEALTH:
+            if consumer.fighter.health >= consumer.fighter.max_health:
+                engine.message_log.add("Health already full!")
+                return
             point_regain_type = "hp"
             consumer.fighter.heal(self._yield_amount)
         elif self._potion_type == PotionType.MAGICKA:
+            if consumer.fighter.magicka >= consumer.fighter.max_magicka:
+                engine.message_log.add("Magicka already full!")
+                return
             point_regain_type = "mp"
             consumer.fighter.recharge(self._yield_amount)
         

@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..entities import Creature
+    from .inventory import Inventory
 from .base_component import BaseComponent
 from ..render_order import RenderOrder
 
@@ -200,7 +201,6 @@ class Fighter(BaseComponent):
         self._magicka = max(0, min(self.max_magicka, new_magicka))
     
 
-    # TODO provide tests
     # ATTRIBUTES #
 
     # POWER.
@@ -242,11 +242,17 @@ class Fighter(BaseComponent):
 
     # COMBAT #
 
-    # TODO take into account melee/ranged weapon player is holding.
     @property
     def damage(self) -> int:
-        """Get modified damage from power level"""
-        return self._damage + StatModifier.add_damage(self.power)
+        """Get modified damage from power level with weapon considered"""
+        damage_bonus = 0
+        if self.owner.get_component("inventory") is not None:
+            damage_bonus += self.owner.inventory.damage_bonus
+        return (
+            self._damage
+            + StatModifier.add_damage(self.power)
+            + damage_bonus
+        )
     
     @property
     def critical_damage(self) -> int:
@@ -254,8 +260,14 @@ class Fighter(BaseComponent):
         return round(self.damage * (1.00 + self.critical_hit_damage_bonus))
     
     def take_damage(self, amount: int) -> None:
-        """Set damage taken with defense-based skill points applied"""
-        self.health -= amount
+        """Set damage taken with armor considered"""
+        damage_reduction = 0
+
+        if self.owner.get_component("inventory") is not None:
+            damage_reduction = round(
+                amount - (amount * self.owner.inventory.damage_reduction))
+
+        self.health -= amount + damage_reduction
         if self.is_dead:
             self.die()
     

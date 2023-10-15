@@ -9,7 +9,7 @@ armor: dict[str, dict[str, Any]] = {
         "char": "[",
         "color": "white",
         "type": ArmorType.HEAD,
-        "dmg_reduct": 4,
+        "dmg_reduct": 4,  # Percent reduced.
         "coverage": 5,
         "stat_bonuses": {
             "power": 0,
@@ -25,7 +25,7 @@ armor: dict[str, dict[str, Any]] = {
         "char": "[",
         "color": "white",
         "type": ArmorType.TORSO,
-        "dmg_reduct": "9",
+        "dmg_reduct": 9,
         "coverage": 30,
         "stat_bonuses": {
             "power": 0,

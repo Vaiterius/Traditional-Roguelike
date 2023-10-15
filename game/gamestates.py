@@ -482,14 +482,6 @@ class ExploreState(State):
         elif player_input == '\t' or player_input == 'i':
             return InventoryMenuState(self.parent)
         
-        # DEBUG TODO remove.
-        # elif player_input == '0':
-        #     return LevelUpSelectionState(self.parent)
-        
-        # TODO remove for final version of gameplay.
-        elif player_input == 'm':
-            return MainMenuState(self.parent)  # Head out without saving.
-        
         return action_or_state
     
     
@@ -523,15 +515,20 @@ class InventoryMenuState(IndexableOptionsState):
                 self.cursor_index_y += 1
                 action_or_state = DoNothingAction(self.parent)
         
-        # Use item.
+        # "Activate" item.
         elif player_input in CONFIRM_KEYS:
             item: Optional[Item] = self.parent.inventory.get_item(
                 self.cursor_index_y)
-            if item is not None and item.get_component("consumable") is not None:
+            if item is None:
+                action_or_state = DoNothingAction(self.parent)
+            # Quaff potion.
+            elif item.get_component("consumable") is not None:
                 action_or_state = item.consumable.get_action_or_state(
                     self.parent)
-            else:
-                action_or_state = DoNothingAction(self.parent)
+            # Equip/unequip gear.
+            elif item.get_component("equippable") is not None:
+                action_or_state = item.equippable.get_action_or_state(
+                    self.parent)                
         
         # Drop Item.
         elif player_input == 'd':
@@ -550,16 +547,11 @@ class InventoryMenuState(IndexableOptionsState):
     def perform(
         self, engine: Engine, action_or_state: Union[Action, State]) -> bool:
         turnable: bool = super().perform(engine, action_or_state)
-
-        # An item was activated.
-        if isinstance(action_or_state, DropItemAction) or \
-            isinstance(action_or_state, ItemAction):
-            engine.gamestate = ExploreState(self.parent)
-        
         return turnable
 
 
     def render(self, engine: Engine) -> None:
+        super().display_main(engine)
         new_cursor_pos: int = engine.terminal_controller.display_inventory(
             engine.player.inventory, self.cursor_index_y)
         self.cursor_index_y = new_cursor_pos
