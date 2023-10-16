@@ -10,10 +10,11 @@ if TYPE_CHECKING:
     from ..engine import Engine
     from ..entities import Entity
     from .leveler import Leveler
+    from ..dungeon.floor import Floor
 from .fighter import Fighter
 from .base_component import BaseComponent
 from ..actions import Action, BumpAction
-from ..pathfinding import bresenham_path_to
+from ..pathfinding import bresenham_path_to, a_star_path_to
 
 
 class BaseAI(Action, BaseComponent):
@@ -63,7 +64,10 @@ class BaseAI(Action, BaseComponent):
 
 
     def get_path_to(self, x: int, y: int) -> list[tuple[int, int]]:
-        """Get a set coordinate points following a path to desired x and y"""
+        """Get a set coordinate points following a path to desired x and y.
+        
+        Bresenham (straight line) by default.
+        """
         return bresenham_path_to(self.entity.x, self.entity.y, x, y)
 
 
@@ -110,10 +114,12 @@ class HostileEnemyAI(BaseAI):
     def perform(self, engine: Engine):
         super().perform(engine)
 
+        floor: Floor = engine.dungeon.current_floor
         player_x = engine.player.x
         player_y = engine.player.y
 
-        paths: list[tuple[int, int]] = self.get_path_to(player_x, player_y)
+        paths: list[tuple[int, int]] = self.get_path_to(
+            floor, player_x, player_y)
 
         self.update_agro_status(engine, paths)
         if not self.agro:
@@ -128,3 +134,8 @@ class HostileEnemyAI(BaseAI):
         dy = desired_y - self.entity.y
         
         BumpAction(self.owner, dx, dy).perform(engine)
+    
+    def get_path_to(self, floor: Floor, x: int, y: int) -> list[tuple[int, int]]:
+        return a_star_path_to(floor, self.entity.x, self.entity.y, x, y)
+
+    

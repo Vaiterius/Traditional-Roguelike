@@ -22,6 +22,7 @@ class Floor:
         self.height = height
 
         self.tiles: list[list[Tile]] = []
+        self.wall_locations: set[tuple[int, int]] = set()  # For A* algorithm.
         self.explored_tiles: dict[tuple[int, int], Tile] = {}
         
         self.rooms: list[Room] = []
@@ -98,10 +99,13 @@ class FloorBuilder:
     
     def place_walls(self, tile_type: Tile = wall_tile_shrouded):
         """Fill the floor with wall tiles"""
-        self._floor.tiles = [
-            [tile_type for x in range(self.floor_width)]
-            for y in range(self.floor_height)
-        ]
+        for x in range(self.floor_height):
+            row: list[Tile] = []
+            for y in range(self.floor_width):
+                row.append(tile_type)
+                # Track for pathfinding.
+                self._floor.wall_locations.add((x, y))
+            self._floor.tiles.append(row)
         return self
     
     
@@ -147,6 +151,8 @@ class FloorBuilder:
             for x in range(room.x1, room.x2):
                 for y in range(room.y1, room.y2):
                     self._floor.tiles[x][y] = tile_type
+                    # Track for pathfinding.
+                    self._floor.wall_locations.remove((x, y))
             
             self._floor.rooms.append(room)
         
@@ -164,6 +170,8 @@ class FloorBuilder:
 
                 for x, y in self._get_tunnel_set(r1_cell, r2_cell):
                     self._floor.tiles[x][y] = tile_type
+                    # Track for pathfinding.
+                    self._floor.wall_locations -= {(x, y)}
         
         return self
     
