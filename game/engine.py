@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .entities import Player
     from .message_log import MessageLog
     from .save_handling import Save
+    from .modes import GameMode
 from .gamestates import *
 from .fov import compute_fov
 
@@ -29,7 +30,7 @@ class Engine:
         self.dungeon: Optional[Dungeon] = None
         self.message_log: Optional[MessageLog] = None
         self.terminal_controller = terminal_controller
-        
+
         self.gamestate = gamestate
         
         # Displayed and refreshed at runtime.

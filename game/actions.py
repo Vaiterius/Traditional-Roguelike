@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .components.leveler import Leveler
     from .dungeon.floor import Floor
     from .components.equippable import Equippable
+from .modes import GameMode
 from .message_log import MessageType
 from .tile import *
 from .save_handling import (
@@ -186,11 +187,16 @@ class StartNewGameAction(FromSavedataAction):
         
         save_to_dir(self.saves_dir, self.index, self.save)
         
-        # TODO add game mode conditional
+        assert engine.gamestate is not None
         self._load_data_to_engine(engine, self.save)
         
-        engine.dungeon.generate()
-        engine.dungeon.spawn_player(engine.player)
+        # TODO create normal mode (story) and seeded mode
+        if engine.save_meta["gamemode"] == GameMode.ENDLESS:
+            engine.dungeon.generate()
+            engine.dungeon.spawn_player(engine.player)
+        elif engine.save_meta["gamemode"] == GameMode.NORMAL:
+            engine.dungeon.generate()
+            engine.dungeon.spawn_player(engine.player)
         
         save_current_game(engine)
         
@@ -262,8 +268,11 @@ class DescendStairsAction(Action):
             engine.message_log.add("Can't descend here", color="red")
             return turnable
             
-        # Go down a level.
-        engine.dungeon.current_floor_idx += 1
+        # Go down a level and generate new floor if needed.
+        deepest_floor_idx = engine.dungeon.current_floor_idx
+        if engine.dungeon.current_floor_idx == deepest_floor_idx:
+            engine.dungeon.current_floor_idx += 1
+            engine.dungeon.generate_floor()
         room_to_spawn = engine.dungeon.current_floor.first_room
         engine.dungeon.spawner.spawn_player(engine.player, room_to_spawn)
         

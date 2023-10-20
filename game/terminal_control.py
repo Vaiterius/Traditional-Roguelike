@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from .dungeon.floor import Floor
     from .dungeon.dungeon import Dungeon
     from .entities import Entity
@@ -733,6 +734,12 @@ class TerminalController:
 
         # Display save info on the other panel.
         save: Save = fetch_save(saves, cursor_index)
+
+
+        def readable(datetime: datetime) -> datetime:
+            """Make datetime formats more human readable"""
+            return datetime.strftime('%m/%d/%Y %I:%M %p')
+
         
         # Empty slot.
         if save.is_empty:
@@ -742,14 +749,18 @@ class TerminalController:
         else:
             metadata_window.addstr(1, 1, "PLAYER: ", curses.A_BOLD)
             metadata_window.addstr(1, 9, str(save.data.get('player').name))
+            metadata_window.addstr(2, 1, "GAMEMODE: ", curses.A_BOLD)
+            metadata_window.addstr(
+                2, 11, str(save.metadata.get("gamemode").name))
             metadata_window.addstr(3, 1, "FLOOR: ", curses.A_BOLD)
             metadata_window.addstr(
                 3, 8, str(save.data.get('dungeon').current_floor_idx + 1))
-
-            metadata_window.addstr(5, 1, "CREATED AT:", curses.A_BOLD)
-            metadata_window.addstr(6, 1, str(save.metadata.get("created_at")))
-            metadata_window.addstr(8, 1, f"LAST_PLAYED:", curses.A_BOLD)
-            metadata_window.addstr(9, 1, str(save.metadata.get('last_played')))
+            metadata_window.addstr(4, 1, "CREATED AT: ", curses.A_BOLD)
+            metadata_window.addstr(
+                4, 13, str(readable(save.metadata.get("created_at"))))
+            metadata_window.addstr(5, 1, f"LAST PLAYED: ", curses.A_BOLD)
+            metadata_window.addstr(
+                5, 14, str(readable(save.metadata.get('last_played'))))
         
         slots_window.refresh()
         metadata_window.refresh()

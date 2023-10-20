@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional
 if TYPE_CHECKING:
     from pathlib import Path
     from .engine import Engine
-
+from .modes import GameMode
 from .spawner import Spawner
 from .entities import Player
 from .dungeon.dungeon import Dungeon
@@ -37,13 +37,14 @@ class Save:
         return cls(-1, None, None, None)
 
 
-def get_new_game(slot_index: int) -> Save:
+def get_new_game(
+        slot_index: int,
+        gamemode: GameMode = GameMode.ENDLESS) -> Save:
     """Create a fresh game"""
     spawner = Spawner()
     player: Player = spawner.get_player_instance()
     dungeon = Dungeon(
         spawner=spawner,
-        num_floors=NUM_FLOORS,
         max_enemies_per_floor=MAX_ENEMIES_PER_FLOOR,
         max_items_per_floor=MAX_ITEMS_PER_FLOOR,
         floor_dimensions=FLOOR_DIMENSIONS,
@@ -51,6 +52,8 @@ def get_new_game(slot_index: int) -> Save:
         min_max_room_width=MIN_MAX_ROOM_WIDTH,
         min_max_room_height=MIN_MAX_ROOM_HEIGHT
     )
+    if gamemode == GameMode.NORMAL:
+        dungeon.num_floors = NUM_FLOORS
     message_log = MessageLog()
     time_created: datetime = datetime.now()
 
@@ -65,7 +68,8 @@ def get_new_game(slot_index: int) -> Save:
         metadata={
             "created_at": time_created,
             "last_played": time_created,
-            # TODO add game version
+            "gamemode": gamemode,
+            "version": "0.1.0-alpha"
         }
     )
 
@@ -78,6 +82,7 @@ def is_valid_save(save: Save) -> bool:
         and isinstance(save.data.get("message_log"), MessageLog)
         and isinstance(save.metadata.get("created_at"), datetime)
         and isinstance(save.metadata.get("last_played"), datetime)
+        and isinstance(save.metadata.get("gamemode"), GameMode)
     )
 
 
