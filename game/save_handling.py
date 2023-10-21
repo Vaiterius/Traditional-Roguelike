@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional
 if TYPE_CHECKING:
     from pathlib import Path
     from .engine import Engine
+from . import __version__
 from .modes import GameMode
 from .spawner import Spawner
 from .entities import Player
@@ -69,7 +70,9 @@ def get_new_game(
             "created_at": time_created,
             "last_played": time_created,
             "gamemode": gamemode,
-            "version": "0.1.0-alpha"
+            "turns": 0,
+            "slayed": 0,
+            "version": __version__
         }
     )
 
@@ -84,6 +87,14 @@ def is_valid_save(save: Save) -> bool:
         and isinstance(save.metadata.get("last_played"), datetime)
         and isinstance(save.metadata.get("gamemode"), GameMode)
     )
+
+
+def is_same_version(save: Save) -> bool:
+    """See if the save's version is the same as the program's version.
+    
+    TODO show warning if they are different.
+    """
+    return __version__ == save.metadata.get("version")
 
 
 def fetch_saves(saves_dir: Path) -> list[Save]:
@@ -157,12 +168,13 @@ def save_to_dir(saves_dir: Path, index: int, save: Save) -> None:
     # Overwrite save if selected an occupied save.
     occupied_save: Save = fetch_saves(saves_dir)[index]
     delete_save_slot(occupied_save)
+
+    # Include seconds and microseconds in filename, should be unique enough.
+    # Also clamp it to fit window width.
+    save_name: str = f"{save.data['player'].name}-" \
+        f"{str(save.metadata['created_at'].strftime('%S_%f'))}"[:24]
     
-    path = saves_dir / "mysave.sav"
-    duplicate_index: int = 1
-    while path.exists():
-        path = saves_dir / f"mysave({duplicate_index}).sav"
-        duplicate_index += 1
+    path = saves_dir / f"{save_name}.sav"
     
     # Update path.
     save.path = path

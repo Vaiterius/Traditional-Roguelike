@@ -1,5 +1,6 @@
 import curses
 
+from game import __version__
 import game.data.config as config
 from game.engine import Engine
 from game.terminal_control import TerminalController
@@ -17,7 +18,7 @@ def main(screen: curses.initscr):
     # Filler data to start the engine.
     dummy: Creature = Creature(-1, -1, "", "", "", None, 69, -1)
     save = Save(
-        slot_index=-1, path=None, data={"dummy": dummy}, metadata=None)
+        slot_index=-1, path=None, data={"dummy": dummy}, metadata={"version": __version__})
     gamestate = MainMenuState(dummy)
     
     engine = Engine(

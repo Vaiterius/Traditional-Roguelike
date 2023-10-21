@@ -25,7 +25,7 @@ class Engine:
                  ):
         self.screen = screen
         self.save = save
-        self.save_meta: Optional[dict[str, Any]] = {}
+        self.save_meta: Optional[dict[str, Any]] = save.metadata
         self.player: Optional[Player] = save.data.get("dummy")
         self.dungeon: Optional[Dungeon] = None
         self.message_log: Optional[MessageLog] = None
@@ -86,10 +86,6 @@ class Engine:
  
             action_or_state = self.gamestate.handle_input(player_input)
 
-        # TODO remove - DEBUG
-        # if self.message_log:
-        #     self.message_log.add(
-        #         f"action_or_state: {action_or_state.__class__.__name__}", True)
         turnable: bool = self.gamestate.perform(self, action_or_state)
         return turnable
 

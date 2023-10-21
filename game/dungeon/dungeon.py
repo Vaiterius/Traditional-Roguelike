@@ -48,8 +48,6 @@ class Dungeon:
     @property
     def is_last_floor(self) -> bool:
         """Only applies to normal mode"""
-        if self.is_endless:
-            return False
         return self.current_floor_idx == self.num_floors - 1
     
     @property
@@ -62,11 +60,12 @@ class Dungeon:
         num_rooms: int = random.randint(*(self.min_max_rooms))
 
         # Figure out which staircases to put.
-        can_descend, can_ascend = False, False
+        can_descend, can_ascend = True, False
         if self.current_floor_idx > 0:
             can_ascend = True
-        if self.is_endless and not self.is_last_floor:
-            can_descend = True
+        if not self.is_endless:  # Normal mode.
+            if self.is_last_floor:
+                can_descend = False
 
         # TODO randomize num_items and num_enemies.
         # Forming the rooms and connecting them.

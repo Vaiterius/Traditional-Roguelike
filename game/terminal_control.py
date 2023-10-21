@@ -4,7 +4,7 @@ import random
 import curses
 from math import ceil
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -414,30 +414,23 @@ class TerminalController:
 
         # Validate cursor position.
         if cursor_index < 0:
-            cursor_index = 0
-        elif cursor_index > inventory.max_slots - 1:
             cursor_index = inventory.max_slots - 1
+        elif cursor_index > inventory.max_slots - 1:
+            cursor_index = 0
 
         # List out inventory items.
-        # SINGLE_DIGIT_ADDON = ' '  # Line up the numbers neatly.
         for index in range(inventory.max_slots):
             item: Optional[Item] = inventory.get_item(index)
             
             # Shift from 0-9 numbering to 1-10.
             slot_char = chr(97 + index)
             index += 1
-            # if index > 9:
-            #     SINGLE_DIGIT_ADDON = ''
             
             # Highlight the currently selected index item.
             optional_highlight = curses.A_NORMAL
             if index == cursor_index + 1:
                 optional_highlight = curses.A_REVERSE
             
-            # Fill the slot value.
-            # slot_value: str = SINGLE_DIGIT_ADDON + "(" + str(index) + ") "
-            # TODO remove?
-            # slot_value: str = slot_char + ") "
             slot_value: str = ""
             if item:
                 slot_value += f"{'[E] ' if inventory.is_equipped(item) else ''}{item.name}"
@@ -475,7 +468,6 @@ class TerminalController:
         pass
     
 
-    # TODO create little wrapper class for curses window displaying?
     def display_levelup_selection(self, 
                                   leveler: Leveler, 
                                   fighter: Fighter, 
@@ -492,8 +484,6 @@ class TerminalController:
         ATTRIBUTE_SELECTION_WIDTH: int = self.game_width // 3
         STATS_INFO_HEIGHT: int = 6
         STATS_INFO_WIDTH: int = ATTRIBUTE_SELECTION_WIDTH
-
-        COMBINED_HEIGHT: int = ATTRIBUTE_SELECTION_WIDTH + STATS_INFO_WIDTH
 
         # Topleft corners for windows.
         attribute_selection_origin_x: int = self.game_height // 3
@@ -697,9 +687,9 @@ class TerminalController:
         
         # Clamp cursor index.
         if cursor_index < 0:
-            cursor_index = 0
-        elif cursor_index > len(saves) - 1:
             cursor_index = len(saves) - 1
+        elif cursor_index > len(saves) - 1:
+            cursor_index = 0
         
         # Display save slots on slots panel.
         slots_window.addstr(0, 2, title, curses.A_REVERSE)
@@ -718,7 +708,7 @@ class TerminalController:
                 first_item_x += 1
                 continue
             slots_window.addstr(
-                line_pos, 3, f"({index + 1}) {save.path}", highlight_attr)
+                line_pos, 3, f"({index + 1}) {save.path.name}", highlight_attr)
             
             first_item_x += 1
         
@@ -747,20 +737,24 @@ class TerminalController:
         
         # Save metadata enumerated here.
         else:
-            metadata_window.addstr(1, 1, "PLAYER: ", curses.A_BOLD)
-            metadata_window.addstr(1, 9, str(save.data.get('player').name))
-            metadata_window.addstr(2, 1, "GAMEMODE: ", curses.A_BOLD)
-            metadata_window.addstr(
-                2, 11, str(save.metadata.get("gamemode").name))
-            metadata_window.addstr(3, 1, "FLOOR: ", curses.A_BOLD)
-            metadata_window.addstr(
-                3, 8, str(save.data.get('dungeon').current_floor_idx + 1))
-            metadata_window.addstr(4, 1, "CREATED AT: ", curses.A_BOLD)
-            metadata_window.addstr(
-                4, 13, str(readable(save.metadata.get("created_at"))))
-            metadata_window.addstr(5, 1, f"LAST PLAYED: ", curses.A_BOLD)
-            metadata_window.addstr(
-                5, 14, str(readable(save.metadata.get('last_played'))))
+            save_info: dict[str, str] = {
+                "PLAYER: ": str(save.data.get('player').name),
+                "GAMEMODE: ": str(save.metadata.get("gamemode").name),
+                "VERSION: ": str(save.metadata.get('version')),
+                "FLOOR: ": str(save.data.get('dungeon').deepest_floor_idx + 1),
+                "CREATED AT: ": str(readable(save.metadata.get("created_at"))),
+                "LAST PLAYED: ": str(
+                    readable(save.metadata.get('last_played'))),
+                "SLAYED: ": f"{save.metadata.get('slayed'):,} enemies",
+                "TURNS: ": f"{save.metadata.get('turns'):,}"
+            }
+            info_index = 1
+            ALIGN_INDEX = 14
+            for label, value in save_info.items():
+                metadata_window.addstr(
+                    info_index, ALIGN_INDEX - len(label), label, curses.A_BOLD)
+                metadata_window.addstr(info_index, ALIGN_INDEX, value)
+                info_index += 1
         
         slots_window.refresh()
         metadata_window.refresh()
@@ -769,6 +763,7 @@ class TerminalController:
     
     
     def display_main_menu(self,
+                          save_meta: dict[str, Any],
                           menu_options: list[MenuOption],
                           cursor_index: int) -> int:
         """Display the menu options for the player"""
@@ -805,9 +800,9 @@ class TerminalController:
         
         # Clamp cursor index.
         if cursor_index < 0:
-            cursor_index = 0
-        elif cursor_index > len(menu_options) - 1:
             cursor_index = len(menu_options) - 1
+        elif cursor_index > len(menu_options) - 1:
+            cursor_index = 0
         
         # Adjust positions relative to screen.
         option_y_pos: int = OPTIONS_SUBWIN_START_Y + 2
@@ -832,7 +827,7 @@ class TerminalController:
         
         # Place author text (yours truly) wherever it looks nice relative to
         # the position of the title.
-        WELCOME_SUBMESSAGE: str = "by Vaiterius (WIP)"
+        WELCOME_SUBMESSAGE: str = f"by Vaiterius ({save_meta['version']})"
         window.addstr(
             TITLE_X_POS - 1,
             (self.title_width // 2) - 1, WELCOME_SUBMESSAGE)

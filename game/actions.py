@@ -242,7 +242,13 @@ class DoNothingAction(Action):
     """Do nothing this turn"""
 
     def perform(self, engine: Engine) -> bool:
+        from .gamestates import ExploreState  # Prevent circular import.
         turnable: bool = True
+
+        if isinstance(engine.gamestate, ExploreState):
+            engine.message_log.add("You take no action")
+            engine.save_meta["turns"] += 1  # Record turn.
+
         return turnable
 
 
@@ -279,6 +285,8 @@ class DescendStairsAction(Action):
         engine.message_log.add(
             "You descend a level...", color="blue")
         
+        engine.save_meta["turns"] += 1  # Record turn.
+        
         return turnable
 
 
@@ -312,6 +320,8 @@ class AscendStairsAction(Action):
         
         engine.message_log.add(
             "You ascend a level...", color="blue")
+        
+        engine.save_meta["turns"] += 1  # Record turn.
         
         return turnable
 
@@ -372,6 +382,7 @@ class WalkAction(ActionWithDirection):
         turnable = True
 
         self.entity.move(dx=self.dx, dy=self.dy)
+        engine.save_meta["turns"] += 1  # Record turn.
         
         return turnable
 
@@ -400,6 +411,9 @@ class MeleeAction(ActionWithDirection):
         battle_message: str = ""
         message_type: MessageType = MessageType.INFO
         message_color: str = ""
+
+        if initiator == engine.player:  # Record player.
+            engine.save_meta["turns"] += 1
 
         # Chance to hit opponent fails.
         did_hit: bool = initiator_fighter.check_hit_success()
@@ -467,6 +481,7 @@ class MeleeAction(ActionWithDirection):
             engine.message_log.add(target_slain_message)
 
             if initiator == engine.player:
+                engine.save_meta["slayed"] += 1
                 engine.message_log.add(
                     message=f"You slayed {target.og_name} " \
                             f"and gained {experience_drop} EXP!",

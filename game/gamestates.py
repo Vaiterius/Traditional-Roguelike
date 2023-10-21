@@ -198,11 +198,11 @@ class MainMenuState(IndexableOptionsState):
     def __init__(self, parent: Entity):
         super().__init__(parent)
         self.menu_options: list[MenuOption] = [
-            MenuOption("(1) New Game", StartNewGameMenuState(self.parent)),
+            MenuOption(" New Game ", StartNewGameMenuState(self.parent)),
             MenuOption(
-                "(2) Continue Game", ContinueGameMenuState(self.parent)),
-            MenuOption("(3) Help", DoNothingAction(self.parent)),  # TODO
-            MenuOption("(4) Quit", QuitGameAction(self.parent))
+                " Continue Game ", ContinueGameMenuState(self.parent)),
+            MenuOption(" Help ", DoNothingAction(self.parent)),  # TODO
+            MenuOption(" Quit ", QuitGameAction(self.parent))
         ]
     
     def handle_input(
@@ -230,7 +230,7 @@ class MainMenuState(IndexableOptionsState):
     
     def render(self, engine: Engine) -> None:
         new_cursor_pos: int = engine.terminal_controller.display_main_menu(
-            self.menu_options, self.cursor_index_y)
+            engine.save_meta, self.menu_options, self.cursor_index_y)
         self.cursor_index_y = new_cursor_pos
 
 

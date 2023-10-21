@@ -108,7 +108,7 @@ class Spawner:
                 base_vitality=1
             )
         )
-        player_obj.add_component("leveler", Leveler(start_level=10))
+        player_obj.add_component("leveler", Leveler(start_level=100))
         player_obj.leveler.set_starting_attributes()
         player_obj.add_component("inventory", Inventory(num_slots=16))
         
