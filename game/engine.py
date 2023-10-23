@@ -111,6 +111,6 @@ class Engine:
                 self.player.fighter.is_dead
                 and isinstance(self.gamestate, ExploreState)
             ):
-                self.gamestate = GameOverState(self.player, self)
+                self.gamestate = GameOverState(self.player)
                 self.message_log.add("Game over!", color="blue")
 

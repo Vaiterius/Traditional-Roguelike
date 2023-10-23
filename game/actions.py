@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pathlib import Path
 
 import sys
 from typing import TYPE_CHECKING, Optional
@@ -19,6 +20,7 @@ from .modes import GameMode
 from .message_log import MessageType
 from .tile import *
 from .save_handling import (
+    Save,
     save_current_game,
     save_to_dir,
     delete_save_slot,
@@ -182,8 +184,19 @@ class SaveAndQuitAction(Action):
 class StartNewGameAction(FromSavedataAction):
     """Start the dungeon crawling on the selected gamemode"""
 
+    def __init__(self,
+                 save: Save,
+                 saves_dir: Path,
+                 index: int,
+                 player_name: str = "Player") -> bool:
+        super().__init__(save, saves_dir, index)
+        self._player_name = player_name
+
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
+
+        # Set name.
+        self.save.data["player"].name = self._player_name
         
         save_to_dir(self.saves_dir, self.index, self.save)
         

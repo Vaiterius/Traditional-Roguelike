@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, Any
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from .dungeon.floor import Floor
+    from .dungeon.floor import Floor1
     from .dungeon.dungeon import Dungeon
     from .entities import Entity
     from .components.inventory import Inventory
@@ -836,6 +836,42 @@ class TerminalController:
         options_subwindow.refresh()
         
         return cursor_index
+    
+
+    def display_name_input_box(self, name: str, max_length: int) -> None:
+        """Display each character player typed into name input."""
+        # Box dimensions.
+        BOX_HEIGHT: int = 7
+        BOX_WIDTH: int = 39
+        origin_x: int = (self.game_height // 2) - (BOX_HEIGHT // 2)
+        origin_y: int = (self.game_width // 2) - (BOX_WIDTH // 2)
+        name_y = 3
+        name_x = 2
+
+        window = curses.newwin(BOX_HEIGHT, BOX_WIDTH, origin_x, origin_y)
+
+        window.erase()
+        window.border()
+
+        HEADER = "NAME SELECTION"
+        window.addstr(0, 2, HEADER, curses.A_REVERSE)
+        window.addstr(
+            1, 2, "How do you like to be called, hero?", curses.A_BOLD)
+        window.addstr(
+            name_y, name_x, f"{name}{' is my name...' if name else ''}")
+
+        window.addstr(
+            BOX_HEIGHT - 2, 2,
+            f"{max_length - len(name)} char left",
+            curses.A_VERTICAL)
+        enter_text = "[enter] confirm"
+        window.addstr(5, BOX_WIDTH - len(enter_text) - 2, enter_text)
+
+        window.move(name_y, name_x + len(name))
+
+        window.refresh()
+
+        return name
 
 
     def display_confirm_box(
@@ -844,7 +880,6 @@ class TerminalController:
         
         e.g. quitting without saving, overwriting a save
         """
-        
         # Box dimensions.
         BOX_HEIGHT: int = self.game_height // 5
         BOX_WIDTH: int = self.game_width // 4
@@ -854,7 +889,6 @@ class TerminalController:
         window = curses.newwin(BOX_HEIGHT, BOX_WIDTH, origin_x, origin_y)
         
         window.erase()
-        
         window.border()
         
         # Clamp cursor index (only yes or no selections).

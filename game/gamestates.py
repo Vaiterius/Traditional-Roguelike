@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import curses.ascii
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Union, Optional
@@ -291,6 +292,78 @@ class ListSavesMenuState(IndexableOptionsState):
             engine.gamestate.on_enter(engine)
         
         return turnable
+
+
+class EnterNameState(State):
+    """Build the name with a stack checking for every keypress entry."""
+
+    def __init__(self, parent: Entity, prev_state: StartNewGameMenuState, name: list[str]):
+        super().__init__(parent)
+        self._name = name
+        self._prev_state = prev_state  # Carry save selection over.
+        self._MAX_NAME_LENGTH = 22
+    
+
+    def handle_input(
+        self, player_input: str) -> Optional[Union[Action, State]]:
+        action_or_state: Optional[Union[Action, State]] = None
+
+        if player_input in BACK_KEYS:  # Delete a character.
+            if self._name == []:
+                action_or_state = EnterNameState(self.parent, self._prev_state, self._name)
+            else:
+                self._name.pop()
+                action_or_state = EnterNameState(self.parent, self._prev_state, self._name)
+        elif player_input in CONFIRM_KEYS:  # User confirms name.
+            action_or_state = StartNewGameAction(
+                get_new_game(self._prev_state.cursor_index_y),
+                self._prev_state.saves_dir, self._prev_state.cursor_index_y,
+                player_name="".join(self._name)
+            )
+        elif (
+            len(player_input) == 1  # Single characters only, no control codes.
+            and (curses.ascii.isalnum(player_input)  # Alphanumerical.
+            or player_input == ' ')  # Space.
+        ):
+            if len(self._name) < self._MAX_NAME_LENGTH:
+                self._name.append(player_input)
+            action_or_state = EnterNameState(self.parent, self._prev_state, self._name)
+
+        return action_or_state
+    
+
+    def render(self, engine: Engine) -> None:
+        engine.terminal_controller.display_name_input_box(
+            "".join(self._name), self._MAX_NAME_LENGTH
+        )
+
+
+    def perform(self,
+                engine: Engine,
+                action_or_state: Union[Action, State]) -> bool:
+        turnable: bool = False
+
+        if isinstance(action_or_state, Action):
+            turnable = action_or_state.perform(engine)
+
+            # User has confirmed their name.
+            if isinstance(action_or_state, StartNewGameAction):
+                engine.gamestate.on_exit(engine)
+                engine.gamestate = ExploreState(engine.player)
+
+        elif isinstance(action_or_state, State):
+            engine.gamestate = action_or_state
+
+        return turnable
+
+    
+    def on_enter(self, engine: Engine) -> None:
+        """Show cursor when typing"""
+        curses.curs_set(1)
+
+    def on_exit(self, engine: Engine) -> None:
+        """Unshow cursor"""
+        curses.curs_set(0)
     
 
 class StartNewGameMenuState(ListSavesMenuState):
@@ -311,9 +384,10 @@ class StartNewGameMenuState(ListSavesMenuState):
             and self.confirm_box_overwrite.result is True
         ):
             self.confirm_box_overwrite = None
-            action_or_state = StartNewGameAction(
-                get_new_game(self.cursor_index_y),
-                self.saves_dir, self.cursor_index_y)
+            # action_or_state = StartNewGameAction(
+            #     get_new_game(self.cursor_index_y),
+            #     self.saves_dir, self.cursor_index_y)
+            action_or_state = EnterNameState(self.parent, self, [])
         
         # Player has confirmed to delete a save.
         if self.confirm_box_delete and self.confirm_box_delete.result is True:
@@ -332,9 +406,10 @@ class StartNewGameMenuState(ListSavesMenuState):
                     self.confirm_box_overwrite, "overwrite save")
                 self.bypassable = True
             else:
-                action_or_state = StartNewGameAction(
-                    get_new_game(self.cursor_index_y),
-                    self.saves_dir, self.cursor_index_y)
+                # action_or_state = StartNewGameAction(
+                #     get_new_game(self.cursor_index_y),
+                #     self.saves_dir, self.cursor_index_y)
+                action_or_state = EnterNameState(self.parent, self, [])
         
         # Delete a save.
         elif player_input == 'x':
@@ -403,7 +478,7 @@ class ContinueGameMenuState(ListSavesMenuState):
 class GameOverState(State):
     """Delete save if player dies and return to main menu"""
     
-    def __init__(self, parent: Entity, engine: Engine):
+    def __init__(self, parent: Entity):
         super().__init__(parent)
 
         
