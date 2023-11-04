@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, Any
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from .dungeon.floor import Floor1
+    from .dungeon.floor import Floor
     from .dungeon.dungeon import Dungeon
     from .entities import Entity
     from .components.inventory import Inventory
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from .message_log import Message, MessageLog
     from .gamestates import MenuOption
     from .save_handling import Save
+    from .engine import Engine
 from .dungeon.floor import FloorBuilder
 from .tile import *
 from .data.config import *
@@ -47,6 +48,9 @@ def get_unfilled_bar(bar_size: int, width: int) -> str:
         bar += PROGRESS_BAR_UNFILLED
     
     return bar
+
+
+
 
 
 class TerminalController:
@@ -872,6 +876,37 @@ class TerminalController:
         window.refresh()
 
         return name
+    
+
+    # TODO make prettier and add more stats.
+    def display_gameover(self, engine: Engine) -> None:
+        """Display popup indicating player has died, with stats"""
+        # Box dimensions.
+        BOX_HEIGHT: int = self.game_height // 5
+        BOX_WIDTH: int = self.game_width // 3
+        origin_x: int = (self.game_height // 2) - (BOX_HEIGHT // 2)
+        origin_y: int = (self.game_width // 2) - (BOX_WIDTH // 2)
+        
+        window = curses.newwin(BOX_HEIGHT, BOX_WIDTH, origin_x, origin_y)
+
+        window.erase()
+        window.border()
+
+        # Information.
+        name: str = engine.player.og_name
+        current_floor: str = str(engine.dungeon.current_floor_idx + 1)
+        deepest_floor: str = str(engine.dungeon.deepest_floor_idx + 1)
+        level: str = str(engine.player.leveler.level)
+
+        HEADER: str = "RIP BOZO"
+
+        window.addstr(0, self._get_message_center_x(
+            HEADER, BOX_WIDTH), HEADER, curses.A_REVERSE)
+        window.addstr(
+            1, 1, f"{name} died on floor {current_floor} at level {level}")
+        window.addstr(2, 1, f"Made it up to floor {deepest_floor}")
+
+        window.refresh()
 
 
     def display_confirm_box(

@@ -193,11 +193,19 @@ class FloorBuilder:
     
     
     # TODO
-    def place_items(self, spawner: Spawner, max_items_per_floor: int):
+    def place_items(self,
+                    spawner: Spawner,
+                    max_items_per_floor: int,
+                    is_last_floor: bool):
         """Scatter random items throughout the level"""
         for _ in range(max_items_per_floor):
             room: Room = random.choice(self._floor.rooms)
             spawner.spawn_item(room)
+        
+        # TODO have it placed next to a boss enemy.
+        # Place main quest item on the last room on the last floor.
+        # if is_last_floor:
+        #     spawner.spawn_item(self._floor.last_room)
         
         return self
     
@@ -222,7 +230,9 @@ class FloorBuilder:
             self, r1_cell: tuple[int, int],
             r2_cell: tuple[int, int]
     ) -> set[tuple[int, int]]:
-        """Get the L-shaped tunnel coordinates that connect two rooms"""
+        """Get the set of individual tunnel sets that form an L-shape that
+        connects two rooms.
+        """
         tunnel_set = set()
         # First leg vertical, second leg horizontal.
 

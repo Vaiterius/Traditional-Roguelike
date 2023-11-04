@@ -17,5 +17,5 @@ weapons: dict[str, dict[str, Any]] = {
             "sage": 0,
         },
         "spawn_chance": 50
-    },
+    }
 }

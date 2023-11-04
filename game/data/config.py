@@ -1,8 +1,8 @@
 # Numerical configurations.
 MAX_FOV_DISTANCE: int = 8
-NUM_FLOORS: int = -1
-MAX_ENEMIES_PER_FLOOR = 5
-MAX_ITEMS_PER_FLOOR = 10
+NUM_FLOORS: int = 5
+MAX_ENEMIES_PER_FLOOR = 4
+MAX_ITEMS_PER_FLOOR = 4
 FLOOR_DIMENSIONS: tuple[int] = (80, 23)
 MIN_MAX_ROOMS: tuple[int] = (6, 9)  # Must have at least 2 rooms.
 MIN_MAX_ROOM_WIDTH: tuple[int] = (12, 18)

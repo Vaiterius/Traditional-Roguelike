@@ -52,6 +52,10 @@ BACK_KEYS = {"KEY_BACKSPACE",}
 
 CONFIRM_KEYS = {"KEY_ENTER", '\n',}
 
+# Not really.
+ANY_KEYS = set(MOVE_KEYS).union(
+    WAIT_KEYS, EXIT_KEYS, BACK_KEYS, CONFIRM_KEYS)
+
 
 class AbstractState(ABC):
     
@@ -82,6 +86,9 @@ class State(AbstractState):
         # the need to get input and execute the next state switch. Useful for
         # confirming a prompt box which will do the next action without getting
         # input again from the user.
+        # 
+        # Also, this should only be changed on a regular gamestate and NOT
+        # during a confirm box state.
         self.bypassable: bool = False
 
 
@@ -139,8 +146,11 @@ class IndexableOptionsState(State):
         self.cursor_index_x = 0  # 2D selection support.
 
 
-class ConfirmBox:
-    """Value holder for any state that asks to confirm some action"""
+class Confirmation:
+    """Value holder for any state that asks to confirm some action.
+    
+    Booleans can't be passed by reference so wrap it in something mutable.
+    """
     def __init__(self, result: bool = False):
         self.result = result
 
@@ -151,12 +161,12 @@ class ConfirmBoxState(IndexableOptionsState):
     def __init__(self,
                  parent,
                  parent_state: State,
-                 confirm_box: ConfirmBox,
-                 action_to_confirm: str):
+                 confirmation: Confirmation,
+                 action_text: str):
         super().__init__(parent)
         self.parent_state = parent_state
-        self.confirm_box = confirm_box
-        self.action_to_confirm = action_to_confirm
+        self.confirmation = confirmation
+        self.action_text = action_text
     
     
     def handle_input(
@@ -165,7 +175,7 @@ class ConfirmBoxState(IndexableOptionsState):
         action_or_state: Optional[Union[Action, State]] = None
         if player_input in CONFIRM_KEYS:
             if self.cursor_index_y == 0:  # Selected confirm.
-                self.confirm_box.result = True
+                self.confirmation.result = True
             action_or_state = self.parent_state
             
         elif player_input in MOVE_KEYS:
@@ -182,7 +192,7 @@ class ConfirmBoxState(IndexableOptionsState):
     
     def render(self, engine: Engine) -> None:
         new_cursor_pos: int = engine.terminal_controller.display_confirm_box(
-            self.action_to_confirm, self.cursor_index_y)
+            self.action_text, self.cursor_index_y)
         self.cursor_index_y = new_cursor_pos
 
 
@@ -244,8 +254,8 @@ class ListSavesMenuState(IndexableOptionsState):
         self.saves_dir = Path("saves")
         self.saves: list[Save] = fetch_saves(self.saves_dir)
         
-        self.confirm_box_overwrite: Optional[ConfirmBox] = None
-        self.confirm_box_delete: Optional[ConfirmBox] = None
+        self.confirm_overwrite: Optional[Confirmation] = None
+        self.confirm_delete: Optional[Confirmation] = None
     
     
     def render(self, engine: Engine) -> None:
@@ -297,7 +307,10 @@ class ListSavesMenuState(IndexableOptionsState):
 class EnterNameState(State):
     """Build the name with a stack checking for every keypress entry."""
 
-    def __init__(self, parent: Entity, prev_state: StartNewGameMenuState, name: list[str]):
+    def __init__(self,
+                 parent: Entity,
+                 prev_state: StartNewGameMenuState,
+                 name: list[str]):
         super().__init__(parent)
         self._name = name
         self._prev_state = prev_state  # Carry save selection over.
@@ -310,10 +323,12 @@ class EnterNameState(State):
 
         if player_input in BACK_KEYS:  # Delete a character.
             if self._name == []:
-                action_or_state = EnterNameState(self.parent, self._prev_state, self._name)
+                action_or_state = EnterNameState(
+                    self.parent, self._prev_state, self._name)
             else:
                 self._name.pop()
-                action_or_state = EnterNameState(self.parent, self._prev_state, self._name)
+                action_or_state = EnterNameState(
+                    self.parent, self._prev_state, self._name)
         elif player_input in CONFIRM_KEYS:  # User confirms name.
             action_or_state = StartNewGameAction(
                 get_new_game(self._prev_state.cursor_index_y),
@@ -327,7 +342,8 @@ class EnterNameState(State):
         ):
             if len(self._name) < self._MAX_NAME_LENGTH:
                 self._name.append(player_input)
-            action_or_state = EnterNameState(self.parent, self._prev_state, self._name)
+            action_or_state = EnterNameState(
+                self.parent, self._prev_state, self._name)
 
         return action_or_state
     
@@ -380,18 +396,15 @@ class StartNewGameMenuState(ListSavesMenuState):
         
         # Player has confirmed to overwrite a save.
         if (
-            self.confirm_box_overwrite
-            and self.confirm_box_overwrite.result is True
+            self.confirm_overwrite
+            and self.confirm_overwrite.result is True
         ):
-            self.confirm_box_overwrite = None
-            # action_or_state = StartNewGameAction(
-            #     get_new_game(self.cursor_index_y),
-            #     self.saves_dir, self.cursor_index_y)
+            self.confirm_overwrite = None
             action_or_state = EnterNameState(self.parent, self, [])
         
         # Player has confirmed to delete a save.
-        if self.confirm_box_delete and self.confirm_box_delete.result is True:
-            self.confirm_box_delete = None
+        if self.confirm_delete and self.confirm_delete.result is True:
+            self.confirm_delete = None
             return DeleteSaveAction(
                 Save.get_empty(), self.saves_dir, self.cursor_index_y)
 
@@ -400,23 +413,20 @@ class StartNewGameMenuState(ListSavesMenuState):
         if player_input in CONFIRM_KEYS:
             # Check if selected an occupied slot for overwrite, ask to confirm.
             if not self.saves[self.cursor_index_y].is_empty:
-                self.confirm_box_overwrite = ConfirmBox()
+                self.confirm_overwrite = Confirmation()
                 action_or_state = ConfirmBoxState(
                     self.parent, self,
-                    self.confirm_box_overwrite, "overwrite save")
+                    self.confirm_overwrite, "overwrite save")
                 self.bypassable = True
             else:
-                # action_or_state = StartNewGameAction(
-                #     get_new_game(self.cursor_index_y),
-                #     self.saves_dir, self.cursor_index_y)
                 action_or_state = EnterNameState(self.parent, self, [])
         
         # Delete a save.
         elif player_input == 'x':
             if not self.saves[self.cursor_index_y].is_empty:
-                self.confirm_box_delete = ConfirmBox()
+                self.confirm_delete = Confirmation()
                 action_or_state = ConfirmBoxState(
-                    self.parent, self, self.confirm_box_delete, "delete save")
+                    self.parent, self, self.confirm_delete, "delete save")
                 self.bypassable = True
         
         # Go back to main menu.
@@ -442,8 +452,8 @@ class ContinueGameMenuState(ListSavesMenuState):
             return action_or_state
         
         # Player has confirmed to delete a save.
-        if self.confirm_box_delete and self.confirm_box_delete.result is True:
-            self.confirm_box_delete = None
+        if self.confirm_delete and self.confirm_delete.result is True:
+            self.confirm_delete = None
             return DeleteSaveAction(
                 Save.get_empty(), self.saves_dir, self.cursor_index_y)
         
@@ -460,9 +470,9 @@ class ContinueGameMenuState(ListSavesMenuState):
         # Delete a save.
         elif player_input == 'x':
             if not self.saves[self.cursor_index_y].is_empty:
-                self.confirm_box_delete = ConfirmBox()
+                self.confirm_delete = Confirmation()
                 action_or_state = ConfirmBoxState(
-                    self.parent, self, self.confirm_box_delete, "delete save")
+                    self.parent, self, self.confirm_delete, "delete save")
                 self.bypassable = True
         
         # Go back to main menu.
@@ -475,6 +485,8 @@ class ContinueGameMenuState(ListSavesMenuState):
         return action_or_state
 
 
+# TODO don't delete save, but keep the save and show a display of their ending
+# stats. Player will have to manually delete the save.
 class GameOverState(State):
     """Delete save if player dies and return to main menu"""
     
@@ -485,8 +497,9 @@ class GameOverState(State):
     def handle_input(
         self, player_input: str) -> Optional[Union[Action, State]]:
         action_or_state: Optional[Union[Action, State]] = None
-            
-        if player_input in EXIT_KEYS:
+        
+        # TODO maybe accept only enter/exit keys and state that in display.
+        if player_input in ANY_KEYS:
             action_or_state = OnPlayerDeathAction(self.parent)
         
         return action_or_state
@@ -504,6 +517,7 @@ class GameOverState(State):
     
     def render(self, engine: Engine) -> None:
         super().display_main(engine)
+        engine.terminal_controller.display_gameover(engine)
 
 
 class ExploreState(State):
@@ -511,7 +525,8 @@ class ExploreState(State):
 
     def __init__(self, parent: Entity):
         super().__init__(parent)
-        self.confirm_box_savequit: Optional[ConfirmBox] = None
+        self.confirm_savequit: Optional[Confirmation] = None
+        self.confirm_mainquest_finish: Optional[Confirmation] = None
     
 
     def on_enter(self, engine: Engine) -> None:
@@ -525,12 +540,20 @@ class ExploreState(State):
         
         # Player has confirmed to save and quit.
         if (
-            self.confirm_box_savequit
-            and self.confirm_box_savequit.result is True
+            self.confirm_savequit
+            and self.confirm_savequit.result is True
         ):
-            self.confirm_box_savequit = None
+            self.confirm_savequit = None
             return SaveAndQuitAction(self.parent)
         
+        # Player has confirmed to exit game after completing main quest.
+        if (
+            self.confirm_mainquest_finish
+            and self.confirm_mainquest_finish.result is True
+        ):
+            self.confirm_savequit = None
+            return SaveAndQuitAction(self.parent)
+
         self.bypassable = False
         
         # Do an action.
@@ -549,9 +572,9 @@ class ExploreState(State):
         
         # Change state.
         elif player_input in EXIT_KEYS:  # Save and return to main menu.
-            self.confirm_box_savequit = ConfirmBox()
+            self.confirm_savequit = Confirmation()
             action_or_state = ConfirmBoxState(
-                self.parent, self, self.confirm_box_savequit, "save and quit"
+                self.parent, self, self.confirm_savequit, "save and quit"
             )
             self.bypassable = True
         elif player_input == '\t' or player_input == 'i':
@@ -603,7 +626,7 @@ class InventoryMenuState(IndexableOptionsState):
             # Equip/unequip gear.
             elif item.get_component("equippable") is not None:
                 action_or_state = item.equippable.get_action_or_state(
-                    self.parent)                
+                    self.parent)
         
         # Drop Item.
         elif player_input == 'd':
@@ -635,7 +658,8 @@ class InventoryMenuState(IndexableOptionsState):
 class LevelUpSelectionState(IndexableOptionsState):
     """Handles selection of attributes upon levelup"""
 
-    def handle_input(self, player_input: str) -> Optional[Union[Action, State]]:
+    def handle_input(self,
+                     player_input: str) -> Optional[Union[Action, State]]:
         attributes: list[Fighter.AttributeType] = {
             (0, 0): Fighter.AttributeType.POWER,
             (0, 1): Fighter.AttributeType.VITALITY,

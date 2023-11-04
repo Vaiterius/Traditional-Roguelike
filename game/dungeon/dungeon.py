@@ -63,9 +63,8 @@ class Dungeon:
         can_descend, can_ascend = True, False
         if self.current_floor_idx > 0:
             can_ascend = True
-        if not self.is_endless:  # Normal mode.
-            if self.is_last_floor:
-                can_descend = False
+        if not self.is_endless and self.is_last_floor:  # Normal mode.
+            can_descend = False
 
         # TODO randomize num_items and num_enemies.
         # Forming the rooms and connecting them.
@@ -79,13 +78,18 @@ class Dungeon:
                 .place_staircases(self.spawner,
                                     can_descend,
                                     can_ascend)
-                .place_items(self.spawner, self.max_items_per_floor)
+                .place_items(self.spawner,
+                             self.max_items_per_floor,
+                             self.current_floor_idx + 1 == self.num_floors - 1)
                 .place_creatures(self.spawner,
-                                self.max_enemies_per_floor)
+                                 self.max_enemies_per_floor)
                 .build(self)
         )
-        
         self.floors.append(floor)
+
+        if not self.is_endless and self.is_last_floor:
+            self.spawner.spawn_item(floor.last_room, is_quest_item=True)
+
 
 
     # TODO Increase difficulty descending down levels (assign value?).
@@ -97,7 +101,7 @@ class Dungeon:
             self.floors = []
             self.current_floor_idx = 0
 
-        self.generate_floor()
+        self.generate_floor()  # First floor.
     
     
     def spawn_player(self, player: Player) -> None:

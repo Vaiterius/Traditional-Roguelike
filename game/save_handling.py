@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from pathlib import Path
     from .engine import Engine
 from . import __version__
-from .modes import GameMode
+from .modes import GameMode, GameStatus
 from .spawner import Spawner
 from .entities import Player
 from .dungeon.dungeon import Dungeon
@@ -40,7 +40,7 @@ class Save:
 
 def get_new_game(
         slot_index: int,
-        gamemode: GameMode = GameMode.ENDLESS) -> Save:
+        gamemode: GameMode = GameMode.NORMAL) -> Save:
     """Create a fresh game"""
     spawner = Spawner()
     player: Player = spawner.get_player_instance()
@@ -70,6 +70,7 @@ def get_new_game(
             "created_at": time_created,
             "last_played": time_created,
             "gamemode": gamemode,
+            "status": GameStatus.ONGOING,
             "turns": 0,
             "slayed": 0,
             "version": __version__
@@ -86,6 +87,7 @@ def is_valid_save(save: Save) -> bool:
         and isinstance(save.metadata.get("created_at"), datetime)
         and isinstance(save.metadata.get("last_played"), datetime)
         and isinstance(save.metadata.get("gamemode"), GameMode)
+        and isinstance(save.metadata.get("status"), GameStatus)
     )
 
 

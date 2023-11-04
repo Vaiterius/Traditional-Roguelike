@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import random
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from .dungeon.room import Room
@@ -76,11 +76,15 @@ class Spawner:
         room.floor.add_entity(enemy)
     
     
-    def spawn_item(self, room: Room) -> None:
+    def spawn_item(self, room: Room, is_quest_item: bool = False) -> None:
         """Spawn a random item and place it inside a room"""
         x, y = room.get_random_empty_cell()
         
-        item: Item = self._get_random_item_instance()
+        item: Optional[Item] = None
+        if is_quest_item:
+            item = self._get_quest_item_instance()
+        else:
+            item = self._get_random_item_instance()
         item.x, item.y = x, y
         
         room.floor.add_entity(item)
@@ -108,7 +112,7 @@ class Spawner:
                 base_vitality=1
             )
         )
-        player_obj.add_component("leveler", Leveler(start_level=100))
+        player_obj.add_component("leveler", Leveler(start_level=1))
         player_obj.leveler.set_starting_attributes()
         player_obj.add_component("inventory", Inventory(num_slots=16))
         
@@ -182,6 +186,23 @@ class Spawner:
         )[0]["factory"]
 
         return item_factory.get_random_item()
+    
+
+    def _get_quest_item_instance(self) -> Item:
+        """Get the item to be picked up """
+        # Prevent circular import.
+        from .components.quest_item import QuestItem
+
+        item: Item = Item(
+            x=-1, y=-1,
+            name="Relic of Vai", char="&",
+            color="gold",
+            render_order=RenderOrder.ITEM,
+            blocking=False
+        )
+        item.add_component("quest_item", QuestItem())
+
+        return item
 
 
 class ItemFactory:

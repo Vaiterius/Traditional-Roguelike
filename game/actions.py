@@ -4,8 +4,6 @@ from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, Optional
 
-from game.entities import Entity
-
 if TYPE_CHECKING:
     from pathlib import Path
     from .engine import Engine
@@ -49,7 +47,7 @@ class ItemAction(Action):
 
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
-        
+
         if self.item.get_component("consumable") is not None:
             self.item.consumable.perform(engine)
         elif self.item.get_component("equippable") is not None:
@@ -59,7 +57,11 @@ class ItemAction(Action):
 
 
 class PickUpItemAction(Action):
-    """Pick an item from off the floor and add it to inventory"""
+    """Pick an item from off the floor and add it to inventory.
+    
+    It is not an `ItemAction` because we don't know if there's an item on the
+    ground to be picked up at first - can't pass it to the constructor.
+    """
     
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
@@ -90,7 +92,14 @@ class PickUpItemAction(Action):
         floor.entities.remove(item)
         inventory.add_item(item)
         item.parent = self.entity
-        
+
+        # Check for quest item.
+        # For now, this will be the main quest item found on the last floor
+        # that the player needs to complete the game until we can get an actual
+        # robust quest system in place.
+        if item.get_component("quest_item") is not None:
+            return item.quest_item.perform(engine)
+
         engine.message_log.add(
             f"You picked up: {item.name.lower()}", color="blue")
 
@@ -136,7 +145,6 @@ class OnPlayerDeathAction(Action):
         delete_save_slot(engine.save)
         
         return turnable
-
 
 class FromSavedataAction(Action):
     """Base action given save information"""
@@ -195,8 +203,11 @@ class StartNewGameAction(FromSavedataAction):
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
 
-        # Set name.
+        # Set player name.
         self.save.data["player"].name = self._player_name
+        if self.save.data["player"].name == "":
+            self.save.data["player"].name = "Player"
+        self.save.data["player"].og_name = self._player_name
         
         save_to_dir(self.saves_dir, self.index, self.save)
         
