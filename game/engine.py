@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from .entities import Player
     from .message_log import MessageLog
     from .save_handling import Save
-    from .modes import GameMode
 from .gamestates import *
 from .fov import compute_fov
 

@@ -162,11 +162,19 @@ class ConfirmBoxState(IndexableOptionsState):
                  parent,
                  parent_state: State,
                  confirmation: Confirmation,
-                 action_text: str):
+                 header: str,
+                 action_text: str,
+                 large: bool = False,
+                 option_1: str = "YES",
+                 option_2: str = "NO"):
         super().__init__(parent)
         self.parent_state = parent_state
         self.confirmation = confirmation
+        self.header = header
         self.action_text = action_text
+        self.large = large
+        self.option_1 = option_1
+        self.option_2 = option_2
     
     
     def handle_input(
@@ -192,7 +200,13 @@ class ConfirmBoxState(IndexableOptionsState):
     
     def render(self, engine: Engine) -> None:
         new_cursor_pos: int = engine.terminal_controller.display_confirm_box(
-            self.action_text, self.cursor_index_y)
+            self.large,
+            self.header,
+            self.action_text,
+            self.cursor_index_y,
+            self.option_1,
+            self.option_2
+        )
         self.cursor_index_y = new_cursor_pos
 
 
@@ -416,7 +430,7 @@ class StartNewGameMenuState(ListSavesMenuState):
                 self.confirm_overwrite = Confirmation()
                 action_or_state = ConfirmBoxState(
                     self.parent, self,
-                    self.confirm_overwrite, "overwrite save")
+                    self.confirm_overwrite, "", "overwrite save")
                 self.bypassable = True
             else:
                 action_or_state = EnterNameState(self.parent, self, [])
@@ -426,7 +440,7 @@ class StartNewGameMenuState(ListSavesMenuState):
             if not self.saves[self.cursor_index_y].is_empty:
                 self.confirm_delete = Confirmation()
                 action_or_state = ConfirmBoxState(
-                    self.parent, self, self.confirm_delete, "delete save")
+                    self.parent, self, self.confirm_delete, "", "delete save")
                 self.bypassable = True
         
         # Go back to main menu.
@@ -461,7 +475,11 @@ class ContinueGameMenuState(ListSavesMenuState):
 
         if player_input in CONFIRM_KEYS:
             save: Save = self.saves[self.cursor_index_y]
-            if save.is_empty:  # Can't continue an empty save.
+            # Can't continue an empty save.
+            if save.is_empty:
+                action_or_state = DoNothingAction(self.parent)
+            # Can't continue after being defeated.
+            elif save.metadata.get("status") == GameStatus.DEFEAT:
                 action_or_state = DoNothingAction(self.parent)
             else:
                 action_or_state = ContinueGameAction(
@@ -472,7 +490,7 @@ class ContinueGameMenuState(ListSavesMenuState):
             if not self.saves[self.cursor_index_y].is_empty:
                 self.confirm_delete = Confirmation()
                 action_or_state = ConfirmBoxState(
-                    self.parent, self, self.confirm_delete, "delete save")
+                    self.parent, self, self.confirm_delete, "", "delete save")
                 self.bypassable = True
         
         # Go back to main menu.
@@ -574,7 +592,7 @@ class ExploreState(State):
         elif player_input in EXIT_KEYS:  # Save and return to main menu.
             self.confirm_savequit = Confirmation()
             action_or_state = ConfirmBoxState(
-                self.parent, self, self.confirm_savequit, "save and quit"
+                self.parent, self, self.confirm_savequit, "", "save and quit"
             )
             self.bypassable = True
         elif player_input == '\t' or player_input == 'i':

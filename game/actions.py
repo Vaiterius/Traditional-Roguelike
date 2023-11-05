@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from .components.leveler import Leveler
     from .dungeon.floor import Floor
     from .components.equippable import Equippable
-from .modes import GameMode
+from .modes import GameMode, GameStatus
 from .message_log import MessageType
 from .tile import *
 from .save_handling import (
@@ -137,12 +137,13 @@ class QuitGameAction(Action):
 
 
 class OnPlayerDeathAction(Action):
-    """Delete save and return to main menu"""
+    """Save game with updated defeat status, rendering it unplayable"""
 
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
         
-        delete_save_slot(engine.save)
+        engine.save_meta["status"] = GameStatus.DEFEAT
+        save_current_game(engine)
         
         return turnable
 
@@ -205,9 +206,10 @@ class StartNewGameAction(FromSavedataAction):
 
         # Set player name.
         self.save.data["player"].name = self._player_name
+        self.save.data["player"].og_name = self._player_name
         if self.save.data["player"].name == "":
             self.save.data["player"].name = "Player"
-        self.save.data["player"].og_name = self._player_name
+            self.save.data["player"].og_name = "Player"
         
         save_to_dir(self.saves_dir, self.index, self.save)
         

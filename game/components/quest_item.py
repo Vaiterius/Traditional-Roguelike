@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 from .base_component import BaseComponent
 from ..actions import Action, ItemAction
 from ..gamestates import State, ConfirmBoxState, Confirmation
+from ..modes import GameStatus
 
 
 class QuestItem(BaseComponent):
@@ -34,9 +35,20 @@ class QuestItem(BaseComponent):
         confirmation = Confirmation()
         engine.gamestate.confirm_mainquest_finish = confirmation
         engine.gamestate.bypassable = True  # Immediately go back to main menu.
-        engine.gamestate = ConfirmBoxState(
-            engine.player, engine.gamestate, confirmation,
-            "Congrats! Leave?")
+        text = "Brave hero, you have found the relic! It gleams at you, now in your possession.\nAfter conquering " \
+                "each floor, leaving a wake of defeated monsters in your path, your character, once a mere novice," \
+                " emerged out to be a formidable adventurer.\nYour time concludes here, for now. Would you like to" \
+                " keep exploring?"
+        engine.gamestate = ConfirmBoxState(engine.player,
+                                           engine.gamestate,
+                                           confirmation,
+                                           "Congrats!",
+                                           text,
+                                           large=True,
+                                           option_1="I'm done",
+                                           option_2="Keep going")
+        
+        engine.save_meta["status"] = GameStatus.VICTORY
 
-        engine.message_log.add("Final quest item found!", color="green")
+        engine.message_log.add("You have beat the game!", color="green")
 

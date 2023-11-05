@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 import curses
+import itertools
 from math import ceil
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Any
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from .gamestates import MenuOption
     from .save_handling import Save
     from .engine import Engine
+from .modes import GameStatus
 from .dungeon.floor import FloorBuilder
 from .tile import *
 from .data.config import *
@@ -50,7 +52,179 @@ def get_unfilled_bar(bar_size: int, width: int) -> str:
     return bar
 
 
+def get_message_center_x(message: str, window_width: int) -> int:
+    """
+    Get the center x position to place a message or window in the middle of
+    its parent window
+    """
+    return (window_width // 2) - (len(message) // 2)
 
+
+class Box:
+    """Textbox wrapper for curses windows"""
+
+    def __init__(self,
+                 height: int,
+                 width: int,
+                 origin_x: int,
+                 origin_y: int):
+        self.HEIGHT = height
+        self.WIDTH = width
+        self.origin_x = origin_x
+        self.origin_y = origin_y
+        
+        self._window = curses.newwin(
+            self.HEIGHT, self.WIDTH,
+            origin_x, origin_y
+        )
+
+        self._text = ""
+    
+    @property
+    def window(self) -> curses.newwin:
+        return self._window
+
+    def add_header(self,
+                   text: str,
+                   orientation: str = "center",
+                   reversed: bool = False) -> None:
+        y: int = 0
+        x: int = 0
+        if orientation == "left":
+            x = 1
+        elif orientation == "right":
+            x = self.WIDTH - len(text) - 1
+        else:
+            x = get_message_center_x(text, self.WIDTH)
+        
+        self.window.addstr(
+            y, x, text, (curses.A_REVERSE if reversed else curses.A_NORMAL))
+    
+    def erase(self) -> None:
+        self._window.erase()
+    
+    def border(self) -> None:
+        self._window.border()
+    
+    def refresh(self) -> None:
+        self._window.refresh()
+    
+    def add_text(self, y: int, x: int, text: str, *args, **kwargs):
+        """Write text to the window from y and x positions"""
+        self._text = text
+        # Offset to not write on border lines.
+        y += 1
+        x += 1
+        self.window.addstr(y, x, text, *args, **kwargs)
+    
+    def add_wrapped_text(self, y: int, x: int, text: str, *args):
+        """Write text to the window within borders and wrap around.
+        
+        Algorithm inspirration:
+        https://colinmorris.github.io/blog/word-wrap-in-pythons-curses-library
+        """
+        self.window.move(y + 1, x + 1)
+
+        # Each element will be a separate paragraph.
+        sentences: list[str] = text.split("\n")
+
+
+        def words_and_spaces(text: str) -> list[str]:
+            """ Get a list of words with empty spaces between elements.
+            >>> words_and_spaces('spam eggs ham')
+            ['spam', ' ', 'eggs', ' ', 'ham']
+            """
+            return list(
+                itertools.chain.from_iterable(
+                    zip(text.split(), itertools.repeat(' '))))[:-1]
+
+
+        # Fit paragraphs into textbox.
+        for text in sentences:
+            y, x = self.window.getyx()  # Current coordinates of cursor.
+            
+            # Whole string fits on current line.
+            if len(text) < self.WIDTH - 1:
+                self.window.addstr(text, *args)
+            # Split on word boundaries and write each word individually.
+            else:
+                for word in words_and_spaces(text):
+                    if len(word) + x <= self.WIDTH - 1:  # Current word fits.
+                        self.window.addstr(word, *args)
+                    else:  # Go down a line otherwise.
+                        if word[0].isspace():
+                            word = word[1:]
+                        self.window.addstr(y + 1, 1, word, *args)
+                    
+                    y, x = self.window.getyx()
+
+            self.window.move(y + 2, 1)  # Go down for new paragraph.
+
+
+class ConfirmBox(Box):
+    """Text box but for confirming a boolean option. Cursor bound to y-axis."""
+
+    def __init__(self, height: int, width: int, origin_x: int, origin_y: int):
+        super().__init__(height, width, origin_x, origin_y)
+        self._index = 0
+    
+    @property
+    def cursor_index(self) -> int:
+        return self._index
+    
+    def position_cursor(self, index: int) -> None:
+        """Clamp cursor index"""
+        self._index = max(0, min(1, index))
+    
+    def display_selection(self, option_1: str, option_2: str) -> None:
+        """Show whether player selected 'yes' or 'no'"""
+        pass
+
+
+class ConfirmBoxSmall(ConfirmBox):
+    """A smaller type of confirm box, typically for one-liner prompts."""
+
+    def display_selection(self, option_1: str, option_2: str) -> None:
+        # Line down the middle of the box.
+        middle_y: int = self.WIDTH // 2
+        
+        button_1_y: int = middle_y // 2
+        button_2_y: int = middle_y + (button_1_y)
+        buttons_x: int = (self.HEIGHT // 2) - 1
+
+        if self.cursor_index == 0:
+            self.add_text(
+                buttons_x, button_1_y - 2, f"> {option_1} <", curses.A_REVERSE)
+            self.add_text(buttons_x, button_2_y, option_2)
+        else:
+            self.add_text(
+                buttons_x, button_2_y - 2, f"> {option_2} <", curses.A_REVERSE)
+            self.add_text(buttons_x, button_1_y, option_1)
+
+
+class ConfirmBoxLarge(ConfirmBox):
+    """An expandable type of confirm box, typically for displaying more text"""
+
+    def display_selection(self, option_1: str, option_2: str) -> None:
+        # Line down the middle of the box.
+        middle_y: int = self.WIDTH // 2
+        
+        # Adjust button positions based on text.
+        button_1_y: int = get_message_center_x(option_1, middle_y) - 2
+        button_2_y: int = middle_y + get_message_center_x(
+            option_2, middle_y) - 4
+        
+        # Determine where along box height to put the buttons.
+        buttons_x: int = self.HEIGHT - 4
+
+        if self.cursor_index == 0:
+            self.add_text(
+                buttons_x, button_1_y - 1, f"> {option_1} <", curses.A_REVERSE)
+            self.add_text(buttons_x, button_2_y + 1, option_2)
+        else:
+            self.add_text(
+                buttons_x, button_2_y - 1, f"> {option_2} <", curses.A_REVERSE)
+            self.add_text(buttons_x, button_1_y + 1, option_1)
 
 
 class TerminalController:
@@ -198,13 +372,13 @@ class TerminalController:
             self.floor_width + 2)
         player_subwindow.erase()
         player_subwindow.border()
-        player_header_center_y = self._get_message_center_x(
+        player_header_center_y = get_message_center_x(
             PLAYER_SECTION_HEADER, SIDEBAR_WIDTH)
         player_subwindow.addstr(
             0, player_header_center_y, PLAYER_SECTION_HEADER)
         player_subwindow.addstr(
             1, 1, player.char, self.colors.get_color(player.color))
-        player_subwindow.addstr(1, 3, player.name)
+        player_subwindow.addstr(1, 3, player.og_name)
 
         # Show player health bar.
         hp, max_hp = player.fighter.health, player.fighter.max_health
@@ -246,7 +420,7 @@ class TerminalController:
             self.floor_width + 2)
         stats_subwindow.erase()
         stats_subwindow.border()
-        attributes_header_center_y = self._get_message_center_x(
+        attributes_header_center_y = get_message_center_x(
             STATS_SECTION_HEADER, SIDEBAR_WIDTH)
         stats_subwindow.addstr(
             0, attributes_header_center_y, STATS_SECTION_HEADER)
@@ -273,7 +447,7 @@ class TerminalController:
             self.floor_width + 2)
         standing_on_subwindow.erase()
         standing_on_subwindow.border()
-        standing_on_header_center_y = self._get_message_center_x(
+        standing_on_header_center_y = get_message_center_x(
             STANDING_ON_SECTION_HEADER, SIDEBAR_WIDTH)
         standing_on_subwindow.addstr(
             0, standing_on_header_center_y - 1, STANDING_ON_SECTION_HEADER)
@@ -312,7 +486,7 @@ class TerminalController:
             self.floor_width + 2)
         entities_subwindow.erase()
         entities_subwindow.border()
-        entities_header_center_y: int = self._get_message_center_x(
+        entities_header_center_y: int = get_message_center_x(
             ENTITIES_SECTION_HEADER, SIDEBAR_WIDTH)
         entities_subwindow.addstr(
             0, entities_header_center_y, ENTITIES_SECTION_HEADER)
@@ -742,7 +916,7 @@ class TerminalController:
         # Save metadata enumerated here.
         else:
             save_info: dict[str, str] = {
-                "PLAYER: ": str(save.data.get('player').name),
+                "PLAYER: ": str(save.data.get('player').og_name),
                 "GAMEMODE: ": str(save.metadata.get("gamemode").name),
                 "VERSION: ": str(save.metadata.get('version')),
                 "FLOOR: ": str(save.data.get('dungeon').deepest_floor_idx + 1),
@@ -752,7 +926,25 @@ class TerminalController:
                 "SLAYED: ": f"{save.metadata.get('slayed'):,} enemies",
                 "TURNS: ": f"{save.metadata.get('turns'):,}"
             }
-            info_index = 1
+
+            # Display status of game.
+            if save.metadata.get("status") == GameStatus.DEFEAT:
+                metadata_window.addstr(
+                    1, get_message_center_x(
+                        "DEFEAT", PANEL_WIDTH
+                        ), "DEFEAT", self.colors.get_color("red"))
+            elif save.metadata.get("status") == GameStatus.VICTORY:
+                metadata_window.addstr(
+                    1, get_message_center_x(
+                        "VICTORY", PANEL_WIDTH
+                        ), "VICTORY", self.colors.get_color("green"))
+            else:
+                metadata_window.addstr(
+                    1, get_message_center_x(
+                        "ONGOING", PANEL_WIDTH
+                        ), "ONGOING", self.colors.get_color("gold"))
+
+            info_index = 3
             ALIGN_INDEX = 14
             for label, value in save_info.items():
                 metadata_window.addstr(
@@ -900,7 +1092,7 @@ class TerminalController:
 
         HEADER: str = "RIP BOZO"
 
-        window.addstr(0, self._get_message_center_x(
+        window.addstr(0, get_message_center_x(
             HEADER, BOX_WIDTH), HEADER, curses.A_REVERSE)
         window.addstr(
             1, 1, f"{name} died on floor {current_floor} at level {level}")
@@ -909,51 +1101,64 @@ class TerminalController:
         window.refresh()
 
 
-    def display_confirm_box(
-        self, action_to_confirm: str, cursor_index: int) -> int:
+    def display_confirm_box(self,
+                            large: bool,
+                            header: str,
+                            action_text: str,
+                            cursor_index: int,
+                            option_1: str = "YES",
+                            option_2: str = "NO") -> int:
         """Display a confirmation box after an important action.
         
         e.g. quitting without saving, overwriting a save
         """
-        # Box dimensions.
-        BOX_HEIGHT: int = self.game_height // 5
-        BOX_WIDTH: int = self.game_width // 4
-        origin_x: int = (self.game_height // 2) - (BOX_HEIGHT // 2)
-        origin_y: int = (self.game_width // 2) - (BOX_WIDTH // 2)
-        
-        window = curses.newwin(BOX_HEIGHT, BOX_WIDTH, origin_x, origin_y)
-        
-        window.erase()
-        window.border()
-        
-        # Clamp cursor index (only yes or no selections).
-        cursor_index = max(0, min(1, cursor_index))
-        
-        # Prompt header.
-        header_msg: str = f"{action_to_confirm.capitalize()}?"
-        window.addstr(
-            1, self._get_message_center_x(header_msg, BOX_WIDTH), header_msg)
-        
-        # Line down the middle of the box.
-        middle_y: int = BOX_WIDTH // 2
-        
-        button_1_y: int = middle_y // 2
-        button_2_y: int = middle_y + (button_1_y)
-        button_x: int = BOX_HEIGHT // 2
-        
-        # Yes or no selection.
-        if cursor_index == 0:
-            window.addstr(
-                button_x, button_1_y - 2, "> YES <", curses.A_REVERSE)
-            window.addstr(button_x, button_2_y, "NO")
+        # Dimensions.
+        height: int = (self.game_height // 5) - 1
+        width: int = self.game_width // 4
+        num_text_lines: int = len(action_text.split("\n"))
+
+        # Determine what kind of confirm box to use.
+        box: Optional[ConfirmBox] = None
+        if large:
+            height = (self.game_height // 2)
+            width = (self.game_width // 3) + 6
+            box = ConfirmBoxLarge(
+                height=height,
+                width=width,
+                origin_x=(self.game_height // 2) - (height // 2),
+                origin_y=(self.game_width // 2) - (width // 2)
+            )
         else:
-            window.addstr(
-                button_x, button_2_y - 2, "> NO <", curses.A_REVERSE)
-            window.addstr(button_x, button_1_y, "YES")
+            box = ConfirmBoxSmall(
+                height=height,
+                width=width,
+                origin_x=(self.game_height // 2) - (height // 2),
+                origin_y=(self.game_width // 2) - (width // 2)
+            )
+            
+        box.erase()
+        box.border()
+
+        if header:
+            box.add_header(header, reversed=True)
         
-        window.refresh()
+        if action_text:
+            if large:  # Start text left-side.
+                box.add_wrapped_text(0, 0, action_text)
+            else:  # Place text in the middle.
+                action_text = f"{action_text.capitalize()}?"
+                box.add_text(
+                    0, get_message_center_x(action_text, box.WIDTH) - 1,
+                    action_text
+                )
+
+        # Update from cursor index.
+        box.position_cursor(cursor_index)
+        box.display_selection(option_1, option_2)
         
-        return cursor_index
+        box.refresh()
+        
+        return box.cursor_index
     
 
     def ensure_right_terminal_size(self):
@@ -1020,12 +1225,4 @@ class TerminalController:
         height: int = len(lines)
         width: int = max([len(line) for line in lines])
         return width, height
-    
-    
-    def _get_message_center_x(self, message: str, window_width: int) -> int:
-        """
-        Get the center x position to place a message or window in the middle of
-        its parent window
-        """
-        return (window_width // 2) - (len(message) // 2)
 
