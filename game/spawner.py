@@ -208,13 +208,12 @@ class Spawner:
 class ItemFactory:
     """Base factory for spitting out items to spawn throughout the dungeon"""
 
-    def __init__(self, item_pool: dict[str, dict[str, Any]]):
-        self._item_pool = list(item_pool.values())
+    def __init__(self, item_pool: list[dict[str, Any]]):
         self._item_data: dict = random.choices(
-            population=self._item_pool,
+            population=item_pool,
             weights=[
                 item["spawn_chance"]
-                for item in self._item_pool
+                for item in item_pool
             ]
         )[0]
     

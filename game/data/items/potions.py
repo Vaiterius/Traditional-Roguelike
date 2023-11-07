@@ -2,8 +2,8 @@ from typing import Any
 
 from ...item_types import PotionType
 
-restoration_potions: dict[str, dict[str, Any]] = {
-    "potion_of_restore_health": {
+restoration_potions: list[dict[str, Any]] = [
+    {
         "name": "Potion of Restore Health",
         "desc": "...",
         "char": '!',
@@ -12,7 +12,7 @@ restoration_potions: dict[str, dict[str, Any]] = {
         "yield": 10,
         "spawn_chance": 50
     },
-    "potion_of_restore_magicka": {
+    {
         "name": "Potion of Restore Magicka",
         "desc": "...",
         "char": "!",
@@ -21,4 +21,4 @@ restoration_potions: dict[str, dict[str, Any]] = {
         "yield": 10,
         "spawn_chance": 50
     }
-}
+]
