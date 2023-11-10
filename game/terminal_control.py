@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 import curses
 import itertools
 from math import ceil
@@ -29,6 +28,7 @@ from .color import Color
 from .render_order import RenderOrder
 from .data.config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
 from .save_handling import fetch_save
+from .rng import RandomNumberGenerator
 
 
 # TODO turn progress bar into a class
@@ -1190,9 +1190,10 @@ class TerminalController:
 
     def _get_main_menu_map_tiles(self) -> list[list[Tile]]:
         """A cool randomly-generated dungeon background for the main menu"""
-        num_rooms: int = random.randint(15, 20)
+        rng = RandomNumberGenerator(seed=None)
+        num_rooms: int = rng.randint(15, 20)
         floor: Floor = (
-            FloorBuilder((self.game_width - 2, self.game_height - 2))
+            FloorBuilder(rng, (self.game_width - 2, self.game_height - 2))
             .place_walls(tile_type=wall_tile_dim)
             .place_rooms(num_rooms,
                          MIN_MAX_ROOM_WIDTH,

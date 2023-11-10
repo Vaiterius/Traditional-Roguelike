@@ -14,6 +14,7 @@ from .spawner import Spawner
 from .entities import Player
 from .dungeon.dungeon import Dungeon
 from .message_log import MessageLog
+from .rng import RandomNumberGenerator
 from .data.config import *
 
 
@@ -42,7 +43,8 @@ def get_new_game(
         slot_index: int,
         gamemode: GameMode = GameMode.NORMAL) -> Save:
     """Create a fresh game"""
-    spawner = Spawner()
+    rng = RandomNumberGenerator(seed=1)
+    spawner = Spawner(rng)
     player: Player = spawner.get_player_instance()
     dungeon = Dungeon(
         spawner=spawner,
@@ -64,7 +66,8 @@ def get_new_game(
         data={
             "player": player,
             "dungeon": dungeon,
-            "message_log": message_log
+            "message_log": message_log,
+            "rng": rng,
         },
         metadata={
             "created_at": time_created,

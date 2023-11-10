@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import random
 from typing import TYPE_CHECKING
 
 from game.engine import Engine
@@ -99,10 +98,10 @@ class WanderingAI(BaseAI):
             return
 
         # Decide if creature wants to randomly walk to a tile.
-        to_walk_or_not_to_walk_that_is_the_question: float = random.random()
+        to_walk_or_not_to_walk_that_is_the_question: float = engine.rng.random()
         if to_walk_or_not_to_walk_that_is_the_question >= self.CHANCE_TO_WALK:
             # Pick a random, valid direction to walk to.
-            dx, dy = random.choice(list(self.DIRECTIONS.values()))
+            dx, dy = engine.rng.choice(list(self.DIRECTIONS.values()))
             
             # Walk to that tile if it is not blocked by a blocking entity.
             BumpAction(self.owner, dx, dy).perform(engine)

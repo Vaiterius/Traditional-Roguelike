@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import bisect
-import random
 from typing import Iterator, Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -9,6 +8,7 @@ if TYPE_CHECKING:
     from ..entities import Entity, Player
     from ..tile import Tile
     from ..spawner import Spawner
+    from ..rng import RandomNumberGenerator
 from .room import Room
 from ..entities import Creature, Item
 from ..tile import *
@@ -88,7 +88,10 @@ class Floor:
 class FloorBuilder:
     """Methods to build and customize dungeon levels step-by-step"""
     
-    def __init__(self, floor_dimensions: tuple[int, int]):
+    def __init__(self,
+                 rng: RandomNumberGenerator,
+                 floor_dimensions: tuple[int, int]):
+        self.rng = rng
         self.floor_width, self.floor_height = floor_dimensions
 
         self._floor = Floor(
@@ -125,11 +128,12 @@ class FloorBuilder:
         curr_iterations = 0
         while len(self._floor.rooms) < num_rooms:
             room = Room(
+                rng=self.rng,
                 # Starting left x,y corner for room.
-                x1 = random.randint(1, self.floor_height - max_room_height -1),
-                y1 = random.randint(1, self.floor_width - max_room_width - 1),
-                width=random.randint(min_room_width, max_room_width),
-                height=random.randint(min_room_height, max_room_height),
+                x1 = self.rng.randint(1, self.floor_height - max_room_height -1),
+                y1 = self.rng.randint(1, self.floor_width - max_room_width - 1),
+                width=self.rng.randint(min_room_width, max_room_width),
+                height=self.rng.randint(min_room_height, max_room_height),
                 floor=self._floor
             )
             
@@ -199,7 +203,7 @@ class FloorBuilder:
                     is_last_floor: bool):
         """Scatter random items throughout the level"""
         for _ in range(max_items_per_floor):
-            room: Room = random.choice(self._floor.rooms)
+            room: Room = self.rng.choice(self._floor.rooms)
             spawner.spawn_item(room)
         
         # TODO have it placed next to a boss enemy.
@@ -214,7 +218,7 @@ class FloorBuilder:
         """Create and place enemies throughout the rooms in the level"""
         for _ in range(max_creatures_per_floor):
             # Don't include the room the player spawns in.
-            room: Room = random.choice(self._floor.rooms[1:])
+            room: Room = self.rng.choice(self._floor.rooms[1:])
             spawner.spawn_enemy(room)
         
         return self

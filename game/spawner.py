@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import random
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
@@ -13,6 +12,7 @@ from .components.leveler import Leveler
 from .render_order import RenderOrder
 from .entities import Entity, Item, Potion, Weapon, Armor, Creature, Player
 from .item_types import WeaponType, ArmorType, PotionType
+from .rng import RandomNumberGenerator
 
 from .data.creatures import enemies, player
 from .data.items.potions import restoration_potions
@@ -23,7 +23,8 @@ from .data.config import DESCENDING_STAIRCASE_TILE, ASCENDING_STAIRCASE_TILE
 class Spawner:
     """Helper object for spawning entities in the dungeon"""
     
-    def __init__(self):
+    def __init__(self, rng: RandomNumberGenerator):
+        self.rng = rng
         # Create staircase prefabs.
         self.descending_staircase: Entity = Entity(
             x=-1, y=-1,
@@ -103,6 +104,7 @@ class Spawner:
         player_obj.add_component(
             name="fighter",
             component=Fighter(  # Refer to fighter.py for base stats.
+                rng=self.rng,
                 base_health=player["hp"],
                 base_magicka=player["mp"],
                 base_damage=player["dmg"],
@@ -112,7 +114,7 @@ class Spawner:
                 base_vitality=1
             )
         )
-        player_obj.add_component("leveler", Leveler(start_level=1))
+        player_obj.add_component("leveler", Leveler(rng=self.rng, start_level=1))
         player_obj.leveler.set_starting_attributes()
         player_obj.add_component("inventory", Inventory(num_slots=16))
         
@@ -125,7 +127,7 @@ class Spawner:
         from .components.ai import HostileEnemyAI
 
         # Fetch a random enemy data object.
-        enemy_data: dict = random.choices(
+        enemy_data: dict = self.rng.choices(
             population=list(enemies.values()),
             weights=[enemy["spawn_chance"] for enemy in enemies.values()]
         )[0]
@@ -143,6 +145,7 @@ class Spawner:
         enemy.add_component(
             name="fighter",
             component=Fighter(
+                rng=self.rng,
                 base_health=enemy_data["hp"],
                 base_magicka=1,
                 base_damage=enemy_data["dmg"],
@@ -153,7 +156,7 @@ class Spawner:
             )
         )
         enemy.add_component(
-            "leveler", Leveler(start_level=1, base_drop_amount=5))
+            "leveler", Leveler(rng=self.rng, start_level=1, base_drop_amount=5))
         enemy.leveler.set_starting_attributes()
         enemy.add_component("ai", HostileEnemyAI(enemy))
 
@@ -164,20 +167,21 @@ class Spawner:
         """Load item data and create an instance out of it"""
         factory_pool: dict = [
             {
-                "factory": WeaponFactory(item_pool=weapons),
+                "factory": WeaponFactory(self.rng, item_pool=weapons),
                 "spawn_chance": 33
             },
             {
-                "factory": ArmorFactory(item_pool=armor),
+                "factory": ArmorFactory(self.rng, item_pool=armor),
                 "spawn_chance": 33
             },
             {
-                "factory": PotionFactory(item_pool=restoration_potions),
+                "factory": PotionFactory(
+                    self.rng, item_pool=restoration_potions),
                 "spawn_chance": 33
             },
         ]
 
-        item_factory: ItemFactory = random.choices(
+        item_factory: ItemFactory = self.rng.choices(
             population=factory_pool,
             weights=[
                 factory["spawn_chance"]
@@ -208,8 +212,11 @@ class Spawner:
 class ItemFactory:
     """Base factory for spitting out items to spawn throughout the dungeon"""
 
-    def __init__(self, item_pool: list[dict[str, Any]]):
-        self._item_data: dict = random.choices(
+    def __init__(self,
+                 rng: RandomNumberGenerator,
+                 item_pool: list[dict[str, Any]]):
+        self.rng = rng
+        self._item_data: dict = self.rng.choices(
             population=item_pool,
             weights=[
                 item["spawn_chance"]

@@ -163,6 +163,7 @@ class FromSavedataAction(Action):
         engine.player = save.data.get("player")
         engine.dungeon = save.data.get("dungeon")
         engine.message_log = save.data.get("message_log")
+        engine.rng = save.data.get("rng")
 
 
 class DeleteSaveAction(FromSavedataAction):
@@ -218,10 +219,10 @@ class StartNewGameAction(FromSavedataAction):
         
         # TODO create normal mode (story) and seeded mode
         if engine.save_meta["gamemode"] == GameMode.ENDLESS:
-            engine.dungeon.generate()
+            engine.dungeon.generate(engine.rng)
             engine.dungeon.spawn_player(engine.player)
         elif engine.save_meta["gamemode"] == GameMode.NORMAL:
-            engine.dungeon.generate()
+            engine.dungeon.generate(engine.rng)
             engine.dungeon.spawn_player(engine.player)
         
         save_current_game(engine)
@@ -304,7 +305,7 @@ class DescendStairsAction(Action):
         deepest_floor_idx = engine.dungeon.current_floor_idx
         if engine.dungeon.current_floor_idx == deepest_floor_idx:
             engine.dungeon.current_floor_idx += 1
-            engine.dungeon.generate_floor()
+            engine.dungeon.generate_floor(engine.rng)
         room_to_spawn = engine.dungeon.current_floor.first_room
         engine.dungeon.spawner.spawn_player(engine.player, room_to_spawn)
         

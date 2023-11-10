@@ -1,22 +1,24 @@
 from __future__ import annotations
 
-import random
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .floor import Floor
-    from ..engine import Engine
+    from ..rng import RandomNumberGenerator
 from ..tile import *
 
 class Room:
     """Rectangular rooms found on each floor"""
 
     def __init__(self,
+                 rng: RandomNumberGenerator,
                  x1: int,
                  y1: int,
                  width: int,
                  height: int,
                  floor: Floor):
+        self.rng = rng
+
         self.x1 = x1
         self.y1 = y1
 
@@ -50,8 +52,8 @@ class Room:
 
     def get_random_cell(self) -> tuple[int, int]:
         """A random spot anywhere inside a room"""
-        rand_x = random.randint(self.x1, self.x2 - 1)
-        rand_y = random.randint(self.y1, self.y2 - 1)
+        rand_x = self.rng.randint(self.x1, self.x2 - 1)
+        rand_y = self.rng.randint(self.y1, self.y2 - 1)
         return rand_x, rand_y
 
     

@@ -29,13 +29,12 @@ SAGE:
 
 from __future__ import annotations
 
-import random
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..entities import Creature
-    from .inventory import Inventory
+    from ..rng import RandomNumberGenerator
 from .base_component import BaseComponent
 from ..render_order import RenderOrder
 
@@ -108,6 +107,7 @@ class Fighter(BaseComponent):
         SAGE = auto()
 
     def __init__(self,
+                 rng: RandomNumberGenerator,
                  base_health: int,
                  base_magicka: int,
                  base_damage: int,
@@ -115,6 +115,7 @@ class Fighter(BaseComponent):
                  base_agility: int,
                  base_vitality: int,
                  base_sage: int):
+        self.rng = rng
         self._max_health = base_health
         self._max_magicka = base_magicka
         self._health = base_health
@@ -294,7 +295,7 @@ class Fighter(BaseComponent):
 
     def check_hit_success(self) -> bool:
         """Attempt to hit opponent succeeds or not"""
-        return self.hit_chance >= random.random()
+        return self.hit_chance >= self.rng.random()
     
     # CRITICAL HIT CHANCE.
     @property
@@ -309,7 +310,7 @@ class Fighter(BaseComponent):
     
     def check_critical_hit_success(self) -> bool:
         """A hit that turns out to be a critical hit"""
-        return self.critical_hit_chance >= random.random()
+        return self.critical_hit_chance >= self.rng.random()
     
     # KNOCKOUT CHANCE.
     @property
@@ -319,7 +320,7 @@ class Fighter(BaseComponent):
     
     def check_knockout_success(self) -> bool:
         """A hit that knocks out the target creature"""
-        return self.knockout_chance >= random.random()
+        return self.knockout_chance >= self.rng.random()
     
     # DOUBLE HIT CHANCE.
     @property
@@ -329,5 +330,5 @@ class Fighter(BaseComponent):
     
     def check_double_hit_success(self) -> bool:
         """A hit attempt that strikes the target creature twice"""
-        return self.double_hit_chance >= random.random()
+        return self.double_hit_chance >= self.rng.random()
     

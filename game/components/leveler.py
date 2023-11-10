@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import random
 from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..rng import RandomNumberGenerator
 
 from .base_component import BaseComponent
 from .fighter import Fighter
@@ -21,7 +23,8 @@ class Leveler(BaseComponent):
     modification.
     """
 
-    def __init__(self, start_level: int = 1, base_drop_amount: int = 5):
+    def __init__(self, rng: RandomNumberGenerator, start_level: int = 1, base_drop_amount: int = 5):
+        self.rng = rng
         self._start_level = start_level
         self._current_level = start_level
         self._base_drop_amount = base_drop_amount
@@ -103,5 +106,5 @@ class Leveler(BaseComponent):
             self.owner.fighter.sage += 1
     
     def get_random_attribute(self) -> Fighter.AttributeType:
-        return random.choice(list(Fighter.AttributeType))
+        return self.rng.choice(list(Fighter.AttributeType))
 

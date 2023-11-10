@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .entities import Player
     from .message_log import MessageLog
     from .save_handling import Save
+    from .rng import RandomNumberGenerator
 from .gamestates import *
 from .fov import compute_fov
 
@@ -28,6 +29,7 @@ class Engine:
         self.player: Optional[Player] = save.data.get("dummy")
         self.dungeon: Optional[Dungeon] = None
         self.message_log: Optional[MessageLog] = None
+        self.rng: Optional[RandomNumberGenerator] = None
         self.terminal_controller = terminal_controller
 
         self.gamestate = gamestate

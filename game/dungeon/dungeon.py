@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import random
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..entities import Player
     from ..spawner import Spawner
+    from ..rng import RandomNumberGenerator
 from .floor import Floor, FloorBuilder
 
 
@@ -55,9 +55,9 @@ class Dungeon:
         return len(self.floors) - 1
     
 
-    def generate_floor(self) -> None:
+    def generate_floor(self, rng: RandomNumberGenerator) -> None:
         """Dynamically generate the next floor - used for endless modes"""
-        num_rooms: int = random.randint(*(self.min_max_rooms))
+        num_rooms: int = rng.randint(*(self.min_max_rooms))
 
         # Figure out which staircases to put.
         can_descend, can_ascend = True, False
@@ -69,7 +69,7 @@ class Dungeon:
         # TODO randomize num_items and num_enemies.
         # Forming the rooms and connecting them.
         floor: Floor = (
-            FloorBuilder(self.floor_dimensions)
+            FloorBuilder(rng, self.floor_dimensions)
                 .place_walls()
                 .place_rooms(num_rooms,
                                 self.min_max_room_width,
@@ -93,7 +93,7 @@ class Dungeon:
 
 
     # TODO Increase difficulty descending down levels (assign value?).
-    def generate(self) -> None:
+    def generate(self, rng: RandomNumberGenerator) -> None:
         """Prepare and generate the dungeon's first floor"""
 
         # Regenerate if dungeon already exists.
@@ -101,7 +101,7 @@ class Dungeon:
             self.floors = []
             self.current_floor_idx = 0
 
-        self.generate_floor()  # First floor.
+        self.generate_floor(rng)  # First floor.
     
     
     def spawn_player(self, player: Player) -> None:
