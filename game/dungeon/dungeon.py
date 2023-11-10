@@ -13,6 +13,7 @@ class Dungeon:
     """The dungeon composed of multiple floors the player must beat through"""
     
     def __init__(self,
+                 rng: RandomNumberGenerator,
                  spawner: Spawner,
                  max_enemies_per_floor: int,
                  max_items_per_floor: int,
@@ -22,6 +23,7 @@ class Dungeon:
                  min_max_room_height: tuple[int, int],
                  num_floors: int = -1,  # Endless mode default.
                  ):
+        self.rng = rng
         self.spawner = spawner
         
         self.max_enemies_per_floor = max_enemies_per_floor
@@ -55,9 +57,13 @@ class Dungeon:
         return len(self.floors) - 1
     
 
-    def generate_floor(self, rng: RandomNumberGenerator) -> None:
+    def generate_floor(self) -> None:
         """Dynamically generate the next floor - used for endless modes"""
-        num_rooms: int = rng.randint(*(self.min_max_rooms))
+
+        # Seed for floor generation.
+        self.rng.with_subseed(f"-floor-{self.current_floor_idx + 1}")
+
+        num_rooms: int = self.rng.randint(*(self.min_max_rooms))
 
         # Figure out which staircases to put.
         can_descend, can_ascend = True, False
@@ -66,34 +72,34 @@ class Dungeon:
         if not self.is_endless and self.is_last_floor:  # Normal mode.
             can_descend = False
 
-        # TODO randomize num_items and num_enemies.
         # Forming the rooms and connecting them.
         floor: Floor = (
-            FloorBuilder(rng, self.floor_dimensions)
+            FloorBuilder(self.rng, self.floor_dimensions)
                 .place_walls()
-                .place_rooms(num_rooms,
-                                self.min_max_room_width,
-                                self.min_max_room_height)
+                .place_rooms(
+                             num_rooms,
+                             self.min_max_room_width,
+                             self.min_max_room_height)
                 .place_tunnels()
                 .place_staircases(self.spawner,
-                                    can_descend,
-                                    can_ascend)
+                                  can_descend,
+                                  can_ascend)
                 .place_items(self.spawner,
-                             self.max_items_per_floor,
-                             self.current_floor_idx + 1 == self.num_floors - 1)
+                             self.max_items_per_floor)
                 .place_creatures(self.spawner,
                                  self.max_enemies_per_floor)
                 .build(self)
         )
         self.floors.append(floor)
 
+        # Spawn the final quest item.
         if not self.is_endless and self.is_last_floor:
             self.spawner.spawn_item(floor.last_room, is_quest_item=True)
 
 
 
-    # TODO Increase difficulty descending down levels (assign value?).
-    def generate(self, rng: RandomNumberGenerator) -> None:
+    # TODO Increase difficulty descending down levels.
+    def generate(self) -> None:
         """Prepare and generate the dungeon's first floor"""
 
         # Regenerate if dungeon already exists.
@@ -101,7 +107,7 @@ class Dungeon:
             self.floors = []
             self.current_floor_idx = 0
 
-        self.generate_floor(rng)  # First floor.
+        self.generate_floor()  # First floor.
     
     
     def spawn_player(self, player: Player) -> None:

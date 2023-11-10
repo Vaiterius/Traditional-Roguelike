@@ -43,10 +43,11 @@ def get_new_game(
         slot_index: int,
         gamemode: GameMode = GameMode.NORMAL) -> Save:
     """Create a fresh game"""
-    rng = RandomNumberGenerator(seed=1)
-    spawner = Spawner(rng)
+    rng = RandomNumberGenerator()  # TODO get seed from player at start
+    spawner = Spawner(rng=rng)
     player: Player = spawner.get_player_instance()
     dungeon = Dungeon(
+        rng=rng,
         spawner=spawner,
         max_enemies_per_floor=MAX_ENEMIES_PER_FLOOR,
         max_items_per_floor=MAX_ITEMS_PER_FLOOR,

@@ -116,6 +116,7 @@ class FloorBuilder:
     
     
     def place_rooms(self,
+                    # current_floor_num: int,
                     num_rooms: int,
                     min_max_room_width: tuple[int, int],
                     min_max_room_height: tuple[int, int],
@@ -196,20 +197,13 @@ class FloorBuilder:
         return self
     
     
-    # TODO
     def place_items(self,
                     spawner: Spawner,
-                    max_items_per_floor: int,
-                    is_last_floor: bool):
+                    max_items_per_floor: int):
         """Scatter random items throughout the level"""
         for _ in range(max_items_per_floor):
             room: Room = self.rng.choice(self._floor.rooms)
             spawner.spawn_item(room)
-        
-        # TODO have it placed next to a boss enemy.
-        # Place main quest item on the last room on the last floor.
-        # if is_last_floor:
-        #     spawner.spawn_item(self._floor.last_room)
         
         return self
     
