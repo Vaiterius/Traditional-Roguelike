@@ -39,9 +39,7 @@ class Save:
         return cls(-1, None, None, None)
 
 
-def get_new_game(
-        slot_index: int,
-        gamemode: GameMode = GameMode.NORMAL) -> Save:
+def get_new_game(gamemode: GameMode, slot_index: int) -> Save:
     """Create a fresh game"""
     rng = RandomNumberGenerator()  # TODO get seed from player at start
     spawner = Spawner(rng=rng)

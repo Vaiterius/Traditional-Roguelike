@@ -3,6 +3,7 @@ from __future__ import annotations
 import curses
 import itertools
 from math import ceil
+# from enum import Enum, auto
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Any
 
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     from .components.leveler import Leveler
     from .components.fighter import Fighter
     from .message_log import Message, MessageLog
-    from .gamestates import MenuOption
+    from .gamestates import MenuOption, GameConfig
     from .save_handling import Save
     from .engine import Engine
 from .modes import GameStatus
@@ -120,7 +121,7 @@ class Box:
     def add_wrapped_text(self, y: int, x: int, text: str, *args):
         """Write text to the window within borders and wrap around.
         
-        Algorithm inspirration:
+        Algorithm inspiration:
         https://colinmorris.github.io/blog/word-wrap-in-pythons-curses-library
         """
         self.window.move(y + 1, x + 1)
@@ -1033,6 +1034,89 @@ class TerminalController:
         options_subwindow.refresh()
         
         return cursor_index
+    
+    # TODO clean up format
+    def display_game_config(self,
+                            config: GameConfig,
+                            cursor_index_x: int,
+                            cursor_index_y: int) -> int:
+        """Display interface for entering player's name, gamemode, and (optional) seed.
+        
+        Index map:
+        0 - enter name
+        1 - enter seed
+        2 - toggle gamemode
+        3, 0 - cancel; 3, 1 - confirm and start new game
+        """
+        # Define window size.
+        BOX_HEIGHT: int = 14
+        BOX_WIDTH: int = 39
+        box = Box(
+            height=BOX_HEIGHT,
+            width=BOX_WIDTH,
+            origin_x=(self.game_height // 2) - BOX_HEIGHT,
+            origin_y=(self.game_width // 2) - BOX_WIDTH
+        )
+        box.add_header("Game Config")
+        box.erase()
+        box.border()
+
+        # Clamp index positions.
+        if cursor_index_x < 0:
+            cursor_index_x = 0
+        elif cursor_index_x > 3:
+            cursor_index_x = 3
+        
+        if cursor_index_y < 0:
+            cursor_index_y = 0
+        elif cursor_index_y > 1:
+            cursor_index_y = 1
+        
+
+        # class ConfigSection(Enum):
+        #     NAME_INPUT = auto()
+        #     SEED_INPUT = auto()
+        #     GAMEMODE_TOGGLE = auto()
+        #     CANCEL = auto()
+        #     CONFIRM = auto()
+
+        # Display.
+        
+        # Pattern match based on the  (x, y) positions.
+        # Note that for the name, seed, and gamemode indices, the y index does
+        # not matter.
+        # current_section: Optional[ConfigSection] = None
+        match (cursor_index_x, cursor_index_y):
+            case (0, _):  # Name input.
+                # current_section = ConfigSection.NAME_INPUT
+                box.add_text(
+                    0, 0, f"{''.join(config.player_name)} is my name...")
+
+            case (1, _):
+                # current_section = ConfigSection.SEED_INPUT
+                box.add_text(2, 0, f"Seed: {''.join(config.seed)}")
+
+            case (2, _):
+                # current_section = ConfigSection.GAMEMODE_TOGGLE
+                box.add_text(
+                    4, 0,
+                    f"Game mode: "
+                    f"{'Normal' if config.is_normal_gamemode else 'Endless'}"
+                )
+
+            case (3, 0):
+                # current_section = ConfigSection.CANCEL
+                box.add_text(6, 0, "CANCEL", curses.A_REVERSE)
+                box.add_text(6, 7, "CONFIRM")
+
+            case (3, 1):
+                # current_section = ConfigSection.CONFIRM
+                box.add_text(6, 0, "CANCEL")
+                box.add_text(6, 7, "CONFIRM", curses.A_REVERSE)
+
+        box.refresh()
+
+        return cursor_index_x, cursor_index_y
     
 
     def display_name_input_box(self, name: str, max_length: int) -> None:
