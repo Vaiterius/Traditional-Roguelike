@@ -318,17 +318,41 @@ class ListSavesMenuState(IndexableOptionsState):
         return turnable
 
 
-class EnterNameState(State):
+class EnterCharactersState(State):
+    """State for inputting a string"""
+    MAX_LENGTH: int
+
+    def __init__(self, parent: Entity, characters: list[str]):
+        super().__init__(parent)
+        self._characters = characters
+    
+    def _is_valid_input(self, player_input: str) -> bool:
+        """Input is valid if: is single character, alphanumeric, or a space"""
+        return (
+            len(player_input) == 1
+            and (curses.ascii.isalnum(player_input) or player_input == " ")
+        )
+    
+    def on_enter(self, engine: Engine) -> None:
+        """Show cursor when typing"""
+        curses.curs_set(1)
+
+    def on_exit(self, engine: Engine) -> None:
+        """Unshow cursor"""
+        curses.curs_set(0)
+
+
+class EnterNameState(EnterCharactersState):
     """Build the name with a stack checking for every keypress entry."""
+    MAX_LENGTH: int = 22
 
     def __init__(self,
                  parent: Entity,
                  prev_state: StartNewGameMenuState,
-                 name: list[str]):
-        super().__init__(parent)
-        self._name = name
+                 characters: list[str]):
+        super().__init__(parent, characters)
+        self._name = characters
         self._prev_state = prev_state  # Carry save selection over.
-        self._MAX_NAME_LENGTH = 22
     
 
     def handle_input(
@@ -344,17 +368,10 @@ class EnterNameState(State):
                 action_or_state = EnterNameState(
                     self.parent, self._prev_state, self._name)
         elif player_input in CONFIRM_KEYS:  # User confirms name.
-            action_or_state = StartNewGameAction(
-                get_new_game(self._prev_state.cursor_index_y),
-                self._prev_state.saves_dir, self._prev_state.cursor_index_y,
-                player_name="".join(self._name)
-            )
-        elif (
-            len(player_input) == 1  # Single characters only, no control codes.
-            and (curses.ascii.isalnum(player_input)  # Alphanumerical.
-            or player_input == ' ')  # Space.
-        ):
-            if len(self._name) < self._MAX_NAME_LENGTH:
+            action_or_state = EnterSeedState(
+                self.parent, self._prev_state, self._name, [])
+        elif self._is_valid_input(player_input):
+            if len(self._name) < self.MAX_LENGTH:
                 self._name.append(player_input)
             action_or_state = EnterNameState(
                 self.parent, self._prev_state, self._name)
@@ -364,7 +381,7 @@ class EnterNameState(State):
 
     def render(self, engine: Engine) -> None:
         engine.terminal_controller.display_name_input_box(
-            "".join(self._name), self._MAX_NAME_LENGTH
+            "".join(self._name), self.MAX_LENGTH
         )
 
 
@@ -376,24 +393,79 @@ class EnterNameState(State):
         if isinstance(action_or_state, Action):
             turnable = action_or_state.perform(engine)
 
-            # User has confirmed their name.
+        # User has confirmed their name, move on to seed input.
+        elif isinstance(action_or_state, State):
+            engine.gamestate.on_exit(engine)
+            engine.gamestate = action_or_state
+            engine.gamestate.on_enter(engine)
+
+        return turnable
+
+
+class EnterSeedState(EnterCharactersState):
+    """Optionally enter a seed for dungeon generation"""
+    MAX_LENGTH: int = 22
+
+    def __init__(self,
+                 parent: Entity,
+                 prev_state: StartNewGameMenuState,
+                 name: list[str],
+                 seed: list[str]):
+        super().__init__(parent, seed)
+        self._name = name  # Carry name over.
+        self._seed = seed
+        self._prev_state = prev_state  # Carry save selection over.
+
+    
+    def handle_input(self,
+                     player_input: str) -> Optional[Union[Action, State]]:
+        action_or_state: Optional[Union[Action, State]] = None
+
+        if player_input in BACK_KEYS:  # Delete a character.
+            if self._seed == []:
+                action_or_state = EnterSeedState(
+                    self.parent, self._prev_state, self._name, self._seed)
+            else:
+                self._seed.pop()
+                action_or_state = EnterSeedState(
+                    self.parent, self._prev_state, self._name, self._seed)
+        elif player_input in CONFIRM_KEYS:  # User confirms seed.
+            action_or_state = StartNewGameAction(
+                get_new_game(self._prev_state.cursor_index_y),
+                self._prev_state.saves_dir, self._prev_state.cursor_index_y,
+                player_name="".join(self._name), seed="".join(self._seed)
+            )
+        elif self._is_valid_input(player_input):
+            if len(self._seed) < self.MAX_LENGTH:
+                self._seed.append(player_input)
+            action_or_state = EnterSeedState(
+                self.parent, self._prev_state, self._name, self._seed)
+
+        return action_or_state
+    
+    def render(self, engine: Engine) -> None:
+        engine.terminal_controller.display_seed_input_box(
+            "".join(self._seed), self.MAX_LENGTH
+        )
+
+    def perform(self,
+                engine: Engine,
+                action_or_state: Union[Action, State]) -> bool:
+        turnable: bool = False
+
+        if isinstance(action_or_state, Action):
+            turnable = action_or_state.perform(engine)
+
+            # User has confirmed the seed, so start new game.
             if isinstance(action_or_state, StartNewGameAction):
                 engine.gamestate.on_exit(engine)
                 engine.gamestate = ExploreState(engine.player)
 
         elif isinstance(action_or_state, State):
             engine.gamestate = action_or_state
-
+        
         return turnable
 
-    
-    def on_enter(self, engine: Engine) -> None:
-        """Show cursor when typing"""
-        curses.curs_set(1)
-
-    def on_exit(self, engine: Engine) -> None:
-        """Unshow cursor"""
-        curses.curs_set(0)
     
 
 class StartNewGameMenuState(ListSavesMenuState):
@@ -503,8 +575,6 @@ class ContinueGameMenuState(ListSavesMenuState):
         return action_or_state
 
 
-# TODO don't delete save, but keep the save and show a display of their ending
-# stats. Player will have to manually delete the save.
 class GameOverState(State):
     """Delete save if player dies and return to main menu"""
     

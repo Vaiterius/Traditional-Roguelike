@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from .components.leveler import Leveler
     from .dungeon.floor import Floor
     from .components.equippable import Equippable
+from .rng import RandomNumberGenerator
 from .modes import GameMode, GameStatus
 from .message_log import MessageType
 from .tile import *
@@ -198,9 +199,11 @@ class StartNewGameAction(FromSavedataAction):
                  save: Save,
                  saves_dir: Path,
                  index: int,
-                 player_name: str = "Player") -> bool:
+                 player_name: str,
+                 seed: str) -> bool:
         super().__init__(save, saves_dir, index)
-        self._player_name = player_name
+        self._player_name = player_name.strip()
+        self._seed = seed.strip()
 
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
@@ -212,9 +215,12 @@ class StartNewGameAction(FromSavedataAction):
             self.save.data["player"].name = "Player"
             self.save.data["player"].og_name = "Player"
         
-        save_to_dir(self.saves_dir, self.index, self.save)
+        # Set seed.
+        self.save.data["rng"] = RandomNumberGenerator(
+            None if self._seed == "" else self._seed
+        )
         
-        assert engine.gamestate is not None
+        save_to_dir(self.saves_dir, self.index, self.save)
         self._load_data_to_engine(engine, self.save)
         
         # TODO create normal mode (story) and seeded mode

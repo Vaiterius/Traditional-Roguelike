@@ -923,6 +923,7 @@ class TerminalController:
                 "CREATED AT: ": str(readable(save.metadata.get("created_at"))),
                 "LAST PLAYED: ": str(
                     readable(save.metadata.get('last_played'))),
+                "SEED: ": str(save.data.get("rng").seed),
                 "SLAYED: ": f"{save.metadata.get('slayed'):,} enemies",
                 "TURNS: ": f"{save.metadata.get('turns'):,}"
             }
@@ -1068,6 +1069,42 @@ class TerminalController:
         window.refresh()
 
         return name
+    
+
+    def display_seed_input_box(self, seed: str, max_length: int) -> None:
+        """Display each character player typed into name input."""
+        # Box dimensions.
+        BOX_HEIGHT: int = 7
+        BOX_WIDTH: int = 39
+        origin_x: int = (self.game_height // 2) - (BOX_HEIGHT // 2)
+        origin_y: int = (self.game_width // 2) - (BOX_WIDTH // 2)
+        seed_y = 3
+        seed_x = 2
+
+        window = curses.newwin(BOX_HEIGHT, BOX_WIDTH, origin_x, origin_y)
+
+        window.erase()
+        window.border()
+
+        HEADER = "SEED SELECTION"
+        window.addstr(0, 2, HEADER, curses.A_REVERSE)
+        window.addstr(
+            1, 2, "Seed world? (leave blank for none)", curses.A_BOLD)
+        window.addstr(
+            seed_y, seed_x, seed)
+
+        window.addstr(
+            BOX_HEIGHT - 2, 2,
+            f"{max_length - len(seed)} char left",
+            curses.A_VERTICAL)
+        enter_text = "[enter] confirm"
+        window.addstr(5, BOX_WIDTH - len(enter_text) - 2, enter_text)
+
+        window.move(seed_y, seed_x + len(seed))
+
+        window.refresh()
+
+        return seed
     
 
     # TODO make prettier and add more stats.
