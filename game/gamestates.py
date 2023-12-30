@@ -14,36 +14,44 @@ from .actions import *
 from .components.fighter import Fighter
 from .save_handling import Save, get_new_game, fetch_saves
 
-# In order, if applicable: arrow keys, numpad keys, and vi keys.
-MOVE_KEYS = {
+# In order, if applicable: arrow keys, numpad keys, and vi keys. Separated
+# so as to not read vi keys when typing characters.
+ARROW_MOVE_KEYS = {  # No support for in-between directions.
+    # Up.
+    "KEY_UP":     (-1, 0),
+    # Left.
+    "KEY_LEFT":   (0, -1),
+    # Right.
+    "KEY_RIGHT":  (0, 1),
+    # Down.
+    "KEY_DOWN":   (1, 0),
+}
+NON_ARROW_MOVE_KEYS = {
     # Upper-left.
     "KEY_HOME":   (-1, -1),
     "KEY_A1":     (-1, -1),
     'y':          (-1, -1),
     # Up.
-    "KEY_UP":     (-1, 0),
     'k':          (-1, 0),
     # Upper-right.
     "KEY_PPAGE":  (-1, 1),
     "KEY_A3":     (-1, 1),
     'u':          (-1, 1),
     # Left.
-    "KEY_LEFT":   (0, -1),
     'h':          (0, -1),
     # Right.
-    "KEY_RIGHT":  (0, 1),
     'l':          (0, 1),
     # Lower-left.
     "KEY_END":    (1, -1),
     "KEY_C1":     (1, -1),
     # Down.
-    "KEY_DOWN":   (1, 0),
     'j':          (1, 0),
     # Lower-right.
     "KEY_NPAGE":  (1, 1),
     "KEY_C3":     (1, 1),
     'n':          (1, 1),
 }
+MOVE_KEYS = {**ARROW_MOVE_KEYS, **NON_ARROW_MOVE_KEYS}
 
 WAIT_KEYS = {'.', "KEY_DC", "KEY_B2",}
 
@@ -52,7 +60,7 @@ BACK_KEYS = {"KEY_BACKSPACE",}
 
 CONFIRM_KEYS = {"KEY_ENTER", '\n',}
 
-# Not really.
+# All.
 ANY_KEYS = set(MOVE_KEYS).union(
     WAIT_KEYS, EXIT_KEYS, BACK_KEYS, CONFIRM_KEYS)
 
@@ -273,6 +281,7 @@ class ListSavesMenuState(IndexableOptionsState):
     
     
     def render(self, engine: Engine) -> None:
+        # engine.terminal_controller.displ
         new_cursor_pos: int = engine.terminal_controller.display_saves(
             self.saves, self.cursor_index_y, self.TITLE)
         self.cursor_index_y = new_cursor_pos
@@ -344,7 +353,7 @@ class EnterCharactersState(State):
 
 @dataclass
 class GameConfig:
-    """Encapsulates game config data for starting a new game"""
+    """Encapsulates player setup data for starting a new game"""
     player_name: list[str]
     seed: list[str]
     is_normal_gamemode: bool
@@ -362,13 +371,16 @@ class EnterGameConfigState(IndexableOptionsState):
     """
     MAX_CHARACTER_LENGTH: int = 22
 
-    def __init__(self, parent: Entity, prev_state: StartNewGameMenuState):
+    def __init__(self,
+                 parent: Entity,
+                 prev_state: StartNewGameMenuState):
         super().__init__(parent)
         self._prev_state = prev_state
-        self._config: GameConfig = GameConfig([], [], True)
+        self._config: Optional[GameConfig] = GameConfig(
+            player_name=[], seed=[], is_normal_gamemode=True)
 
     def _is_valid_input(self, player_input: str) -> bool:
-        """Input is valid if: is single character, alphanumeric, or a space"""
+        """Determine if player input is valid by these allowed characters"""
         return (
             len(player_input) == 1
             and (curses.ascii.isalnum(player_input) or player_input == " ")
@@ -387,7 +399,6 @@ class EnterGameConfigState(IndexableOptionsState):
             characters.append(player_input)
     
 
-    # TODO
     def handle_input(
         self, player_input: str) -> Optional[Union[Action, State]]:
         """
@@ -396,9 +407,13 @@ class EnterGameConfigState(IndexableOptionsState):
         """
         action_or_state: Optional[Union[Action, State]] = None
 
+        # Can go back with a backspace.
+        if player_input in BACK_KEYS:
+            action_or_state = self._prev_state
+
         # Moving up and down, and left and right if applicable.
-        if player_input in MOVE_KEYS:
-            x, y = MOVE_KEYS[player_input]
+        elif player_input in ARROW_MOVE_KEYS:
+            x, y = ARROW_MOVE_KEYS[player_input]
             if x == -1:
                 self.cursor_index_x -= 1
             elif x == 1:
@@ -407,7 +422,6 @@ class EnterGameConfigState(IndexableOptionsState):
                 self.cursor_index_y -= 1
             elif y == 1:
                 self.cursor_index_y += 1
-            action_or_state = DoNothingAction(self.parent)
 
         # 0 and 1 for name and seed entry, respectively.
         if self.cursor_index_x in (0, 1):
@@ -417,7 +431,6 @@ class EnterGameConfigState(IndexableOptionsState):
             elif self.cursor_index_x == 1:
                 self._handle_character_stack(
                     self._config.seed, player_input)
-            action_or_state = DoNothingAction(self.parent)
 
         # 2 for toggling gamemode.
         elif self.cursor_index_x == 2:
@@ -430,18 +443,20 @@ class EnterGameConfigState(IndexableOptionsState):
             if self.cursor_index_y == 0:  # Cancel and go back.
                 if player_input in CONFIRM_KEYS:
                     action_or_state = self._prev_state
-                else:
-                    action_or_state = DoNothingAction(self.parent)
             elif self.cursor_index_y == 1:  # Confirm and start new game.
-                gamemode: GameMode = GameMode.NORMAL \
-                    if self._config.is_normal_gamemode else GameMode.ENDLESS
-                action_or_state = StartNewGameAction(
-                    get_new_game(gamemode, self._prev_state.cursor_index_y),
-                    self._prev_state.saves_dir,
-                    self._prev_state.cursor_index_y,
-                    player_name="".join(self._config.player_name),
-                    seed="".join(self._config.seed),
-                )
+                if player_input in CONFIRM_KEYS:
+                    gamemode: GameMode = GameMode.NORMAL \
+                        if self._config.is_normal_gamemode else GameMode.ENDLESS
+                    action_or_state = StartNewGameAction(
+                        get_new_game(gamemode, self._prev_state.cursor_index_y),
+                        self._prev_state.saves_dir,
+                        self._prev_state.cursor_index_y,
+                        player_name="".join(self._config.player_name),
+                        seed="".join(self._config.seed),
+                    )
+        
+        if not action_or_state:
+            action_or_state = DoNothingAction(self.parent)
         
         return action_or_state
     
@@ -455,7 +470,6 @@ class EnterGameConfigState(IndexableOptionsState):
         self.cursor_index_x, self.cursor_index_y = new_cursor_pos
     
 
-    # TODO
     def perform(self,
                 engine: Engine,
                 action_or_state: Union[Action, State]) -> bool:
@@ -464,7 +478,6 @@ class EnterGameConfigState(IndexableOptionsState):
         # Do nothing or start new game.
         if isinstance(action_or_state, Action):
             turnable = action_or_state.perform(engine)
-
             if isinstance(action_or_state, StartNewGameAction):
                 engine.gamestate.on_exit(engine)
                 engine.gamestate = ExploreState(engine.player)
@@ -473,6 +486,8 @@ class EnterGameConfigState(IndexableOptionsState):
             engine.gamestate.on_exit(engine)
             engine.gamestate = action_or_state
             engine.gamestate.on_enter(engine)
+        
+        return turnable
     
 
     def on_enter(self, engine: Engine) -> None:
@@ -482,132 +497,6 @@ class EnterGameConfigState(IndexableOptionsState):
     def on_exit(self, engine: Engine) -> None:
         """Unshow cursor"""
         curses.curs_set(0)
-
-
-# class EnterNameState(EnterCharactersState):
-#     """Enter in the player's name before starting new game"""
-#     MAX_LENGTH: int = 22
-
-#     def __init__(self,
-#                  parent: Entity,
-#                  prev_state: StartNewGameMenuState,
-#                  characters: list[str]):
-#         super().__init__(parent, characters)
-#         self._name = characters
-#         self._prev_state = prev_state  # Carry save selection over.
-    
-
-#     def handle_input(
-#         self, player_input: str) -> Optional[Union[Action, State]]:
-#         action_or_state: Optional[Union[Action, State]] = None
-
-#         if player_input in BACK_KEYS:  # Delete a character.
-#             if self._name == []:
-#                 action_or_state = EnterNameState(
-#                     self.parent, self._prev_state, self._name)
-#             else:
-#                 self._name.pop()
-#                 action_or_state = EnterNameState(
-#                     self.parent, self._prev_state, self._name)
-#         elif player_input in CONFIRM_KEYS:  # User confirms name.
-#             action_or_state = EnterSeedState(
-#                 self.parent, self._prev_state, self._name, [])
-#         elif self._is_valid_input(player_input):
-#             if len(self._name) < self.MAX_LENGTH:
-#                 self._name.append(player_input)
-#             action_or_state = EnterNameState(
-#                 self.parent, self._prev_state, self._name)
-
-#         return action_or_state
-    
-
-#     def render(self, engine: Engine) -> None:
-#         engine.terminal_controller.display_name_input_box(
-#             "".join(self._name), self.MAX_LENGTH
-#         )
-
-
-#     def perform(self,
-#                 engine: Engine,
-#                 action_or_state: Union[Action, State]) -> bool:
-#         turnable: bool = False
-
-#         if isinstance(action_or_state, Action):
-#             turnable = action_or_state.perform(engine)
-
-#         # User has confirmed their name, move on to seed input.
-#         elif isinstance(action_or_state, State):
-#             engine.gamestate.on_exit(engine)
-#             engine.gamestate = action_or_state
-#             engine.gamestate.on_enter(engine)
-
-#         return turnable
-
-
-# class EnterSeedState(EnterCharactersState):
-#     """Optionally enter a seed for dungeon generation"""
-#     MAX_LENGTH: int = 22
-
-#     def __init__(self,
-#                  parent: Entity,
-#                  prev_state: StartNewGameMenuState,
-#                  name: list[str],
-#                  seed: list[str]):
-#         super().__init__(parent, seed)
-#         self._name = name  # Carry name over.
-#         self._seed = seed
-#         self._prev_state = prev_state  # Carry save selection over.
-
-    
-#     def handle_input(self,
-#                      player_input: str) -> Optional[Union[Action, State]]:
-#         action_or_state: Optional[Union[Action, State]] = None
-
-#         if player_input in BACK_KEYS:  # Delete a character.
-#             if self._seed == []:
-#                 action_or_state = EnterSeedState(
-#                     self.parent, self._prev_state, self._name, self._seed)
-#             else:
-#                 self._seed.pop()
-#                 action_or_state = EnterSeedState(
-#                     self.parent, self._prev_state, self._name, self._seed)
-#         elif player_input in CONFIRM_KEYS:  # User confirms seed.
-#             action_or_state = StartNewGameAction(
-#                 get_new_game(self._prev_state.cursor_index_y),
-#                 self._prev_state.saves_dir, self._prev_state.cursor_index_y,
-#                 player_name="".join(self._name), seed="".join(self._seed)
-#             )
-#         elif self._is_valid_input(player_input):
-#             if len(self._seed) < self.MAX_LENGTH:
-#                 self._seed.append(player_input)
-#             action_or_state = EnterSeedState(
-#                 self.parent, self._prev_state, self._name, self._seed)
-
-#         return action_or_state
-    
-#     def render(self, engine: Engine) -> None:
-#         engine.terminal_controller.display_seed_input_box(
-#             "".join(self._seed), self.MAX_LENGTH
-#         )
-
-#     def perform(self,
-#                 engine: Engine,
-#                 action_or_state: Union[Action, State]) -> bool:
-#         turnable: bool = False
-
-#         if isinstance(action_or_state, Action):
-#             turnable = action_or_state.perform(engine)
-
-#             # User has confirmed the seed, so start new game.
-#             if isinstance(action_or_state, StartNewGameAction):
-#                 engine.gamestate.on_exit(engine)
-#                 engine.gamestate = ExploreState(engine.player)
-
-#         elif isinstance(action_or_state, State):
-#             engine.gamestate = action_or_state
-        
-#         return turnable
-
     
 
 class StartNewGameMenuState(ListSavesMenuState):
@@ -648,7 +537,6 @@ class StartNewGameMenuState(ListSavesMenuState):
                     self.confirm_overwrite, "", "overwrite save")
                 self.bypassable = True
             else:
-                # action_or_state = EnterNameState(self.parent, self, [])
                 action_or_state = EnterGameConfigState(self.parent, self)
         
         # Delete a save.

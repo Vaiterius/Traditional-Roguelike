@@ -3,7 +3,6 @@ from __future__ import annotations
 import curses
 import itertools
 from math import ceil
-# from enum import Enum, auto
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Any
 
@@ -190,7 +189,7 @@ class ConfirmBoxSmall(ConfirmBox):
         middle_y: int = self.WIDTH // 2
         
         button_1_y: int = middle_y // 2
-        button_2_y: int = middle_y + (button_1_y)
+        button_2_y: int = middle_y + button_1_y
         buttons_x: int = (self.HEIGHT // 2) - 1
 
         if self.cursor_index == 0:
@@ -433,8 +432,10 @@ class TerminalController:
         stats_subwindow.addstr(4, 1, f"SGE: {player.fighter.sage}")
         stats_subwindow.addstr(1, 9, f"LVL: {player.leveler.level}")
         stats_subwindow.addstr(2, 9, f"XP: {player.leveler.experience}")
-        stats_subwindow.addstr(3, 9, f"XP for next: {player.leveler.experience_left_to_level_up}")
-        stats_subwindow.addstr(4, 9, f"Total XP: {player.leveler.total_experience}")
+        stats_subwindow.addstr(
+            3, 9, f"XP for next: {player.leveler.experience_left_to_level_up}")
+        stats_subwindow.addstr(
+            4, 9, f"Total XP: {player.leveler.total_experience}")
 
 
         # STANDING ON SECTION #
@@ -612,7 +613,8 @@ class TerminalController:
             
             slot_value: str = ""
             if item:
-                slot_value += f"{'[E] ' if inventory.is_equipped(item) else ''}{item.name}"
+                slot_value += (
+                    f"{'[E] ' if inventory.is_equipped(item) else ''}{item.name}")
             else:
                 slot_value += f"<Empty>"
             
@@ -1034,8 +1036,8 @@ class TerminalController:
         options_subwindow.refresh()
         
         return cursor_index
-    
-    # TODO clean up format
+
+
     def display_game_config(self,
                             config: GameConfig,
                             cursor_index_x: int,
@@ -1049,17 +1051,17 @@ class TerminalController:
         3, 0 - cancel; 3, 1 - confirm and start new game
         """
         # Define window size.
-        BOX_HEIGHT: int = 14
-        BOX_WIDTH: int = 39
+        BOX_HEIGHT: int = 15
+        BOX_WIDTH: int = 40
         box = Box(
             height=BOX_HEIGHT,
             width=BOX_WIDTH,
-            origin_x=(self.game_height // 2) - BOX_HEIGHT,
-            origin_y=(self.game_width // 2) - BOX_WIDTH
+            origin_x=(self.game_height // 2) - (BOX_HEIGHT // 2),
+            origin_y=(self.game_width // 2) - (BOX_WIDTH // 2)
         )
-        box.add_header("Game Config")
         box.erase()
         box.border()
+        box.add_header("GAME CONFIG", reversed=True)
 
         # Clamp index positions.
         if cursor_index_x < 0:
@@ -1071,125 +1073,94 @@ class TerminalController:
             cursor_index_y = 0
         elif cursor_index_y > 1:
             cursor_index_y = 1
-        
-
-        # class ConfigSection(Enum):
-        #     NAME_INPUT = auto()
-        #     SEED_INPUT = auto()
-        #     GAMEMODE_TOGGLE = auto()
-        #     CANCEL = auto()
-        #     CONFIRM = auto()
 
         # Display.
         
-        # Pattern match based on the  (x, y) positions.
-        # Note that for the name, seed, and gamemode indices, the y index does
-        # not matter.
-        # current_section: Optional[ConfigSection] = None
+        # Box caption.
+        box.add_wrapped_text(
+            0, 0,
+            "Welcome, new hero! Configure your game before jumping in.",
+            curses.A_BOLD
+        )
+        # Name input.
+        name_prompt: str = "How would you like to be called?"
+        name_input: str = "<ENTER NAME>"
+        if len(config.player_name) > 0:
+            name_input = f'{"".join(config.player_name)} is my name...'
+        box.add_text(
+            3, get_message_center_x(name_prompt, box.WIDTH) - 1, name_prompt)
+        box.add_text(
+            4,
+            get_message_center_x(name_input, box.WIDTH) - 1, name_input,
+            curses.A_BOLD
+        )
+        # Seed input.
+        seed_prompt: str = "Seed this game? (leave blank if none)"
+        seed_input: str = "<ENTER SEED>"
+        if len(config.seed) > 0:
+            seed_input = "".join(config.seed)
+        box.add_text(
+            6, get_message_center_x(seed_prompt, box.WIDTH) - 1, seed_prompt)
+        box.add_text(
+            7,
+            get_message_center_x(seed_input, box.WIDTH) - 1,
+            seed_input,
+            curses.A_BOLD
+        )
+        # Gamemode toggle.
+        gamemode_prompt: str = "Play on endless dungeon mode? (toggle)"
+        gamemode_choice: str = (
+            'NORMAL' if config.is_normal_gamemode else 'ENDLESS')
+        box.add_text(
+            9,
+            get_message_center_x(gamemode_prompt, box.WIDTH) - 1,
+            gamemode_prompt
+        )
+        box.add_text(10, 10, "Game mode: ", curses.A_BOLD)
+        box.add_text(10, 21, gamemode_choice, curses.A_BOLD)
+        # Action buttons.
+        middle_y: int = box.WIDTH // 2
+        cancel_button: str = "CANCEL"
+        cancel_button_y: int = middle_y - (len(cancel_button) * 2)
+        confirm_button: str = "CONFIRM"
+        confirm_button_y: int = middle_y + len(confirm_button) - 3
+        box.add_text(12, cancel_button_y, cancel_button)
+        box.add_text(12, confirm_button_y, confirm_button)
+        
+        # Indicate which section the user is currently at. Note that for the
+        # name, seed, and gamemode indices, the y index does not matter.
         match (cursor_index_x, cursor_index_y):
             case (0, _):  # Name input.
-                # current_section = ConfigSection.NAME_INPUT
                 box.add_text(
-                    0, 0, f"{''.join(config.player_name)} is my name...")
-
-            case (1, _):
-                # current_section = ConfigSection.SEED_INPUT
-                box.add_text(2, 0, f"Seed: {''.join(config.seed)}")
-
-            case (2, _):
-                # current_section = ConfigSection.GAMEMODE_TOGGLE
-                box.add_text(
-                    4, 0,
-                    f"Game mode: "
-                    f"{'Normal' if config.is_normal_gamemode else 'Endless'}"
+                    4, get_message_center_x(name_input, box.WIDTH) - 1,
+                    name_input,
+                    curses.A_REVERSE
                 )
-
-            case (3, 0):
-                # current_section = ConfigSection.CANCEL
-                box.add_text(6, 0, "CANCEL", curses.A_REVERSE)
-                box.add_text(6, 7, "CONFIRM")
-
-            case (3, 1):
-                # current_section = ConfigSection.CONFIRM
-                box.add_text(6, 0, "CANCEL")
-                box.add_text(6, 7, "CONFIRM", curses.A_REVERSE)
+            case (1, _):  # Seed input.
+                box.add_text(
+                    7, get_message_center_x(seed_input, box.WIDTH) - 1,
+                    seed_input,
+                    curses.A_REVERSE
+                )
+            case (2, _):  # Gamemode toggle.
+                box.add_text(10, 21, gamemode_choice, curses.A_REVERSE)
+            case (3, 0):  # Go back.
+                box.add_text(
+                    12, cancel_button_y - 2,
+                    f"> {cancel_button} <",
+                    curses.A_REVERSE
+                )
+            case (3, 1):  # Start game.
+                box.add_text(
+                    12, confirm_button_y - 2,
+                    f"> {confirm_button} <",
+                    curses.A_REVERSE
+                )
 
         box.refresh()
 
         return cursor_index_x, cursor_index_y
-    
 
-    def display_name_input_box(self, name: str, max_length: int) -> None:
-        """Display each character player typed into name input."""
-        # Box dimensions.
-        BOX_HEIGHT: int = 7
-        BOX_WIDTH: int = 39
-        origin_x: int = (self.game_height // 2) - (BOX_HEIGHT // 2)
-        origin_y: int = (self.game_width // 2) - (BOX_WIDTH // 2)
-        name_y = 3
-        name_x = 2
-
-        window = curses.newwin(BOX_HEIGHT, BOX_WIDTH, origin_x, origin_y)
-
-        window.erase()
-        window.border()
-
-        HEADER = "NAME SELECTION"
-        window.addstr(0, 2, HEADER, curses.A_REVERSE)
-        window.addstr(
-            1, 2, "How do you like to be called, hero?", curses.A_BOLD)
-        window.addstr(
-            name_y, name_x, f"{name}{' is my name...' if name else ''}")
-
-        window.addstr(
-            BOX_HEIGHT - 2, 2,
-            f"{max_length - len(name)} char left",
-            curses.A_VERTICAL)
-        enter_text = "[enter] confirm"
-        window.addstr(5, BOX_WIDTH - len(enter_text) - 2, enter_text)
-
-        window.move(name_y, name_x + len(name))
-
-        window.refresh()
-
-        return name
-    
-
-    def display_seed_input_box(self, seed: str, max_length: int) -> None:
-        """Display each character player typed into name input."""
-        # Box dimensions.
-        BOX_HEIGHT: int = 7
-        BOX_WIDTH: int = 39
-        origin_x: int = (self.game_height // 2) - (BOX_HEIGHT // 2)
-        origin_y: int = (self.game_width // 2) - (BOX_WIDTH // 2)
-        seed_y = 3
-        seed_x = 2
-
-        window = curses.newwin(BOX_HEIGHT, BOX_WIDTH, origin_x, origin_y)
-
-        window.erase()
-        window.border()
-
-        HEADER = "SEED SELECTION"
-        window.addstr(0, 2, HEADER, curses.A_REVERSE)
-        window.addstr(
-            1, 2, "Seed world? (leave blank for none)", curses.A_BOLD)
-        window.addstr(
-            seed_y, seed_x, seed)
-
-        window.addstr(
-            BOX_HEIGHT - 2, 2,
-            f"{max_length - len(seed)} char left",
-            curses.A_VERTICAL)
-        enter_text = "[enter] confirm"
-        window.addstr(5, BOX_WIDTH - len(enter_text) - 2, enter_text)
-
-        window.move(seed_y, seed_x + len(seed))
-
-        window.refresh()
-
-        return seed
-    
 
     # TODO make prettier and add more stats.
     def display_gameover(self, engine: Engine) -> None:
