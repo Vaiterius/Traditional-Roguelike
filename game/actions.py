@@ -9,11 +9,11 @@ if TYPE_CHECKING:
     from .engine import Engine
     from .entities import Creature, Entity, Item
     from .save_handling import Save
-    from .components.inventory import Inventory
     from .components.fighter import Fighter
     from .components.leveler import Leveler
     from .dungeon.floor import Floor
     from .components.equippable import Equippable
+    from .components.inventory import Inventory
 from .rng import RandomNumberGenerator
 from .modes import GameMode, GameStatus
 from .message_log import MessageType
@@ -47,10 +47,16 @@ class ItemAction(Action):
 
 
     def perform(self, engine: Engine) -> bool:
+        # Prevent circular import.
+        from .gamestates import InventoryMenuState
         turnable: bool = False
 
         if self.item.get_component("consumable") is not None:
             self.item.consumable.perform(engine)
+        elif (
+            self.item.get_component("projectable") is not None
+            and not isinstance(engine.gamestate, InventoryMenuState)):
+            self.item.projectable.perform(engine)
         elif self.item.get_component("equippable") is not None:
             self.item.equippable.perform(engine)
         

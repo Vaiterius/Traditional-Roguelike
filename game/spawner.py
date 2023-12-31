@@ -10,13 +10,15 @@ from .components.inventory import Inventory
 from .components.fighter import Fighter
 from .components.leveler import Leveler
 from .render_order import RenderOrder
-from .entities import Entity, Item, Potion, Weapon, Armor, Creature, Player
-from .item_types import WeaponType, ArmorType, PotionType
+from .entities import (
+    Entity, Item, Potion, Weapon, Staff, Armor, Creature, Player)
+from .item_types import WeaponType, StaffType, ArmorType, PotionType
 from .rng import RandomNumberGenerator
 
 from .data.creatures import enemies, player
 from .data.items.potions import restoration_potions
 from .data.items.weapons import weapons
+from .data.items.staves import staves
 from .data.items.armor import armor
 from .data.config import DESCENDING_STAIRCASE_TILE, ASCENDING_STAIRCASE_TILE
 
@@ -171,6 +173,10 @@ class Spawner:
                 "spawn_chance": 33
             },
             {
+                "factory": StaffFactory(self.rng, item_pool=staves),
+                "spawn_chance": 100
+            },
+            {
                 "factory": ArmorFactory(self.rng, item_pool=armor),
                 "spawn_chance": 33
             },
@@ -249,10 +255,30 @@ class WeaponFactory(ItemFactory):
 
         if self._item_data["type"] == WeaponType.SWORD:
             weapon.weapon_type = WeaponType.SWORD
-        elif self._item_data["type"] == WeaponType.BOW:
-            weapon.weapon_type = WeaponType.BOW
+        elif self._item_data["type"] == WeaponType.STAFF:
+            weapon.weapon_type = WeaponType.STAFF
         
         return weapon
+
+
+class StaffFactory(WeaponFactory):
+    """Process for instantiating a staff weapon from data"""
+
+    def get_random_item(self) -> Staff:
+        # Prevent circular import.
+        from .components.projectable import Projectable
+
+        staff: Staff = super().get_random_item()
+        staff.add_component(
+            "projectable", Projectable()
+        )
+
+        if self._item_data["staff_type"] == StaffType.PROJECTILE:
+            staff.staff_type = StaffType.PROJECTILE
+        elif self._item_data["staff_type"] == StaffType.RIZZ:
+            staff.staff_type = StaffType.RIZZ
+
+        return staff
 
 
 class ArmorFactory(ItemFactory):

@@ -53,7 +53,11 @@ class Engine:
     def display(self) -> None:
         """Display the game to the screen"""
         # Player's field of view.
-        if isinstance(self.gamestate, ExploreState):
+        if (
+            isinstance(self.gamestate, ExploreState)
+            or isinstance(self.gamestate, GameOverState)
+            or isinstance(self.gamestate, ProjectileTargetState)
+        ):
             floor: Floor = self.dungeon.current_floor
             
             def mark_visible(x: int, y: int) -> None:

@@ -9,7 +9,12 @@ class ArmorType(Enum):
 
 class WeaponType(Enum):
     SWORD = auto()
-    BOW = auto()
+    STAFF = auto()
+
+
+class StaffType(Enum):
+    PROJECTILE = auto()
+    RIZZ = auto()
 
 
 class PotionType(Enum):

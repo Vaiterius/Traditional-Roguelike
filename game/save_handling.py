@@ -41,7 +41,7 @@ class Save:
 
 def get_new_game(gamemode: GameMode, slot_index: int) -> Save:
     """Create a fresh game"""
-    rng = RandomNumberGenerator()  # TODO get seed from player at start
+    rng = RandomNumberGenerator()
     spawner = Spawner(rng=rng)
     player: Player = spawner.get_player_instance()
     dungeon = Dungeon(

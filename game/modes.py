@@ -2,18 +2,15 @@ from enum import Enum, auto
 
 
 class GameMode(Enum):
-    """Store different gamemodes a player can start their save with.
+    """Store different gamemodes a player can start their save with. Each can
+    optionally be seeded by the player on game setup.
 
     NORMAL - play through a storyline and reach a max floor.
     ENDLESS - play through a dungeon with no limits to number of floors.
-    SEEDED_NORMAL - like NORMAL, but generated with an inputted seed.
-    SEEDED_ENDLESS - like ENDLESS, but generated with an inputted seed.
 
     """
     NORMAL = auto()
     ENDLESS = auto()
-    SEEDED_NORMAL = auto()
-    SEEDED_ENDLESS = auto()
 
 
 class GameStatus(Enum):

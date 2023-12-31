@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from .color import Color
     from .engine import Engine
     from .dungeon.floor import Floor
-    from .item_types import WeaponType, ArmorType, PotionType
+    from .item_types import WeaponType, StaffType, ArmorType, PotionType
 from .render_order import RenderOrder
 
 
@@ -67,6 +67,11 @@ class Potion(Item):
 class Weapon(Item):
     """An item that deals damage"""
     weapon_type: WeaponType
+
+
+class Staff(Weapon):
+    """A long rod of magical uses"""
+    staff_type: StaffType
 
 
 class Armor(Item):

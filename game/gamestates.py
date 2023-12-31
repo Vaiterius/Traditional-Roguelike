@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
     from .entities import Entity
     from .engine import Engine
+    from .entities import Weapon
 from .actions import *
 from .components.fighter import Fighter
 from .save_handling import Save, get_new_game, fetch_saves
@@ -686,6 +687,16 @@ class ExploreState(State):
             action_or_state = DescendStairsAction(self.parent)
         elif player_input == '<':
             action_or_state = AscendStairsAction(self.parent)
+        
+        # Use projectile if applicable weapon is equipped.
+        elif player_input in CONFIRM_KEYS:
+            weapon: Optional[Weapon] = self.parent.inventory.weapon
+            if (
+                weapon is not None
+                and weapon.get_component("projectable") is not None
+            ):
+                action_or_state = ProjectileTargetState(self.parent)
+
         # Pick up item.
         elif player_input == 'p':
             action_or_state = PickUpItemAction(self.parent)
@@ -715,6 +726,47 @@ class ExploreState(State):
 
     def render(self, engine: Engine) -> None:
         super().display_main(engine)
+
+
+class ProjectileTargetState(State):
+    """Handles choosing an target cell to shoot a projectile"""
+
+    def __init__(self, parent: Entity):
+        super().__init__(parent)
+    
+
+    # TODO
+    def handle_input(
+        self, player_input: str) -> Optional[Union[Action, State]]:
+        action_or_state: Optional[Union[Action, State]] = None
+
+        # Cancel action.
+        if player_input in BACK_KEYS:
+            action_or_state = ExploreState(self.parent)
+
+        # TODO Move target.
+        if player_input in MOVE_KEYS:
+            x, y = MOVE_KEYS[player_input]
+
+
+        # TODO Attack target.
+        if player_input in CONFIRM_KEYS:
+            weapon: Weapon = self.parent.inventory.weapon
+            action_or_state = weapon.projectable.get_action_or_state(
+                self.parent)
+
+        return action_or_state
+
+
+    def perform(
+        self, engine: Engine, action_or_state: Union[Action, State]) -> bool:
+        turnable: bool = super().perform(engine, action_or_state)
+        return turnable
+    
+    # TODO
+    def render(self, engine: Engine) -> None:
+        super().display_main(engine)  # Background.
+        # TODO overlay to highlight the target cell
 
 
 class InventoryMenuState(IndexableOptionsState):
