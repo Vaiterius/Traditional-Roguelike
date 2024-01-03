@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from pathlib import Path
     from .engine import Engine
-    from .entities import Creature, Entity, Item
+    from .entities import Creature, Entity, Item, Weapon
     from .save_handling import Save
     from .components.fighter import Fighter
     from .components.leveler import Leveler
@@ -59,6 +59,40 @@ class ItemAction(Action):
             self.item.projectable.perform(engine)
         elif self.item.get_component("equippable") is not None:
             self.item.equippable.perform(engine)
+        
+        return turnable
+
+
+class HandleSpecialWeaponAction(Action):
+    """Determine whether a weapon is able to perform a special action.
+    
+    A weapon is 'special' if, at a target, shoots a projectile, heals, damages,
+    or applies some other effect during the explore state
+    """
+
+    def __init__(self, entity: Entity, weapon: Optional[Weapon]):
+        super().__init__(entity)
+        self._weapon = weapon
+
+    def perform(self, engine: Engine) -> bool:
+        # Prevent circular import.
+        from .gamestates import ExploreState, ProjectileTargetState
+        turnable: bool = True
+
+        # No valid special weapon.
+        if self._weapon is None:
+            turnable = False
+            if not isinstance(engine.gamestate, ExploreState):
+                engine.gamestate = ExploreState(self.parent)
+            return turnable
+        
+        if self._weapon.get_component("projectable") is not None:
+            if self._weapon.projectable.uses_left <= 0:
+                turnable = False
+                engine.message_log.add("The staff fizzles with no charge left")
+                return turnable
+            if not isinstance(engine.gamestate, ProjectileTargetState):
+                engine.gamestate = ProjectileTargetState(self.entity, self._weapon)
         
         return turnable
 
@@ -257,7 +291,7 @@ class ContinueGameAction(FromSavedataAction):
 
 
 class LevelUpAction(Action):
-    """Handle all logic for leveling up an entity"""
+    """Handle logic for leveling up an entity"""
 
     def __init__(self, entity: Entity, attribute: Fighter.AttributeType):
         super().__init__(entity)
@@ -281,8 +315,13 @@ class DoNothingAction(Action):
     """Do nothing this turn"""
 
     def perform(self, engine: Engine) -> bool:
-        from .gamestates import ExploreState  # Prevent circular import.
+        # Prevent circular import.
+        from .gamestates import ExploreState , ProjectileTargetState
         turnable: bool = True
+
+        if isinstance(engine.gamestate, ProjectileTargetState):
+            turnable = False
+            return turnable
 
         if isinstance(engine.gamestate, ExploreState):
             engine.message_log.add("You take no action")

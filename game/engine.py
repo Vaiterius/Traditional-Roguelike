@@ -53,7 +53,7 @@ class Engine:
     def display(self) -> None:
         """Display the game to the screen"""
         # Player's field of view.
-        if (
+        if (  # TODO add boolean in State for this condition?
             isinstance(self.gamestate, ExploreState)
             or isinstance(self.gamestate, GameOverState)
             or isinstance(self.gamestate, ProjectileTargetState)
@@ -64,7 +64,7 @@ class Engine:
                 if floor.tiles[x][y].char == WALL_TILE:
                     floor.explored_tiles[(x, y)] = wall_tile_dim
                     self.tiles_in_fov[(x, y)] = wall_tile
-                else:
+                elif floor.tiles[x][y].char == FLOOR_TILE:
                     floor.explored_tiles[(x, y)] = floor_tile_dim
                     self.tiles_in_fov[(x, y)] = floor_tile
             

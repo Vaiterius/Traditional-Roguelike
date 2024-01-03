@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Union, Optional
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
+    import curses
     from pathlib import Path
     from .entities import Entity
     from .engine import Engine
@@ -328,30 +329,6 @@ class ListSavesMenuState(IndexableOptionsState):
         return turnable
 
 
-class EnterCharactersState(State):
-    """State for inputting a string using a character stack"""
-    MAX_LENGTH: int
-
-    def __init__(self, parent: Entity, characters: list[str]):
-        super().__init__(parent)
-        self._characters = characters
-    
-    def _is_valid_input(self, player_input: str) -> bool:
-        """Input is valid if: is single character, alphanumeric, or a space"""
-        return (
-            len(player_input) == 1
-            and (curses.ascii.isalnum(player_input) or player_input == " ")
-        )
-    
-    def on_enter(self, engine: Engine) -> None:
-        """Show cursor when typing"""
-        curses.curs_set(1)
-
-    def on_exit(self, engine: Engine) -> None:
-        """Unshow cursor"""
-        curses.curs_set(0)
-
-
 @dataclass
 class GameConfig:
     """Encapsulates player setup data for starting a new game"""
@@ -376,6 +353,7 @@ class EnterGameConfigState(IndexableOptionsState):
                  parent: Entity,
                  prev_state: StartNewGameMenuState):
         super().__init__(parent)
+        self.cursor_index_y = 1  # Start right side when scrolling to buttons.
         self._prev_state = prev_state
         self._config: Optional[GameConfig] = GameConfig(
             player_name=[], seed=[], is_normal_gamemode=True)
@@ -679,8 +657,8 @@ class ExploreState(State):
         
         # Do an action.
         if player_input in MOVE_KEYS:
-            x, y = MOVE_KEYS[player_input]
-            action_or_state = BumpAction(self.parent, dx=x, dy=y)
+            dx, dy = MOVE_KEYS[player_input]
+            action_or_state = BumpAction(self.parent, dx=dx, dy=dy)
         elif player_input in WAIT_KEYS:
             action_or_state = DoNothingAction(self.parent)
         elif player_input == '>':
@@ -691,11 +669,7 @@ class ExploreState(State):
         # Use projectile if applicable weapon is equipped.
         elif player_input in CONFIRM_KEYS:
             weapon: Optional[Weapon] = self.parent.inventory.weapon
-            if (
-                weapon is not None
-                and weapon.get_component("projectable") is not None
-            ):
-                action_or_state = ProjectileTargetState(self.parent)
+            action_or_state = HandleSpecialWeaponAction(self.parent, weapon)
 
         # Pick up item.
         elif player_input == 'p':
@@ -731,14 +705,27 @@ class ExploreState(State):
 class ProjectileTargetState(State):
     """Handles choosing an target cell to shoot a projectile"""
 
-    def __init__(self, parent: Entity):
+    def __init__(self, 
+                 parent: Entity, 
+                 weapon: Weapon, 
+                 cursor_index_x: int = 0, 
+                 cursor_index_y: int = 0):
         super().__init__(parent)
+        self._weapon = weapon
+        # Default position if no enemy in sight.
+        if cursor_index_x == 0 and cursor_index_y == 0:
+            self.cursor_index_x: int = self.parent.x + 1
+            self.cursor_index_y: int = self.parent.y + 1
     
 
     # TODO
     def handle_input(
         self, player_input: str) -> Optional[Union[Action, State]]:
         action_or_state: Optional[Union[Action, State]] = None
+        
+        # Out of charges.
+        if self._weapon.projectable.uses_left < 1:
+            return ExploreState(self.parent)
 
         # Cancel action.
         if player_input in BACK_KEYS:
@@ -746,13 +733,16 @@ class ProjectileTargetState(State):
 
         # TODO Move target.
         if player_input in MOVE_KEYS:
-            x, y = MOVE_KEYS[player_input]
+            dx, dy = MOVE_KEYS[player_input]
 
+            self.cursor_index_x += dx
+            self.cursor_index_y += dy
+
+            action_or_state = DoNothingAction(self.parent)
 
         # TODO Attack target.
         if player_input in CONFIRM_KEYS:
-            weapon: Weapon = self.parent.inventory.weapon
-            action_or_state = weapon.projectable.get_action_or_state(
+            action_or_state = self._weapon.projectable.get_action_or_state(
                 self.parent)
 
         return action_or_state
@@ -765,8 +755,15 @@ class ProjectileTargetState(State):
     
     # TODO
     def render(self, engine: Engine) -> None:
-        super().display_main(engine)  # Background.
-        # TODO overlay to highlight the target cell
+        map_window: curses.window = engine.terminal_controller.display_map(
+            engine.dungeon.current_floor, engine.tiles_in_fov)
+        new_cursor_pos: tuple[int, int] = \
+            engine.terminal_controller.display_projectile_target(
+            map_window,
+            engine.dungeon.current_floor, engine.tiles_in_fov,
+            self.cursor_index_x, self.cursor_index_y
+        )
+        self.cursor_index_x, self.cursor_index_y = new_cursor_pos
 
 
 class InventoryMenuState(IndexableOptionsState):

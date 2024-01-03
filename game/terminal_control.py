@@ -29,6 +29,7 @@ from .render_order import RenderOrder
 from .data.config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
 from .save_handling import fetch_save
 from .rng import RandomNumberGenerator
+from .tile import FLOOR_TILE
 
 
 # TODO turn progress bar into a class
@@ -278,17 +279,16 @@ class TerminalController:
     
     def display_map(self,
                     floor: Floor,
-                    tiles_in_fov: dict[tuple[int, int], Tile]) -> None:
+                    tiles_in_fov: dict[tuple[int, int], Tile]) -> curses.newwin:
         """Display the dungeon map itself"""
-        MAP_HEIGHT: int = self.map_height
-        MAP_WIDTH: int = self.map_width
-
         # Create the map window itself.
-        window = curses.newwin(MAP_HEIGHT + 2, MAP_WIDTH + 2, 0, 0)
+        window = curses.newwin(self.map_height + 2, self.map_width + 2, 0, 0)
         
-        # Display tiles.
         window.erase()
         window.border()
+
+        # Display the floor and wall tiles on the map, with the ones brightened
+        # as the tiles in the player's FOV.
         dungeon_level = f"DUNGEON LEVEL {floor.dungeon.current_floor_idx + 1}"
         window.addstr(0, 2, f"[ {dungeon_level} ]")
         for pos, tile in floor.explored_tiles.items():
@@ -299,8 +299,8 @@ class TerminalController:
             x, y = pos
             window.addstr(
                 x + 1, y + 1, tile.char, self.colors.get_color(tile.color))
-
-        # Display entities (they should be in sorted render order).
+        
+        # Display the entities on the map.
         entities: list[Entity] = []
         for entity in floor.entities:
             if not (entity.x, entity.y) in tiles_in_fov:
@@ -319,6 +319,54 @@ class TerminalController:
             entities.append(entity.name)
         
         window.refresh()
+
+        return window
+    
+
+    def display_projectile_target(self,
+                                  map_window: curses.window,
+                                  floor: Floor,
+                                  tiles_in_fov: dict[tuple[int, int], Tile],
+                                  cursor_index_x: int, 
+                                  cursor_index_y: int) -> tuple[int, int]:
+        """
+        Display a path to a target cell towards which a projectile will shoot.
+
+        Uses the current map window and just adds the highlighted target cells on top of it.
+        """
+        # Clamp target to within map.
+        if cursor_index_x > self.map_height:
+            cursor_index_x = self.map_height
+        elif cursor_index_x < 1:
+            cursor_index_x = 1
+        if cursor_index_y > self.map_width:
+            cursor_index_y = self.map_width
+        elif cursor_index_y < 1:
+            cursor_index_y = 1
+        # TODO Clamp target to within field of view.
+        
+        # I don't know why I needed to minus 1 the cursor indices.
+        targeted_tile: Optional[Tile] = tiles_in_fov.get((cursor_index_x - 1, cursor_index_y - 1))
+        if targeted_tile is not None and targeted_tile.char == FLOOR_TILE:
+            targeted_entity: Optional[Entity] = None
+            # TODO change the entities_in_fov from list to dict for speedy key access
+            for entity in self.entities_in_fov:
+                if entity.x == cursor_index_x - 1 and entity.y == cursor_index_y - 1:
+                    targeted_entity = entity
+                    break
+            if targeted_entity is not None:
+                map_window.addstr(cursor_index_x, cursor_index_y, targeted_entity.char, curses.A_REVERSE)
+                map_window.addstr(self.map_height + 1, self.map_width - 15, targeted_entity.name, self.colors.get_color(targeted_entity.color))
+            else:
+                map_window.addstr(cursor_index_x, cursor_index_y, targeted_tile.char, curses.A_REVERSE)
+                map_window.addstr(self.map_height + 1, self.map_width - 15, "Wall tile")
+        else:
+            map_window.addstr(cursor_index_x, cursor_index_y, "█", self.colors.get_color("red"))
+            map_window.addstr(self.map_height + 1, self.map_width - 15, "Invalid target")
+        
+        map_window.refresh()
+
+        return cursor_index_x, cursor_index_y
     
     
     def display_message_log(self, message_log: MessageLog) -> None:
@@ -1281,7 +1329,7 @@ class TerminalController:
 
 
     def _get_main_menu_map_tiles(self) -> list[list[Tile]]:
-        """A cool randomly-generated dungeon background for the main menu"""
+        """A cool, randomly-generated dungeon background for the main menu"""
         rng = RandomNumberGenerator(seed=None)
         num_rooms: int = rng.randint(15, 20)
         floor: Floor = (

@@ -266,17 +266,37 @@ class StaffFactory(WeaponFactory):
 
     def get_random_item(self) -> Staff:
         # Prevent circular import.
-        from .components.projectable import Projectable
+        from .components.projectable import (
+            Projectable, LightningProjectable, HealingProjectable)
 
         staff: Staff = super().get_random_item()
-        staff.add_component(
-            "projectable", Projectable()
-        )
 
-        if self._item_data["staff_type"] == StaffType.PROJECTILE:
-            staff.staff_type = StaffType.PROJECTILE
-        elif self._item_data["staff_type"] == StaffType.RIZZ:
-            staff.staff_type = StaffType.RIZZ
+        if self._item_data["staff_type"] == StaffType.DAMAGE_PROJECTILE:
+            staff.staff_type = StaffType.DAMAGE_PROJECTILE
+            staff.add_component(
+                "projectable", LightningProjectable(
+                    uses=self._item_data["uses"],
+                    magicka_cost=self._item_data["magicka_cost"],
+                    damage=self._item_data["dmg"]
+                )
+            )
+        elif self._item_data["staff_type"] == StaffType.HEAL_PROJECTILE:
+            staff.staff_type = StaffType.HEAL_PROJECTILE
+            staff.add_component(
+                "projectable", HealingProjectable(
+                    uses=self._item_data["uses"],
+                    magicka_cost=self._item_data["magicka_cost"],
+                    heal=self._item_data["hp"]
+                )
+            )
+        elif self._item_data["staff_type"] == StaffType.EFFECT_PROJECTILE:
+            staff.staff_type = StaffType.EFFECT_PROJECTILE
+            staff.add_component(
+                "projectable", Projectable(
+                    uses=self._item_data["uses"],
+                    magicka_cost=self._item_data["magicka_cost"]
+                )
+            )
 
         return staff
 

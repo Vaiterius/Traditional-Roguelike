@@ -13,8 +13,9 @@ class WeaponType(Enum):
 
 
 class StaffType(Enum):
-    PROJECTILE = auto()
-    RIZZ = auto()
+    DAMAGE_PROJECTILE = auto()
+    HEAL_PROJECTILE = auto()
+    EFFECT_PROJECTILE = auto()
 
 
 class PotionType(Enum):
