@@ -692,7 +692,7 @@ class ExploreState(State):
             action_or_state = PickUpItemAction(self.parent)
         
         # Change state.
-        elif player_input in EXIT_KEYS || player_input == 'm':  # Save and return to main menu.
+        elif player_input in EXIT_KEYS or player_input == 'm':  # Save and return to main menu.
             self.confirm_savequit = Confirmation()
             action_or_state = ConfirmBoxState(
                 self.parent, self, self.confirm_savequit, "", "save and quit"
