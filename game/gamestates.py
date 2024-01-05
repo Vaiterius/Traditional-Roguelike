@@ -46,6 +46,7 @@ NON_ARROW_MOVE_KEYS = {
     # Lower-left.
     "KEY_END":    (1, -1),
     "KEY_C1":     (1, -1),
+    "b":          (1, -1),
     # Down.
     'j':          (1, 0),
     # Lower-right.
@@ -759,8 +760,7 @@ class ProjectileTargetState(State):
             engine.dungeon.current_floor, engine.tiles_in_fov)
         new_cursor_pos: tuple[int, int] = \
             engine.terminal_controller.display_projectile_target(
-            map_window,
-            engine.dungeon.current_floor, engine.tiles_in_fov,
+            map_window, engine.player, engine.tiles_in_fov,
             self.cursor_index_x, self.cursor_index_y
         )
         self.cursor_index_x, self.cursor_index_y = new_cursor_pos

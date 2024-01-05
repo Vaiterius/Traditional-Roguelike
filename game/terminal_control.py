@@ -22,7 +22,7 @@ from .modes import GameStatus
 from .dungeon.floor import FloorBuilder
 from .tile import *
 from .data.config import *
-from .entities import Creature, Player, Item
+from .entities import Creature, Player, Item, Weapon, Armor
 from .components.fighter import StatModifier
 from .color import Color
 from .render_order import RenderOrder
@@ -30,9 +30,9 @@ from .data.config import PROGRESS_BAR_FILLED, PROGRESS_BAR_UNFILLED
 from .save_handling import fetch_save
 from .rng import RandomNumberGenerator
 from .tile import FLOOR_TILE
+from .pathfinding import bresenham_path_to
 
 
-# TODO turn progress bar into a class
 def get_filled_bar(percent: float, width: int) -> str:
     """Return a filled progress bar as a string of block letters"""
     bar = ""
@@ -229,7 +229,23 @@ class ConfirmBoxLarge(ConfirmBox):
 
 
 class TerminalController:
-    """Handle graphical output of data and terminal input from the player"""
+    """Handle graphical terminal output of data, the game representation on the
+     screen, and input from the player.
+    
+    In curses, the x-axis corresponds to going down the screen starting from
+    the top, and the y-axis corresponds to going across the screen, starting
+    from the left.
+
+    | ^
+    | |  e.g. (1, 2) would be the the point 2 rows down, 3rd column left
+    | |
+    X |
+    | |
+    | |
+    | |
+    v |------------->
+      -------Y------>
+    """
 
     def __init__(self,
                  screen: curses.initscr,
@@ -238,8 +254,8 @@ class TerminalController:
         self.floor_width, self.floor_height = floor_dimensions
         self.colors = Color()  # Fetch available character tile colors.
         
-        # Keep track for enemies around sidebar.
-        self.entities_in_fov = []
+        # Keep track of visible enemies using their coordinates as keys.
+        self.entities_in_fov = {}
         
         curses.curs_set(0)  # Hide cursor.
         
@@ -255,7 +271,8 @@ class TerminalController:
         
         # SIDEBAR CONFIG.
         self.sidebar_width: int = 28
-        self.sidebar_height: int = self.map_height + self.message_log_height + 2
+        self.sidebar_height: int = \
+            self.map_height + self.message_log_height + 2
         
         
         # Entire game window sizes.
@@ -275,12 +292,18 @@ class TerminalController:
 
 
         self.screen.refresh()
-    
-    
+
+
     def display_map(self,
                     floor: Floor,
-                    tiles_in_fov: dict[tuple[int, int], Tile]) -> curses.newwin:
-        """Display the dungeon map itself"""
+                    tiles_in_fov: dict[tuple[int, int], Tile]
+                    ) -> curses.newwin:
+        """Display the dungeon map along with entities in view.
+        
+        The data representation coordinates of the map itself is different from
+        the display coordinates with curses windows as it has to account for
+        the borders.
+        """
         # Create the map window itself.
         window = curses.newwin(self.map_height + 2, self.map_width + 2, 0, 0)
         
@@ -300,39 +323,54 @@ class TerminalController:
             window.addstr(
                 x + 1, y + 1, tile.char, self.colors.get_color(tile.color))
         
-        # Display the entities on the map.
-        entities: list[Entity] = []
-        for entity in floor.entities:
-            if not (entity.x, entity.y) in tiles_in_fov:
-                continue
-            if (  # Filter non-enemies and non-items.
-                (isinstance(entity, Creature)
-                or isinstance(entity, Item))
-                and (not isinstance(entity, Player)
-                and entity.render_order != RenderOrder.CORPSE)
-            ):
-                self.entities_in_fov.append(entity)
-            window.addstr(
-                entity.x + 1, entity.y + 1, entity.char,
-                self.colors.get_color(entity.color)
+        def is_displayable_entity(entity: Entity) -> bool:
+            """Filter entities for sidebar display"""
+            return isinstance(entity, (Creature, Item)) and (
+                not isinstance(entity, Player)
+                and entity.render_order != RenderOrder.CORPSE
             )
-            entities.append(entity.name)
+
+        # Iterate through the entities list forwards and backwards at the same
+        # time. Forwards for keeping render order (creatures on top of items on
+        # top of corpses) and backwards for displaying creatures before items
+        # on the entities sidebar of the game view.
+        for entity_for_render, entity_for_sidebar in zip(
+            floor.entities, reversed(floor.entities)
+        ):
+            # For display on map.
+            if (entity_for_render.x, entity_for_render.y) in tiles_in_fov:
+                window.addstr(
+                    entity_for_render.x + 1,
+                    entity_for_render.y + 1,
+                    entity_for_render.char,
+                    self.colors.get_color(entity_for_render.color)
+                )
+
+            # For display on sidebar.
+            if (
+                (entity_for_sidebar.x, entity_for_sidebar.y) in tiles_in_fov
+                and is_displayable_entity(entity_for_sidebar)
+            ):
+                self.entities_in_fov[
+                    (entity_for_sidebar.x, entity_for_sidebar.y)
+                ] = entity_for_sidebar
         
         window.refresh()
 
         return window
-    
+
 
     def display_projectile_target(self,
                                   map_window: curses.window,
-                                  floor: Floor,
+                                  player: Player,
                                   tiles_in_fov: dict[tuple[int, int], Tile],
                                   cursor_index_x: int, 
                                   cursor_index_y: int) -> tuple[int, int]:
         """
         Display a path to a target cell towards which a projectile will shoot.
 
-        Uses the current map window and just adds the highlighted target cells on top of it.
+        Uses the current map window and just adds the highlighted target cells
+        on top of it.
         """
         # Clamp target to within map.
         if cursor_index_x > self.map_height:
@@ -343,27 +381,69 @@ class TerminalController:
             cursor_index_y = self.map_width
         elif cursor_index_y < 1:
             cursor_index_y = 1
-        # TODO Clamp target to within field of view.
-        
-        # I don't know why I needed to minus 1 the cursor indices.
-        targeted_tile: Optional[Tile] = tiles_in_fov.get((cursor_index_x - 1, cursor_index_y - 1))
-        if targeted_tile is not None and targeted_tile.char == FLOOR_TILE:
-            targeted_entity: Optional[Entity] = None
-            # TODO change the entities_in_fov from list to dict for speedy key access
-            for entity in self.entities_in_fov:
-                if entity.x == cursor_index_x - 1 and entity.y == cursor_index_y - 1:
-                    targeted_entity = entity
-                    break
+
+
+        def get_tile_info_from_coords(x: int, y: int) -> tuple[str, str]:
+            """Returns the name and character of a tile or entity given a
+            coordinate.
+            
+            Subtract 1 from indices to account for left and top window border
+            padding.
+            """
+            targeted_tile: Optional[Tile] = tiles_in_fov.get((x - 1, y - 1))
+            if targeted_tile is None:
+                return "", ""
+
+            # Temporarily nclude player to be seen in highlight targeting.
+            self.entities_in_fov.update({(player.x, player.y): player})
+            targeted_entity: Optional[Entity] = self.entities_in_fov.get(
+                (x - 1, y - 1))
+            del self.entities_in_fov[(player.x, player.y)]
             if targeted_entity is not None:
-                map_window.addstr(cursor_index_x, cursor_index_y, targeted_entity.char, curses.A_REVERSE)
-                map_window.addstr(self.map_height + 1, self.map_width - 15, targeted_entity.name, self.colors.get_color(targeted_entity.color))
-            else:
-                map_window.addstr(cursor_index_x, cursor_index_y, targeted_tile.char, curses.A_REVERSE)
-                map_window.addstr(self.map_height + 1, self.map_width - 15, "Wall tile")
+                return targeted_entity.name, targeted_entity.char
+            
+            tile_name: str = (
+                "Floor Tile"
+                if targeted_tile.char == FLOOR_TILE
+                else "Wall Tile"
+            )
+            return tile_name, targeted_tile.char
+
+
+        target_name, target_char = get_tile_info_from_coords(
+            cursor_index_x, cursor_index_y)
+        # Targeting valid cells on the map.
+        if target_name != "":
+            map_window.addstr(
+                cursor_index_x, cursor_index_y, target_char, curses.A_REVERSE)
+            target_display: str = f">> TARGET: {target_name} <<"
+            map_window.addstr(
+                self.map_height + 1,
+                get_message_center_x(target_display, self.map_width) - 1,
+                target_display
+            )
+
+            # Highlight path to target cell from player's coordinates.
+            paths: list[tuple[int, int]] = bresenham_path_to(
+                player.x + 1, player.y + 1, cursor_index_x, cursor_index_y)[1:]
+            for x, y in paths:
+                _, path_tile_char = get_tile_info_from_coords(x, y)
+                map_window.addstr(x, y, path_tile_char, curses.A_REVERSE)
         else:
-            map_window.addstr(cursor_index_x, cursor_index_y, "█", self.colors.get_color("red"))
-            map_window.addstr(self.map_height + 1, self.map_width - 15, "Invalid target")
-        
+            target_display: str = f">> TARGET: Out of range <<"
+            map_window.addstr(self.map_height + 1, get_message_center_x(
+                target_display,
+                self.map_width) - 1,
+                target_display,
+                self.colors.get_color("red")
+            )
+            map_window.addstr(
+                cursor_index_x,
+                cursor_index_y,
+                "█",
+                self.colors.get_color("red")
+            )
+
         map_window.refresh()
 
         return cursor_index_x, cursor_index_y
@@ -484,12 +564,64 @@ class TerminalController:
             3, 9, f"XP for next: {player.leveler.experience_left_to_level_up}")
         stats_subwindow.addstr(
             4, 9, f"Total XP: {player.leveler.total_experience}")
+        
+
+        # EQUIPPED GEAR SECTION #
+        EQUIPPED_SECTION_HEADER: str = "[ EQUIPPED ]"
+        EQUIPPED_SECTION_START_X: int = STATS_START_X + STATS_HEIGHT
+        EQUIPPED_SECTION_HEIGHT: int = 6
+        equipped_subwindow: curses.window = window.subwin(
+            EQUIPPED_SECTION_HEIGHT,
+            SIDEBAR_WIDTH,
+            EQUIPPED_SECTION_START_X,
+            self.floor_width + 2
+        )
+        equipped_subwindow.erase()
+        equipped_subwindow.border()
+        EQUIPPED_SECTION_CENTER_Y = get_message_center_x(
+            EQUIPPED_SECTION_HEADER, SIDEBAR_WIDTH)
+        equipped_subwindow.addstr(
+            0, EQUIPPED_SECTION_CENTER_Y - 1, EQUIPPED_SECTION_HEADER)
+        
+        # Display the gear.
+        inventory: Inventory = player.inventory
+        weapon: Optional[Weapon] = inventory.equipped_weapon
+        head_armor: Optional[Armor] = inventory.equipped_head_armor
+        torso_armor: Optional[Armor] = inventory.equipped_torso_armor
+        leg_armor: Optional[Armor] = inventory.equipped_leg_armor
+
+        # TODO? truncate text if necessary to fit within writing space
+        WEAPON_SLOT_NAME: str = (
+            "WEAPON: None" if weapon is None
+            else f"WEAPON: {weapon.name}"
+        )
+        HEAD_SLOT_NAME: str = (
+            "  HEAD: None" if head_armor is None
+            else f"  HEAD: {head_armor.name}"
+        )
+        TORSO_SLOT_NAME: str = (
+            " TORSO: None" if torso_armor is None
+            else f" TORSO: {torso_armor.name}"
+        )
+        LEG_ARMOR_NAME: str = (
+            "   LEG: None" if leg_armor is None
+            else f"   LEG: {leg_armor.name}"
+        )
+
+        equipped_subwindow.addstr(1, 1, WEAPON_SLOT_NAME)
+        equipped_subwindow.addstr(2, 1, HEAD_SLOT_NAME)
+        equipped_subwindow.addstr(3, 1, TORSO_SLOT_NAME)
+        equipped_subwindow.addstr(4, 1, LEG_ARMOR_NAME)
+
+
+        # TODO? add status effects section
 
 
         # STANDING ON SECTION #
         STANDING_ON_SECTION_HEADER = "[ STANDING ON ]"
-        STANDING_ON_START_X = STATS_START_X + STATS_HEIGHT
-        STANDING_ON_HEIGHT = 6
+        STANDING_ON_START_X = \
+            EQUIPPED_SECTION_START_X + EQUIPPED_SECTION_HEIGHT
+        STANDING_ON_HEIGHT = 4
         standing_on_subwindow = window.subwin(
             STANDING_ON_HEIGHT,
             SIDEBAR_WIDTH,
@@ -509,9 +641,9 @@ class TerminalController:
                    and entity.y == player.y \
                    and not isinstance(entity, Player),
             floor.entities))
-        # Can only show 3 entities at a time.
+        # Can only show 1 entity at a time.
         entity_iter: int = 1
-        displayable_entities: list[Entity] = entities[:3]
+        displayable_entities: list[Entity] = entities[:1]
         for entity in displayable_entities:
             # Display entity name.
             standing_on_subwindow.addstr(
@@ -522,7 +654,7 @@ class TerminalController:
         remaining_entities: int = len(entities) - len(displayable_entities)
         if remaining_entities > 0:
             standing_on_subwindow.addstr(
-                4, 1, f"   and {remaining_entities} more...")
+                2, 1, f"   and {remaining_entities} more...")
 
 
         # ENTITIES AROUND SECTION #
@@ -542,12 +674,14 @@ class TerminalController:
             0, entities_header_center_y, ENTITIES_SECTION_HEADER)
 
         # Display surrounding entities and their health bars.
-        max_entities_for_display: int = 6
-        displayable_entities_in_fov: list[Creature] = \
-            self.entities_in_fov[:max_entities_for_display]
+        max_entities_for_display: int = 4
+        displayable_entities_in_fov: dict[tuple[int, int], Creature] = \
+            dict(
+                itertools.islice(
+                    self.entities_in_fov.items(), max_entities_for_display))
         # Show a certain number of entities at a time.
         entity_iter: int = 1
-        for entity in displayable_entities_in_fov:
+        for _, entity in displayable_entities_in_fov.items():
             # Display enemy name and level if they are a creature.
             entity_title: str = f"{entity.char} {entity.name}"
             if entity.get_component("leveler"):
@@ -586,12 +720,13 @@ class TerminalController:
                 f"    and {remaining_entities_in_fov} more...")
         
         # Then reset.
-        self.entities_in_fov = []
+        self.entities_in_fov = {}
 
 
         window.refresh()
         player_subwindow.refresh()
         stats_subwindow.refresh()
+        equipped_subwindow.refresh()
         standing_on_subwindow.refresh()
         entities_subwindow.refresh()
 
@@ -662,7 +797,9 @@ class TerminalController:
             slot_value: str = ""
             if item:
                 slot_value += (
-                    f"{'[E] ' if inventory.is_equipped(item) else ''}{item.name}")
+                    f"{'[E] ' if inventory.is_equipped(item) else ''}"
+                    f"{item.name}"
+                )
             else:
                 slot_value += f"<Empty>"
             
@@ -1090,7 +1227,9 @@ class TerminalController:
                             config: GameConfig,
                             cursor_index_x: int,
                             cursor_index_y: int) -> int:
-        """Display interface for entering player's name, gamemode, and (optional) seed.
+        """
+        Display interface for entering player's name, gamemode, and (optional)
+        seed.
         
         Index map:
         0 - enter name
@@ -1344,7 +1483,8 @@ class TerminalController:
         return floor.tiles
 
 
-    def _get_title_lines(self, file_location: str, max_width: str) -> list[str]:
+    def _get_title_lines(
+            self, file_location: str, max_width: str) -> list[str]:
         """Get the lines for the cool ASCII art for the title I got online.
         
         https://ascii.today/

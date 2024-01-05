@@ -48,15 +48,18 @@ class ItemAction(Action):
 
     def perform(self, engine: Engine) -> bool:
         # Prevent circular import.
-        from .gamestates import InventoryMenuState
+        from .gamestates import InventoryMenuState, ExploreState
         turnable: bool = False
 
         if self.item.get_component("consumable") is not None:
             self.item.consumable.perform(engine)
+
         elif (
             self.item.get_component("projectable") is not None
             and not isinstance(engine.gamestate, InventoryMenuState)):
             self.item.projectable.perform(engine)
+            engine.gamestate = ExploreState(self.entity)  # Go back after use.
+
         elif self.item.get_component("equippable") is not None:
             self.item.equippable.perform(engine)
         
@@ -89,6 +92,7 @@ class HandleSpecialWeaponAction(Action):
         if self._weapon.get_component("projectable") is not None:
             if self._weapon.projectable.uses_left <= 0:
                 turnable = False
+                # TODO add out of charge message property to component.
                 engine.message_log.add("The staff fizzles with no charge left")
                 return turnable
             if not isinstance(engine.gamestate, ProjectileTargetState):

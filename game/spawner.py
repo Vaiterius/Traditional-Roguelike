@@ -91,8 +91,8 @@ class Spawner:
         item.x, item.y = x, y
         
         room.floor.add_entity(item)
-    
-    
+
+
     def get_player_instance(self) -> Player:
         """Load player data and create an instance out of it"""
         player_obj = Player(
@@ -107,9 +107,9 @@ class Spawner:
             name="fighter",
             component=Fighter(  # Refer to fighter.py for base stats.
                 rng=self.rng,
-                base_health=player["hp"],
-                base_magicka=player["mp"],
-                base_damage=player["dmg"],
+                base_health=100,
+                base_magicka=100,
+                base_damage=5,
                 base_agility=1,
                 base_power=1,
                 base_sage=1,
@@ -174,7 +174,7 @@ class Spawner:
             },
             {
                 "factory": StaffFactory(self.rng, item_pool=staves),
-                "spawn_chance": 100
+                "spawn_chance": 33
             },
             {
                 "factory": ArmorFactory(self.rng, item_pool=armor),

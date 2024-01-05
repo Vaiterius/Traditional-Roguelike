@@ -3,6 +3,7 @@ from typing import Any
 from ...item_types import WeaponType
 
 # TODO split into ranged and melee weapons, with ranged having a range field.
+# TODO color of weapons will be based on rarity type.
 weapons: list[dict[str, Any]] = [
     {
         "name": "Training Sword",
