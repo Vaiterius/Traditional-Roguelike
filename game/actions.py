@@ -174,13 +174,6 @@ class DropItemAction(ItemAction):
         return turnable
 
 
-class QuitGameAction(Action):
-    """Exit program"""
-
-    def perform(self, engine: Engine):
-        sys.exit(0)
-
-
 class OnPlayerDeathAction(Action):
     """Save game with updated defeat status, rendering it unplayable"""
 
@@ -225,8 +218,8 @@ class DeleteSaveAction(FromSavedataAction):
         return turnable
 
 
-class SaveAndQuitAction(Action):
-    """Saves the game before player quits"""
+class SaveAction(Action):
+    """Saves the game"""
     
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
@@ -234,6 +227,21 @@ class SaveAndQuitAction(Action):
         save_current_game(engine)
         
         return turnable
+
+
+class QuitGameAction(Action):
+    """Exit program"""
+
+    def perform(self, engine: Engine):
+        sys.exit(0)
+
+
+class SaveAndQuitAction(SaveAction):
+    """Saves the game and exits program"""
+
+    def perform(self, engine: Engine) -> bool:
+        super().perform(engine)
+        QuitGameAction(self.entity).perform(engine)
 
 
 class StartNewGameAction(FromSavedataAction):

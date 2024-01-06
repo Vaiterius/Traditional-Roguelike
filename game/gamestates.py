@@ -18,7 +18,9 @@ from .save_handling import Save, get_new_game, fetch_saves
 
 # In order, if applicable: arrow keys, numpad keys, and vi keys. Separated
 # so as to not read vi keys when typing characters.
-ARROW_MOVE_KEYS = {  # No support for in-between directions.
+
+# No support for in-between directions.
+ARROW_MOVE_KEYS: dict[str, tuple[int, int]] = {
     # Up.
     "KEY_UP":     (-1, 0),
     # Left.
@@ -28,7 +30,7 @@ ARROW_MOVE_KEYS = {  # No support for in-between directions.
     # Down.
     "KEY_DOWN":   (1, 0),
 }
-NON_ARROW_MOVE_KEYS = {
+NON_ARROW_MOVE_KEYS: dict[str, tuple[int, int]] = {
     # Upper-left.
     "KEY_HOME":   (-1, -1),
     "KEY_A1":     (-1, -1),
@@ -54,18 +56,19 @@ NON_ARROW_MOVE_KEYS = {
     "KEY_C3":     (1, 1),
     'n':          (1, 1),
 }
-MOVE_KEYS = {**ARROW_MOVE_KEYS, **NON_ARROW_MOVE_KEYS}
+MOVE_KEYS: dict[str, tuple[int, int]] = {
+    **ARROW_MOVE_KEYS, **NON_ARROW_MOVE_KEYS}
 
-WAIT_KEYS = {'.', "KEY_DC", "KEY_B2",}
-
-EXIT_KEYS = {"Q",}
-BACK_KEYS = {"KEY_BACKSPACE",}
-
-#MENU_KEYS = {"m",} #We won't add MENU_KEYS to ANY_KEYS to avoid accepting them as valid any-input where it's not appropriate.
-CONFIRM_KEYS = {"KEY_ENTER", '\n',}
+WAIT_KEYS: set[str] = {'.', "KEY_DC", "KEY_B2",}
+EXIT_KEYS: set[str] = {"Q",}
+BACK_KEYS: set[str] = {"KEY_BACKSPACE",}
+# We won't add MENU_KEYS to ANY_KEYS to avoid accepting them as valid any-input
+# where it's not appropriate.
+MENU_KEYS: set[str] = {"m",} 
+CONFIRM_KEYS: str[str] = {"KEY_ENTER", '\n',}
 
 # All.
-ANY_KEYS = set(MOVE_KEYS).union(
+ANY_KEYS: str[str] = set(MOVE_KEYS).union(
     WAIT_KEYS, EXIT_KEYS, BACK_KEYS, CONFIRM_KEYS)
 
 
@@ -626,7 +629,8 @@ class ExploreState(State):
 
     def __init__(self, parent: Entity):
         super().__init__(parent)
-        self.confirm_savequit: Optional[Confirmation] = None
+        self.confirm_savequit_to_menu: Optional[Confirmation] = None
+        self.confirm_savequit_game: Optional[Confirmation] = None
         self.confirm_mainquest_finish: Optional[Confirmation] = None
     
 
@@ -639,12 +643,20 @@ class ExploreState(State):
 
         action_or_state: Optional[Union[Action, State]] = None
         
-        # Player has confirmed to save and quit.
+        # Player has confirmed to save and quit to menu.
         if (
-            self.confirm_savequit
-            and self.confirm_savequit.result is True
+            self.confirm_savequit_to_menu
+            and self.confirm_savequit_to_menu.result is True
         ):
-            self.confirm_savequit = None
+            self.confirm_savequit_to_menu = None
+            return SaveAction(self.parent)
+        
+        # Player has confirmed to save and quit game.
+        if (
+            self.confirm_savequit_game
+            and self.confirm_savequit_game.result is True
+        ):
+            self.confirm_savequit_game = None
             return SaveAndQuitAction(self.parent)
         
         # Player has confirmed to exit game after completing main quest.
@@ -652,8 +664,8 @@ class ExploreState(State):
             self.confirm_mainquest_finish
             and self.confirm_mainquest_finish.result is True
         ):
-            self.confirm_savequit = None
-            return SaveAndQuitAction(self.parent)
+            self.confirm_savequit_to_menu = None
+            return SaveAction(self.parent)
 
         self.bypassable = False
         
@@ -677,13 +689,21 @@ class ExploreState(State):
         elif player_input == 'p':
             action_or_state = PickUpItemAction(self.parent)
         
-        # Change state.
-        elif player_input in EXIT_KEYS or player_input == 'm':  # Save and return to main menu.
-            self.confirm_savequit = Confirmation()
+        # Save and return to main menu.
+        elif player_input in MENU_KEYS:
+            self.confirm_savequit_to_menu = Confirmation()
             action_or_state = ConfirmBoxState(
-                self.parent, self, self.confirm_savequit, "", "save and quit"
+                self.parent, self, self.confirm_savequit_to_menu, "", "save and go back to menu"
             )
             self.bypassable = True
+        
+        # Save and quit application.
+        elif player_input in EXIT_KEYS:
+            self.confirm_savequit_game = Confirmation()
+            action_or_state = ConfirmBoxState(
+                self.parent, self, self.confirm_savequit_game, "", "save and quit game")
+            self.bypassable = True
+
         elif player_input == '\t' or player_input == 'i':
             return InventoryMenuState(self.parent)
         
@@ -694,7 +714,7 @@ class ExploreState(State):
         self, engine: Engine, action_or_state: Union[Action, State]) -> bool:
         turnable: bool = super().perform(engine, action_or_state)
 
-        if isinstance(action_or_state, SaveAndQuitAction):
+        if isinstance(action_or_state, SaveAction):
             engine.gamestate = MainMenuState(self.parent)
         
         return turnable

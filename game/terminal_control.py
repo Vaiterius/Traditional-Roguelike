@@ -196,10 +196,10 @@ class ConfirmBoxSmall(ConfirmBox):
         if self.cursor_index == 0:
             self.add_text(
                 buttons_x, button_1_y - 2, f"> {option_1} <", curses.A_REVERSE)
-            self.add_text(buttons_x, button_2_y, option_2)
+            self.add_text(buttons_x, button_2_y - 2, option_2)
         else:
             self.add_text(
-                buttons_x, button_2_y - 2, f"> {option_2} <", curses.A_REVERSE)
+                buttons_x, button_2_y - 4, f"> {option_2} <", curses.A_REVERSE)
             self.add_text(buttons_x, button_1_y, option_1)
 
 
