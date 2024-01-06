@@ -254,8 +254,8 @@ class TerminalController:
         self.floor_width, self.floor_height = floor_dimensions
         self.colors = Color()  # Fetch available character tile colors.
         
-        # Keep track of visible enemies using their coordinates as keys.
-        self.entities_in_fov = {}
+        # Keep track of visible enemies.
+        self.entities_in_fov: list[Entity] = []
         
         curses.curs_set(0)  # Hide cursor.
         
@@ -322,13 +322,15 @@ class TerminalController:
             x, y = pos
             window.addstr(
                 x + 1, y + 1, tile.char, self.colors.get_color(tile.color))
-        
+
+
         def is_displayable_entity(entity: Entity) -> bool:
             """Filter entities for sidebar display"""
             return isinstance(entity, (Creature, Item)) and (
                 not isinstance(entity, Player)
-                and entity.render_order != RenderOrder.CORPSE
+                # and entity.render_order != RenderOrder.CORPSE
             )
+
 
         # Iterate through the entities list forwards and backwards at the same
         # time. Forwards for keeping render order (creatures on top of items on
@@ -351,9 +353,7 @@ class TerminalController:
                 (entity_for_sidebar.x, entity_for_sidebar.y) in tiles_in_fov
                 and is_displayable_entity(entity_for_sidebar)
             ):
-                self.entities_in_fov[
-                    (entity_for_sidebar.x, entity_for_sidebar.y)
-                ] = entity_for_sidebar
+                self.entities_in_fov.append(entity_for_sidebar)
         
         window.refresh()
 
@@ -394,11 +394,16 @@ class TerminalController:
             if targeted_tile is None:
                 return "", ""
 
-            # Temporarily nclude player to be seen in highlight targeting.
-            self.entities_in_fov.update({(player.x, player.y): player})
-            targeted_entity: Optional[Entity] = self.entities_in_fov.get(
-                (x - 1, y - 1))
-            del self.entities_in_fov[(player.x, player.y)]
+            # Temporarily include player to be seen in highlight targeting.
+            self.entities_in_fov.insert(0, player)
+
+            targeted_entity: Optional[Entity] = None
+            for entity in self.entities_in_fov:
+                if entity.x == x - 1 and entity.y == y - 1:
+                    targeted_entity = entity
+                    break
+
+            self.entities_in_fov.remove(player)
             if targeted_entity is not None:
                 return targeted_entity.name, targeted_entity.char
             
@@ -675,13 +680,15 @@ class TerminalController:
 
         # Display surrounding entities and their health bars.
         max_entities_for_display: int = 4
-        displayable_entities_in_fov: dict[tuple[int, int], Creature] = \
-            dict(
-                itertools.islice(
-                    self.entities_in_fov.items(), max_entities_for_display))
+        displayable_entities_in_fov: list[Entity] = self.entities_in_fov[
+            :max_entities_for_display]
         # Show a certain number of entities at a time.
         entity_iter: int = 1
-        for _, entity in displayable_entities_in_fov.items():
+        for entity in displayable_entities_in_fov:
+            # Don't show corpses.
+            if isinstance(entity, Creature) and entity.fighter.is_dead:
+                continue
+
             # Display enemy name and level if they are a creature.
             entity_title: str = f"{entity.char} {entity.name}"
             if entity.get_component("leveler"):
@@ -720,7 +727,7 @@ class TerminalController:
                 f"    and {remaining_entities_in_fov} more...")
         
         # Then reset.
-        self.entities_in_fov = {}
+        self.entities_in_fov = []
 
 
         window.refresh()

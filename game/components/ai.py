@@ -26,7 +26,7 @@ class BaseAI(Action, BaseComponent):
         self.agro = False
 
 
-    def perform(self, engine: Engine):
+    def perform(self, engine: Engine) -> None:
         # Check for available level up.
         leveler: Leveler = self.entity.get_component("leveler")
         fighter: Fighter = self.entity.get_component("fighter")
@@ -70,6 +70,7 @@ class BaseAI(Action, BaseComponent):
         return bresenham_path_to(self.entity.x, self.entity.y, x, y)
 
 
+# TODO make it wander across rooms and hallways.
 class WanderingAI(BaseAI):
     """AI that wanders the floors aimlessly"""
     CHANCE_TO_WALK: float = 0.75
@@ -84,7 +85,7 @@ class WanderingAI(BaseAI):
         "SOUTHEAST": (1, 1)
     }
 
-    def perform(self, engine: Engine):
+    def perform(self, engine: Engine) -> None:
         super().perform(engine)
 
         player_x = engine.player.x
@@ -107,10 +108,45 @@ class WanderingAI(BaseAI):
             BumpAction(self.owner, dx, dy).perform(engine)
 
 
+class ConfusedAI(BaseAI):
+    """AI that confusedly bumps into every direction, aimlessly"""
+    DIRECTIONS = {
+        "NORTHWEST": (-1, -1),
+        "NORTH": (-1, 0),
+        "NORTHEAST": (-1, 1),
+        "WEST": (0, -1),
+        "EAST": (0, 1),
+        "SOUTHWEST": (1, -1),
+        "SOUTH": (1, 0),
+        "SOUTHEAST": (1, 1)
+    }
+
+    def __init__(
+            self, entity: Entity, previous_ai: BaseAI, turns_remaining: int):
+        super().__init__(entity)
+        self._previous_ai = previous_ai
+        self._turns_remaining = turns_remaining
+    
+    def perform(self, engine: Engine) -> None:
+        super().perform(engine)
+
+        # Confusion effect has worn off.
+        if self._turns_remaining <= 0:
+            engine.message_log.add(f"{self.entity.name} is no longer confused")
+            self.entity.add_component("ai", self._previous_ai)
+            return
+        
+        # Pick a random direction to walk to.
+        dx, dy = engine.rng.choice(list(self.DIRECTIONS.values()))
+        BumpAction(self.owner, dx, dy).perform(engine)
+
+        self._turns_remaining -= 1
+
+
 class HostileEnemyAI(BaseAI):
     """AI that targets and fights the player; pseudo-pathfinding algorithm"""
 
-    def perform(self, engine: Engine):
+    def perform(self, engine: Engine) -> None:
         super().perform(engine)
 
         floor: Floor = engine.dungeon.current_floor

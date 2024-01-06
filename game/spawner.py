@@ -12,7 +12,7 @@ from .components.leveler import Leveler
 from .render_order import RenderOrder
 from .entities import (
     Entity, Item, Potion, Weapon, Staff, Armor, Creature, Player)
-from .item_types import WeaponType, StaffType, ArmorType, PotionType
+from .item_types import WeaponType, ProjectileType, ArmorType, PotionType
 from .rng import RandomNumberGenerator
 
 from .data.creatures import enemies, player
@@ -109,7 +109,7 @@ class Spawner:
                 rng=self.rng,
                 base_health=100,
                 base_magicka=100,
-                base_damage=5,
+                base_damage=999,
                 base_agility=1,
                 base_power=1,
                 base_sage=1,
@@ -174,7 +174,7 @@ class Spawner:
             },
             {
                 "factory": StaffFactory(self.rng, item_pool=staves),
-                "spawn_chance": 33
+                "spawn_chance": 100
             },
             {
                 "factory": ArmorFactory(self.rng, item_pool=armor),
@@ -267,39 +267,51 @@ class StaffFactory(WeaponFactory):
     def get_random_item(self) -> Staff:
         # Prevent circular import.
         from .components.projectable import (
-            Projectable, LightningProjectable, HealingProjectable)
+            Projectable, EffectPerTurnProjectable, LightningProjectable,
+            HealingProjectable, ConfusionProjectable
+        )
 
         staff: Staff = super().get_random_item()
 
-        if self._item_data["staff_type"] == StaffType.DAMAGE_PROJECTILE:
-            staff.staff_type = StaffType.DAMAGE_PROJECTILE
-            staff.add_component(
-                "projectable", LightningProjectable(
-                    uses=self._item_data["uses"],
-                    magicka_cost=self._item_data["magicka_cost"],
-                    damage=self._item_data["dmg"]
+        match self._item_data["staff_type"]:
+            case ProjectileType.LIGHTNING:
+                staff.projectile_type = ProjectileType.LIGHTNING
+                staff.add_component(
+                    "projectable", LightningProjectable(
+                        uses=self._item_data["uses"],
+                        magicka_cost=self._item_data["magicka_cost"],
+                        damage=self._item_data["dmg"]
+                    )
                 )
-            )
-        elif self._item_data["staff_type"] == StaffType.HEAL_PROJECTILE:
-            staff.staff_type = StaffType.HEAL_PROJECTILE
-            staff.add_component(
-                "projectable", HealingProjectable(
-                    uses=self._item_data["uses"],
-                    magicka_cost=self._item_data["magicka_cost"],
-                    heal=self._item_data["hp"]
+            case ProjectileType.HEALING:
+                staff.projectile_type = ProjectileType.HEALING
+                staff.add_component(
+                    "projectable", HealingProjectable(
+                        uses=self._item_data["uses"],
+                        magicka_cost=self._item_data["magicka_cost"],
+                        heal=self._item_data["hp"]
+                    )
                 )
-            )
-        elif self._item_data["staff_type"] == StaffType.EFFECT_PROJECTILE:
-            staff.staff_type = StaffType.EFFECT_PROJECTILE
-            staff.add_component(
-                "projectable", Projectable(
-                    uses=self._item_data["uses"],
-                    magicka_cost=self._item_data["magicka_cost"]
+            case ProjectileType.RIZZ:
+                staff.projectile_type = ProjectileType.RIZZ
+                staff.add_component(
+                    "projectable", EffectPerTurnProjectable(
+                        uses=self._item_data["uses"],
+                        magicka_cost=self._item_data["magicka_cost"],
+                        turns_remaining=self._item_data["turns_remaining"]
+                    )
                 )
-            )
+            case ProjectileType.CONFUSION:
+                staff.projectile_type = ProjectileType.CONFUSION
+                staff.add_component(
+                    "projectable", ConfusionProjectable(
+                        uses=self._item_data["uses"],
+                        magicka_cost=self._item_data["magicka_cost"],
+                        turns_remaining=self._item_data["turns_remaining"]
+                    )
+                )
 
         return staff
-
 
 class ArmorFactory(ItemFactory):
     """Process for instantiating an armor piece from data"""

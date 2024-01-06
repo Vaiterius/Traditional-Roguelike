@@ -56,9 +56,11 @@ class ItemAction(Action):
 
         elif (
             self.item.get_component("projectable") is not None
-            and not isinstance(engine.gamestate, InventoryMenuState)):
-            self.item.projectable.perform(engine)
+            and not isinstance(engine.gamestate, InventoryMenuState)
+        ):
+            turnable = self.item.projectable.perform(engine)
             engine.gamestate = ExploreState(self.entity)  # Go back after use.
+            return turnable
 
         elif self.item.get_component("equippable") is not None:
             self.item.equippable.perform(engine)
@@ -96,7 +98,8 @@ class HandleSpecialWeaponAction(Action):
                 engine.message_log.add("The staff fizzles with no charge left")
                 return turnable
             if not isinstance(engine.gamestate, ProjectileTargetState):
-                engine.gamestate = ProjectileTargetState(self.entity, self._weapon)
+                engine.gamestate = ProjectileTargetState(
+                    self.entity, self._weapon)
         
         return turnable
 
@@ -274,8 +277,7 @@ class StartNewGameAction(FromSavedataAction):
         
         save_to_dir(self.saves_dir, self.index, self.save)
         self._load_data_to_engine(engine, self.save)
-        
-        # TODO create normal mode (story) and seeded mode
+
         if engine.save_meta["gamemode"] == GameMode.ENDLESS:
             engine.dungeon.generate()
             engine.dungeon.spawn_player(engine.player)

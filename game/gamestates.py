@@ -740,7 +740,6 @@ class ProjectileTargetState(State):
             self.cursor_index_y: int = self.parent.y + 1
     
 
-    # TODO
     def handle_input(
         self, player_input: str) -> Optional[Union[Action, State]]:
         action_or_state: Optional[Union[Action, State]] = None
@@ -753,7 +752,6 @@ class ProjectileTargetState(State):
         if player_input in BACK_KEYS:
             action_or_state = ExploreState(self.parent)
 
-        # TODO Move target.
         if player_input in MOVE_KEYS:
             dx, dy = MOVE_KEYS[player_input]
 
@@ -762,7 +760,6 @@ class ProjectileTargetState(State):
 
             action_or_state = DoNothingAction(self.parent)
 
-        # TODO Attack target.
         if player_input in CONFIRM_KEYS:
             action_or_state = self._weapon.projectable.get_action_or_state(
                 self.parent)
@@ -774,8 +771,7 @@ class ProjectileTargetState(State):
         self, engine: Engine, action_or_state: Union[Action, State]) -> bool:
         turnable: bool = super().perform(engine, action_or_state)
         return turnable
-    
-    # TODO
+
     def render(self, engine: Engine) -> None:
         map_window: curses.window = engine.terminal_controller.display_map(
             engine.dungeon.current_floor, engine.tiles_in_fov)

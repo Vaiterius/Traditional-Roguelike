@@ -188,7 +188,10 @@ class Fighter(BaseComponent):
     def magicka(self) -> int:
         return self._magicka
     
-    # TODO make expend magicka function.
+    @property
+    def expend(self, amount: int) -> None:
+        """Spend magicka points"""
+        self.magicka -= amount
     
     def recharge(self, amount: int) -> None:
         """Recover MP by some amount. Will call magicka setter."""

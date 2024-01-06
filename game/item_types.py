@@ -12,10 +12,12 @@ class WeaponType(Enum):
     STAFF = auto()
 
 
-class StaffType(Enum):
-    DAMAGE_PROJECTILE = auto()
-    HEAL_PROJECTILE = auto()
-    EFFECT_PROJECTILE = auto()
+class ProjectileType(Enum):
+    LIGHTNING = auto()
+    FLAME = auto()
+    HEALING = auto()
+    RIZZ = auto()
+    CONFUSION = auto()
 
 
 class PotionType(Enum):

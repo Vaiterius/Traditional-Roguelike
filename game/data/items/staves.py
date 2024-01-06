@@ -1,6 +1,6 @@
 from typing import Any
 
-from ...item_types import WeaponType, StaffType
+from ...item_types import WeaponType, ProjectileType
 
 staves: list[dict[str, Any]] = [
     {
@@ -9,11 +9,11 @@ staves: list[dict[str, Any]] = [
         "char": "/",
         "color": "white",
         "type": WeaponType.STAFF,
-        "staff_type": StaffType.DAMAGE_PROJECTILE,
+        "staff_type": ProjectileType.LIGHTNING,
         "uses": 5,
         "magicka_cost": 5,
         "dmg": 10,
-        "spawn_chance": 50
+        "spawn_chance": 50,
     },
     {
         "name": "Staff of Healing",
@@ -21,7 +21,7 @@ staves: list[dict[str, Any]] = [
         "char": "/",
         "color": "white",
         "type": WeaponType.STAFF,
-        "staff_type": StaffType.HEAL_PROJECTILE,
+        "staff_type": ProjectileType.HEALING,
         "uses": 5,
         "magicka_cost": 5,
         "dmg": 0,
@@ -34,10 +34,25 @@ staves: list[dict[str, Any]] = [
         "char": "/",
         "color": "orange",
         "type": WeaponType.STAFF,
-        "staff_type": StaffType.EFFECT_PROJECTILE,
+        "staff_type": ProjectileType.RIZZ,
         "uses": 2,
         "magicka_cost": 5,
+        "turns_remaining": 50,
         "dmg": 0,
-        "spawn_chance": 50
+        "spawn_chance": 50,
+    },
+    {
+        "name": "Staff of Confusion",
+        "desc": "Cast a web of confusion around their mind, causing them to"
+                "stumble and make erratic moves",
+        "char": "/",
+        "color": "orange",
+        "type": WeaponType.STAFF,
+        "staff_type": ProjectileType.CONFUSION,
+        "uses": 2,
+        "magicka_cost": 5,
+        "turns_remaining": 10,
+        "dmg": 0,
+        "spawn_chance": 50,
     }
 ]

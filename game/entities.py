@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from .color import Color
     from .engine import Engine
     from .dungeon.floor import Floor
-    from .item_types import WeaponType, StaffType, ArmorType, PotionType
+    from .item_types import WeaponType, ProjectileType, ArmorType, PotionType
 from .render_order import RenderOrder
 
 
@@ -71,7 +71,7 @@ class Weapon(Item):
 
 class Staff(Weapon):
     """A long rod of magical uses"""
-    staff_type: StaffType
+    projectile_type: ProjectileType
 
 
 class Armor(Item):
