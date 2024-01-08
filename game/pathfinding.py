@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# from queue import PriorityQueue
 import heapq
 from typing import TYPE_CHECKING, Iterator, TypeVar, Optional
 
@@ -69,6 +68,7 @@ class WeightedFloorGrid:
     """Abstraction wrapper for Floor for A-star pathfinding purposes"""
 
     def __init__(self, floor: Floor):
+        self._floor = floor
         self._width = floor.width
         self._height = floor.height
         self._wall_locations: set[GridLocation] = floor.wall_locations
@@ -77,9 +77,17 @@ class WeightedFloorGrid:
     # def in_bounds(self, id: GridLocation) -> bool:
     #     x, y = id
     #     return 0 <= x < self._width and 0 <= y < self._height
-
+    
     def passable(self, id: GridLocation) -> bool:
-        return id not in self._wall_locations
+        """
+        A passable cell location is if it's a floor tile with no obstructing
+        entity, such as a creature. Don't count the player or the pathfinder
+        will never get to it.
+        """
+        return (
+            id not in self._wall_locations
+            and not self._floor.blocking_entity_at(*id, include_player=False)
+        )
     
     def neighbors(self, id: GridLocation) -> Iterator[GridLocation]:
         x, y = id
@@ -119,9 +127,11 @@ def heuristic(a: GridLocation, b: GridLocation) -> float:
 def a_star_search(
         graph: WeightedFloorGrid,
         start: GridLocation,
-        goal: GridLocation) -> dict[GridLocation, Optional[GridLocation]]:
+        goal: GridLocation
+) -> dict[GridLocation, Optional[GridLocation]]:
     """
-    Credits: https://www.redblobgames.com/pathfinding/a-star/implementation.html
+    Credits:
+    https://www.redblobgames.com/pathfinding/a-star/implementation.html
     """
     frontier = PriorityQueue()
     frontier.put(start, 0)
@@ -149,7 +159,12 @@ def a_star_search(
 
 
 def a_star_path_to(
-        floor: Floor, x1: int, y1: int, x2: int, y2: int) -> list[tuple[int, int]]:
+        floor: Floor,
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int
+) -> list[tuple[int, int]]:
     start: GridLocation = (x1, y1)
     goal: GridLocation = (x2, y2)
     graph: WeightedFloorGrid = WeightedFloorGrid(floor)
@@ -162,10 +177,11 @@ def a_star_path_to(
     while current != start:
         path.append(current)
         current = came_from[current]
-    
-    # Optionals.
-    path.append(start)
-    path.reverse()
+
+    # Include if you want the next path to be the one currently standing on.
+    # path.append(start)
+
+    path.reverse()  # First item is next path.
     
     return path
 

@@ -11,7 +11,7 @@ weapons: list[dict[str, Any]] = [
         "char": ")",
         "color": "brown",
         "type": WeaponType.SWORD,
-        "dmg": 1,
+        "dmg": 2,
         "stat_bonuses": {
             "power": 0,
             "agility": 2,
@@ -26,7 +26,7 @@ weapons: list[dict[str, Any]] = [
         "char": ")",
         "color": "white",
         "type": WeaponType.SWORD,
-        "dmg": 5,
+        "dmg": 6,
         "stat_bonuses": {
             "power": 0,
             "agility": 2,
@@ -41,7 +41,7 @@ weapons: list[dict[str, Any]] = [
         "char": ")",
         "color": "grey",
         "type": WeaponType.SWORD,
-        "dmg": 6,
+        "dmg": 7,
         "stat_bonuses": {
             "power": 0,
             "agility": 2,
@@ -54,9 +54,9 @@ weapons: list[dict[str, Any]] = [
         "name": "Mercenary Falchion",
         "desc": "...",
         "char": ")",
-        "color": "shrouded_grey",
+        "color": "grey",
         "type": WeaponType.SWORD,
-        "dmg": 6,
+        "dmg": 8,
         "stat_bonuses": {
             "power": 0,
             "agility": 1,
@@ -71,7 +71,7 @@ weapons: list[dict[str, Any]] = [
         "char": ")",
         "color": "grey",
         "type": WeaponType.SWORD,
-        "dmg": 7,
+        "dmg": 9,
         "stat_bonuses": {
             "power": 0,
             "agility": 3,
@@ -86,7 +86,7 @@ weapons: list[dict[str, Any]] = [
         "char": ")",
         "color": "off_white",
         "type": WeaponType.SWORD,
-        "dmg": 8,
+        "dmg": 9,
         "stat_bonuses": {
             "power": 0,
             "agility": 1,

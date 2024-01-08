@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from game.engine import Engine
 
@@ -10,10 +10,12 @@ if TYPE_CHECKING:
     from ..entities import Entity
     from .leveler import Leveler
     from ..dungeon.floor import Floor
+    from ..dungeon.room import Room
 from .fighter import Fighter
 from .base_component import BaseComponent
 from ..actions import Action, BumpAction
 from ..pathfinding import bresenham_path_to, a_star_path_to
+from ..data.config import CHANCE_TO_SWITCH_ROOMS, CHANCE_TO_TAKE_STEP
 
 
 class BaseAI(Action, BaseComponent):
@@ -62,18 +64,11 @@ class BaseAI(Action, BaseComponent):
             self.agro = False
 
 
-    def get_path_to(self, x: int, y: int) -> list[tuple[int, int]]:
-        """Get a set coordinate points following a path to desired x and y.
-        
-        Bresenham (straight line) by default.
-        """
-        return bresenham_path_to(self.entity.x, self.entity.y, x, y)
+### ENEMY AI ###
 
 
-# TODO make it wander across rooms and hallways.
 class WanderingAI(BaseAI):
-    """AI that wanders the floors aimlessly"""
-    CHANCE_TO_WALK: float = 0.75
+    """AI that wanders the floor of the dungeon"""
     DIRECTIONS = {
         "NORTHWEST": (-1, -1),
         "NORTH": (-1, 0),
@@ -84,48 +79,145 @@ class WanderingAI(BaseAI):
         "SOUTH": (1, 0),
         "SOUTHEAST": (1, 1)
     }
+
+    def player_in_sight(self, engine: Engine) -> bool:
+        """
+        See if the entity senses where the player is given a straight line
+        """
+        line_to_player: list[tuple[int, int]] = bresenham_path_to(
+            self.entity.x, self.entity.y, engine.player.x, engine.player.y)
+        self.update_agro_status(engine, line_to_player)
+        if self.agro:
+            return True
+        return False
+
+
+class WanderingToRoomAI(WanderingAI):
+    """Wandering AI that is currently travelling to another room"""
+
+    def __init__(self, entity: Entity):
+        super().__init__(entity)
+        self._target_room_cell: Optional[tuple[int, int]] = None
+        self._current_path_to_room: list[tuple[int, int]] = []
+    
+    def perform(self, engine: Engine) -> None:
+        super().perform(engine)
+        floor: Floor = engine.dungeon.current_floor
+
+        if self.player_in_sight(engine):
+            self.entity.add_component("ai", HostileEnemyAI(self.entity))
+            return
+        
+        # Pick random spot in the room to travel to and set paths.
+        if not self._target_room_cell or self._current_path_to_room == []:
+            room: Room = engine.rng.choice(floor.rooms)
+            self._target_room_cell = room.get_random_cell()
+
+            self._current_path_to_room = a_star_path_to(
+            floor, self.entity.x, self.entity.y, *self._target_room_cell)
+        
+        # Chance to switch over to pacing around the current room if already
+        # reached desired room.
+        if engine.rng.random() <= CHANCE_TO_SWITCH_ROOMS:
+            self.entity.add_component("ai", WanderingAroundRoomAI(self.entity))
+            return
+        
+        # Continue the path towards the desired room.
+        if self._current_path_to_room != []:
+            next_path: tuple[int, int] = self._current_path_to_room.pop(0)
+
+            desired_x, desired_y = next_path
+
+            dx = desired_x - self.entity.x
+            dy = desired_y - self.entity.y
+            
+            BumpAction(self.owner, dx, dy, no_hit=True).perform(engine)
+            return
+        
+        # Has already reached target room/cell.
+        self.entity.add_component("ai", WanderingAroundRoomAI(self.entity))
+
+
+class WanderingAroundRoomAI(WanderingAI):
+    """Wandering AI that is currently pacing around a room"""
 
     def perform(self, engine: Engine) -> None:
         super().perform(engine)
 
+        if self.player_in_sight(engine):
+            self.entity.add_component("ai", HostileEnemyAI(self.entity))
+            return
+        
+        # Chance to switch over to wandering to a different room.
+        if engine.rng.random() <= CHANCE_TO_SWITCH_ROOMS:
+            self.entity.add_component("ai", WanderingToRoomAI(self.entity))
+            return
+        
+        # Pace around the room.
+
+        # AI can stay in place or take random steps around.
+        if engine.rng.random() >= CHANCE_TO_TAKE_STEP:
+            return
+        
+        # Pick a random direction to walk to.
+        dx, dy = engine.rng.choice(list(self.DIRECTIONS.values()))
+        BumpAction(self.owner, dx, dy, no_hit=True).perform(engine)
+
+
+class HostileEnemyAI(BaseAI):
+    """AI that chases and fights the player"""
+
+    def perform(self, engine: Engine) -> None:
+        super().perform(engine)
+
+        floor: Floor = engine.dungeon.current_floor
         player_x = engine.player.x
         player_y = engine.player.y
 
-        paths: list[tuple[int, int]] = self.get_path_to(player_x, player_y)
+        paths: list[tuple[int, int]] = a_star_path_to(
+            floor, self.entity.x, self.entity.y, player_x, player_y)
 
         self.update_agro_status(engine, paths)
-        if self.agro:
-            self.entity.add_component("ai", HostileEnemyAI(self.entity))
+        if not self.agro:
+            self.entity.add_component("ai", WanderingAroundRoomAI(self.entity))
             return
 
-        # Decide if creature wants to randomly walk to a tile.
-        to_walk_or_not_to_walk_that_is_the_question: float = engine.rng.random()
-        if to_walk_or_not_to_walk_that_is_the_question >= self.CHANCE_TO_WALK:
-            # Pick a random, valid direction to walk to.
-            dx, dy = engine.rng.choice(list(self.DIRECTIONS.values()))
+        # Go down the path towards the player.
+        if paths != []:
+            next_path: tuple[int, int] = paths.pop(0)
+
+            desired_x, desired_y = next_path
+
+            dx = desired_x - self.entity.x
+            dy = desired_y - self.entity.y
             
-            # Walk to that tile if it is not blocked by a blocking entity.
             BumpAction(self.owner, dx, dy).perform(engine)
+            return
+        
+        # Can't get to player, maybe other entities completely blocking them,
+        # so just stand around.
 
 
-class ConfusedAI(BaseAI):
-    """AI that confusedly bumps into every direction, aimlessly"""
-    DIRECTIONS = {
-        "NORTHWEST": (-1, -1),
-        "NORTH": (-1, 0),
-        "NORTHEAST": (-1, 1),
-        "WEST": (0, -1),
-        "EAST": (0, 1),
-        "SOUTHWEST": (1, -1),
-        "SOUTH": (1, 0),
-        "SOUTHEAST": (1, 1)
-    }
+# TODO make AI where enemy flees from player when close to death.
+class FleeingAI(WanderingAI):
+    pass
+        
+
+### TEMPORARY EFFECTS AI ###
+
+
+class EffectPerTurnAI(BaseAI):
+    """AI that lasts for a given number of turns"""
 
     def __init__(
             self, entity: Entity, previous_ai: BaseAI, turns_remaining: int):
         super().__init__(entity)
         self._previous_ai = previous_ai
         self._turns_remaining = turns_remaining
+
+
+class ConfusedAI(WanderingAI, EffectPerTurnAI):
+    """AI that confusedly bumps into every direction, aimlessly"""
     
     def perform(self, engine: Engine) -> None:
         super().perform(engine)
@@ -138,39 +230,24 @@ class ConfusedAI(BaseAI):
         
         # Pick a random direction to walk to.
         dx, dy = engine.rng.choice(list(self.DIRECTIONS.values()))
-        BumpAction(self.owner, dx, dy).perform(engine)
+        BumpAction(self.owner, dx, dy, no_hit=False).perform(engine)
 
         self._turns_remaining -= 1
 
 
-class HostileEnemyAI(BaseAI):
-    """AI that targets and fights the player; pseudo-pathfinding algorithm"""
+class FrozenAI(EffectPerTurnAI):
+    """AI that stays in its place for a given amount of time"""
 
     def perform(self, engine: Engine) -> None:
         super().perform(engine)
 
-        floor: Floor = engine.dungeon.current_floor
-        player_x = engine.player.x
-        player_y = engine.player.y
-
-        paths: list[tuple[int, int]] = self.get_path_to(
-            floor, player_x, player_y)
-
-        self.update_agro_status(engine, paths)
-        if not self.agro:
-            self.entity.add_component("ai", WanderingAI(self.entity))
+        # Frozen effect has worn off.
+        if self._turns_remaining <= 0:
+            engine.message_log.add(f"{self.entity.name} is no longer frozen")
+            self.entity.add_component("ai", self._previous_ai)
             return
-
-        next_path: tuple[int, int] = paths.pop(1)  # Second path is next path.
-
-        desired_x, desired_y = next_path
-
-        dx = desired_x - self.entity.x
-        dy = desired_y - self.entity.y
         
-        BumpAction(self.owner, dx, dy).perform(engine)
-    
-    def get_path_to(self, floor: Floor, x: int, y: int) -> list[tuple[int, int]]:
-        return a_star_path_to(floor, self.entity.x, self.entity.y, x, y)
+        # Do absolutely nothing.
+        
+        self._turns_remaining -= 1
 
-    

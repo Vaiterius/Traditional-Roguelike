@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from pathlib import Path
     from .engine import Engine
-    from .entities import Creature, Entity, Item, Weapon
     from .save_handling import Save
     from .components.fighter import Fighter
     from .components.leveler import Leveler
     from .dungeon.floor import Floor
     from .components.equippable import Equippable
     from .components.inventory import Inventory
+from .entities import Creature, Entity, Item, Weapon, Player
 from .rng import RandomNumberGenerator
 from .modes import GameMode, GameStatus
 from .message_log import MessageType
@@ -419,7 +419,7 @@ class AscendStairsAction(Action):
 
 
 class ActionWithDirection(Action):
-    """Base action with x,y directioning"""
+    """Base action with (x, y) directioning"""
 
     def __init__(self, entity: Creature, dx: int, dy: int):
         super().__init__(entity)
@@ -430,13 +430,18 @@ class ActionWithDirection(Action):
 class BumpAction(ActionWithDirection):
     """Action to decide what happens when a creature moves to a desired tile"""
 
+    def __init__(self, entity: Creature, dx: int, dy: int, no_hit: bool = False):
+        super().__init__(entity, dx, dy)
+        # If on, the bump action will not attempt to hit the blocking entity.
+        self._no_hit = no_hit
+
     def perform(self, engine: Engine) -> None:
         floor = engine.dungeon.current_floor
 
         desired_x = self.entity.x + self.dx
         desired_y = self.entity.y + self.dy
 
-        if floor.blocking_entity_at(desired_x, desired_y):
+        if floor.blocking_entity_at(desired_x, desired_y) and not self._no_hit:
             return MeleeAction(self.entity, self.dx, self.dy).perform(engine)
         else:
             return WalkAction(self.entity, self.dx, self.dy).perform(engine)
@@ -474,7 +479,9 @@ class WalkAction(ActionWithDirection):
         turnable = True
 
         self.entity.move(dx=self.dx, dy=self.dy)
-        engine.save_meta["turns"] += 1  # Record turn.
+
+        if isinstance(self.entity, Player):
+            engine.save_meta["turns"] += 1  # Record turn.
         
         return turnable
 
@@ -530,7 +537,7 @@ class MeleeAction(ActionWithDirection):
 
         # Do it again if succeeds double hit check.
         did_double_hit: bool = initiator_fighter.check_double_hit_success()
-        if did_double_hit:
+        if did_double_hit and initiator == engine.player:
             engine.message_log.add(
                 "Double hit!", color=(
                     "green" if initiator == engine.player else "red"))

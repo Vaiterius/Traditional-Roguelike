@@ -645,7 +645,7 @@ class TerminalController:
             lambda entity: entity.x == player.x \
                    and entity.y == player.y \
                    and not isinstance(entity, Player),
-            floor.entities))
+            self.entities_in_fov))
         # Can only show 1 entity at a time.
         entity_iter: int = 1
         displayable_entities: list[Entity] = entities[:1]

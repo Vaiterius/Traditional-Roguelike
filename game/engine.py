@@ -53,10 +53,9 @@ class Engine:
     def display(self) -> None:
         """Display the game to the screen"""
         # Player's field of view.
-        if (  # TODO add boolean in State for this condition?
-            isinstance(self.gamestate, ExploreState)
-            or isinstance(self.gamestate, GameOverState)
-            or isinstance(self.gamestate, ProjectileTargetState)
+        if isinstance(
+            self.gamestate,
+            (ExploreState, GameOverState, ProjectileTargetState)
         ):
             floor: Floor = self.dungeon.current_floor
             
@@ -76,7 +75,7 @@ class Engine:
                 is_blocking=is_blocking,
                 mark_visible=mark_visible
             )
-        
+
         self.gamestate.render(self)
         self.tiles_in_fov = {}  # Refresh.
 

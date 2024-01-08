@@ -109,7 +109,7 @@ class Spawner:
                 rng=self.rng,
                 base_health=100,
                 base_magicka=100,
-                base_damage=999,
+                base_damage=8,
                 base_agility=1,
                 base_power=1,
                 base_sage=1,
@@ -126,7 +126,7 @@ class Spawner:
     def _get_random_enemy_instance(self) -> Creature:
         """Load enemy data and create an instance out of it"""
         # Prevent circular import.
-        from .components.ai import HostileEnemyAI
+        from .components.ai import WanderingAroundRoomAI
 
         # Fetch a random enemy data object.
         enemy_data: dict = self.rng.choices(
@@ -160,7 +160,7 @@ class Spawner:
         enemy.add_component(
             "leveler", Leveler(rng=self.rng, start_level=1, base_drop_amount=5))
         enemy.leveler.set_starting_attributes()
-        enemy.add_component("ai", HostileEnemyAI(enemy))
+        enemy.add_component("ai", WanderingAroundRoomAI(enemy))
 
         return enemy
 
@@ -267,8 +267,8 @@ class StaffFactory(WeaponFactory):
     def get_random_item(self) -> Staff:
         # Prevent circular import.
         from .components.projectable import (
-            Projectable, EffectPerTurnProjectable, LightningProjectable,
-            HealingProjectable, ConfusionProjectable
+            EffectPerTurnProjectable, LightningProjectable,
+            HealingProjectable, ConfusionProjectable, FreezeProjectable
         )
 
         staff: Staff = super().get_random_item()
@@ -280,7 +280,7 @@ class StaffFactory(WeaponFactory):
                     "projectable", LightningProjectable(
                         uses=self._item_data["uses"],
                         magicka_cost=self._item_data["magicka_cost"],
-                        damage=self._item_data["dmg"]
+                        magic_damage=self._item_data["magic_dmg"]
                     )
                 )
             case ProjectileType.HEALING:
@@ -305,6 +305,15 @@ class StaffFactory(WeaponFactory):
                 staff.projectile_type = ProjectileType.CONFUSION
                 staff.add_component(
                     "projectable", ConfusionProjectable(
+                        uses=self._item_data["uses"],
+                        magicka_cost=self._item_data["magicka_cost"],
+                        turns_remaining=self._item_data["turns_remaining"]
+                    )
+                )
+            case ProjectileType.FREEZING:
+                staff.projectile_type = ProjectileType.FREEZING
+                staff.add_component(
+                    "projectable", FreezeProjectable(
                         uses=self._item_data["uses"],
                         magicka_cost=self._item_data["magicka_cost"],
                         turns_remaining=self._item_data["turns_remaining"]

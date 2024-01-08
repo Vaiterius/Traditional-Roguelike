@@ -18,6 +18,7 @@ class ProjectileType(Enum):
     HEALING = auto()
     RIZZ = auto()
     CONFUSION = auto()
+    FREEZING = auto()
 
 
 class PotionType(Enum):

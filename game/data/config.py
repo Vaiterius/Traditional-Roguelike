@@ -7,6 +7,9 @@ MIN_MAX_ROOMS: tuple[int] = (6, 9)  # Must have at least 2 rooms.
 MIN_MAX_ROOM_WIDTH: tuple[int] = (12, 18)
 MIN_MAX_ROOM_HEIGHT: tuple[int] = (4, 6)
 MAX_ITEMS_PER_FLOOR: int = 6
+# AI.
+CHANCE_TO_SWITCH_ROOMS: float = 0.03  # Travelling creature to another room.
+CHANCE_TO_TAKE_STEP: float = 0.75  # Creature pacing around a room.
 
 # Tile representations.
 FLOOR_TILE: str = '.'

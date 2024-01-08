@@ -12,7 +12,8 @@ staves: list[dict[str, Any]] = [
         "staff_type": ProjectileType.LIGHTNING,
         "uses": 5,
         "magicka_cost": 5,
-        "dmg": 10,
+        "dmg": 3,  # Hit by the staff itself.
+        "magic_dmg": 10,  # Hit by the projectile.
         "spawn_chance": 50,
     },
     {
@@ -24,7 +25,8 @@ staves: list[dict[str, Any]] = [
         "staff_type": ProjectileType.HEALING,
         "uses": 5,
         "magicka_cost": 5,
-        "dmg": 0,
+        "dmg": 3,
+        "magic_dmg": 0,
         "hp": 8,
         "spawn_chance": 50,
     },
@@ -32,13 +34,14 @@ staves: list[dict[str, Any]] = [
         "name": "Staff of Rizz",
         "desc": "Rizz up an opponent to temporarily make them your ally",
         "char": "/",
-        "color": "orange",
+        "color": "white",
         "type": WeaponType.STAFF,
         "staff_type": ProjectileType.RIZZ,
         "uses": 2,
         "magicka_cost": 5,
         "turns_remaining": 50,
-        "dmg": 0,
+        "dmg": 3,
+        "magic_dmg": 0,
         "spawn_chance": 50,
     },
     {
@@ -46,13 +49,29 @@ staves: list[dict[str, Any]] = [
         "desc": "Cast a web of confusion around their mind, causing them to"
                 "stumble and make erratic moves",
         "char": "/",
-        "color": "orange",
+        "color": "white",
         "type": WeaponType.STAFF,
         "staff_type": ProjectileType.CONFUSION,
         "uses": 2,
         "magicka_cost": 5,
         "turns_remaining": 10,
-        "dmg": 0,
+        "dmg": 3,
+        "magic_dmg": 0,
+        "spawn_chance": 50,
+    },
+    {
+        "name": "Staff of Freezing",
+        "desc": "Watch as the enemy that was just chasing you down freeze up"
+                "like a marble statue",
+        "char": "/",
+        "color": "white",
+        "type": WeaponType.STAFF,
+        "staff_type": ProjectileType.FREEZING,
+        "uses": 2,
+        "magicka_cost": 5,
+        "turns_remaining": 10,
+        "dmg": 3,
+        "magic_dmg": 0,
         "spawn_chance": 50,
     }
 ]

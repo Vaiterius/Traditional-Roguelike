@@ -10,7 +10,7 @@ from ..entities import Entity, Item, Creature, Player
 from ..actions import Action, ItemAction
 from ..render_order import RenderOrder
 from .base_component import BaseComponent
-from .ai import ConfusedAI
+from .ai import ConfusedAI, FrozenAI
 
 
 # TODO if enemies are able to wield weapons in the future, change to account
@@ -59,6 +59,14 @@ class Projectable(BaseComponent):
         pass
 
 
+class DamagingProjectable(Projectable):
+    """Deal some damage when projected at a target"""
+
+    def __init__(self, uses: int, magicka_cost: int, magic_damage: int):
+        super().__init__(uses, magicka_cost)
+        self._magic_damage = magic_damage
+
+
 class EffectPerTurnProjectable(Projectable):
     """
     Cast an effect or debuff on an enemy, lasting however many turns specified
@@ -69,12 +77,11 @@ class EffectPerTurnProjectable(Projectable):
         self._turns_remaining = turns_remaining
 
 
-class LightningProjectable(Projectable):
+class LightningProjectable(DamagingProjectable):
     """An item that shoots out a powerful burst of lightning"""
 
-    def __init__(self, uses: int, magicka_cost: int, damage: int):
-        super().__init__(uses, magicka_cost)
-        self._damage = damage
+    def __init__(self, uses: int, magicka_cost: int, magic_damage: int):
+        super().__init__(uses, magicka_cost, magic_damage)
     
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
@@ -115,12 +122,15 @@ class LightningProjectable(Projectable):
                 f"You cast a bolt of lightning at {entity.name}...",
                 color="blue"
             )
-            entity.fighter.take_damage(self._damage)
+            entity.fighter.take_damage(self._magic_damage)
             self.owner.parent.fighter.magicka -= self.magicka_cost
-            engine.message_log.add(f"for {self._damage} pts!")
+            engine.message_log.add(f"for {self._magic_damage} pts!")
             turnable = True
 
         return turnable
+
+
+# TODO Fireball projectable - sets them on fire for x turns, may spread.
 
 
 class HealingProjectable(Projectable):
@@ -175,13 +185,13 @@ class HealingProjectable(Projectable):
             engine.message_log.add(
                 f"You cast the healing orb on {entity.name}")
             
-            difference: int = self.owner.parent.fighter.health
+            difference: int = entity.fighter.health
             entity.fighter.heal(self._heal)
             self.owner.parent.fighter.magicka -= self.magicka_cost
-            difference -= self.owner.parent.fighter.health
+            difference -= entity.fighter.health
 
             engine.message_log.add(
-                f"It regained {difference} pts!", color="blue")
+                f"It regained {abs(difference)} pts!", color="blue")
             turnable = True
 
         return turnable
@@ -242,7 +252,10 @@ class ConfusionProjectable(EffectPerTurnProjectable):
 
 
 class RageProjectable(EffectPerTurnProjectable):
-    """Cast a spell to enrage an enemy, attacking any living thing on sight"""
+    """Cast a spell to enrage an enemy, attacking any living thing on sight.
+    
+    Also temporarily buffs stats.
+    """
 
     def __init__(self, uses: int, magicka_cost: int, turns_remaining: int):
         super().__init__(uses, magicka_cost, turns_remaining)
@@ -260,6 +273,46 @@ class FreezeProjectable(EffectPerTurnProjectable):
     
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
+        entity: Optional[Entity] = self.get_entity_at_target(
+            engine.dungeon.current_floor,
+            engine.gamestate.cursor_index_x,
+            engine.gamestate.cursor_index_y
+        )
+
+        if not entity:
+            engine.message_log.add("Nothing to freeze here")
+            return turnable
+        
+        if isinstance(entity, Item):
+            engine.message_log.add("Did you think this item was gonna move?")
+            return turnable
+        
+        if entity.render_order == RenderOrder.CORPSE:
+            engine.message_log.add(
+                "The corpse isn't going anywhere, don't worry")
+            return turnable
+        
+        if isinstance(entity, Player):
+            engine.message_log.add("You can't play freeze tag with yourself")
+            return turnable
+        
+        if isinstance(entity, Creature):
+            if isinstance(entity.ai, FrozenAI):
+                engine.message_log.add(f"{entity.name} is already frozen!")
+                return turnable
+            
+            self.expend_use()
+            entity.add_component(
+                "ai", FrozenAI(entity, entity.ai, self._turns_remaining))
+
+            engine.message_log.add(
+                f"{entity.name} stops in its tracks, completely unable to"
+                "move", color="blue"
+            )
+
+            self.owner.parent.fighter.magicka -= self.magicka_cost
+            turnable = True
+
         return turnable
 
                                                               

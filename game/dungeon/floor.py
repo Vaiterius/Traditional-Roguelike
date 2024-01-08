@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from ..spawner import Spawner
     from ..rng import RandomNumberGenerator
 from .room import Room
-from ..entities import Creature, Item
+from ..entities import Creature, Item, Player
 from ..tile import *
 
 
@@ -71,9 +71,15 @@ class Floor:
     
     
     def blocking_entity_at(
-        self, x: int, y: int) -> Optional[Union[Player, Creature]]:
-        """Check if a cell is occupied by an entity"""
+        self,
+        x: int,
+        y: int,
+        include_player: bool = True
+    ) -> Optional[Union[Player, Creature]]:
+        """Check if a cell is occupied by an entity that blocks movement"""
         for entity in self.entities:
+            if isinstance(entity, Player) and not include_player:
+                continue
             if entity.x == x and entity.y == y and entity.blocking:
                 return entity
         return None
