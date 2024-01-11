@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .dungeon.floor import Floor
     from .components.equippable import Equippable
     from .components.inventory import Inventory
+from .dungeon.dungeon import Dungeon, NormalDungeon, EndlessDungeon
 from .entities import Creature, Entity, Item, Weapon, Player
 from .rng import RandomNumberGenerator
 from .modes import GameMode, GameStatus
@@ -141,13 +142,6 @@ class PickUpItemAction(Action):
         inventory.add_item(item)
         item.parent = self.entity
 
-        # Check for quest item.
-        # For now, this will be the main quest item found on the last floor
-        # that the player needs to complete the game until we can get an actual
-        # robust quest system in place.
-        if item.get_component("quest_item") is not None:
-            return item.quest_item.perform(engine)
-
         engine.message_log.add(
             f"You picked up: {item.name.lower()}", color="blue")
 
@@ -182,11 +176,31 @@ class OnPlayerDeathAction(Action):
 
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
+
+        engine.message_log.add("You have been defeated!", color="red")
         
         engine.save_meta["status"] = GameStatus.DEFEAT
         save_current_game(engine)
         
         return turnable
+
+
+class OnPlayerWinAction(Action):
+    """Save game with updated victory status.
+    
+    Player cannot return to game after making it out the dungeon.
+    """
+
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+
+        engine.message_log.add("You made it out of the dungeon!", color="gold")
+
+        engine.save_meta["status"] = GameStatus.VICTORY
+        save_current_game(engine)
+
+        return turnable
+
 
 class FromSavedataAction(Action):
     """Base action given save information"""
@@ -278,12 +292,8 @@ class StartNewGameAction(FromSavedataAction):
         save_to_dir(self.saves_dir, self.index, self.save)
         self._load_data_to_engine(engine, self.save)
 
-        if engine.save_meta["gamemode"] == GameMode.ENDLESS:
-            engine.dungeon.generate()
-            engine.dungeon.spawn_player(engine.player)
-        elif engine.save_meta["gamemode"] == GameMode.NORMAL:
-            engine.dungeon.generate()
-            engine.dungeon.spawn_player(engine.player)
+        engine.dungeon.start()
+        engine.dungeon.spawn_player(engine.player)
         
         save_current_game(engine)
         
@@ -345,12 +355,16 @@ class DoNothingAction(Action):
 
 
 class DescendStairsAction(Action):
-    """Descend a flight of stairs to the next dungeon level"""
+    """Descend a flight of stairs to the next dungeon level.
+    
+    Normal mode dungeon does not have this staircase on the last floor.
+    """
     
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
 
-        floor = engine.dungeon.current_floor
+        dungeon: Dungeon = engine.dungeon
+        floor: Floor = dungeon.current_floor
 
         player_x = engine.player.x
         player_y = engine.player.y
@@ -365,14 +379,18 @@ class DescendStairsAction(Action):
         if not (player_x == staircase_x and player_y == staircase_y):
             engine.message_log.add("Can't descend here", color="red")
             return turnable
-            
+        
         # Go down a level and generate new floor if needed.
-        deepest_floor_idx = engine.dungeon.current_floor_idx
-        if engine.dungeon.current_floor_idx == deepest_floor_idx:
-            engine.dungeon.current_floor_idx += 1
-            engine.dungeon.generate_floor()
-        room_to_spawn = engine.dungeon.current_floor.first_room
-        engine.dungeon.spawner.spawn_player(engine.player, room_to_spawn)
+        new_depth_reached: bool = \
+            dungeon.current_floor_index == dungeon.deepest_floor_index
+        dungeon.current_floor_index += 1  # Keep this here!!!
+        if new_depth_reached:
+            dungeon.generate_next_floor()
+
+        dungeon.spawner.spawn_player(
+            engine.player,
+            dungeon.current_floor.first_room
+        )
         
         engine.message_log.add(
             "You descend a level...", color="blue")
@@ -383,12 +401,19 @@ class DescendStairsAction(Action):
 
 
 class AscendStairsAction(Action):
-    """Ascend a flight of stairs to the previous dungeon level"""
+    """Ascend a flight of stairs to the previous dungeon level.
+    
+    Endless mode dungeon does not have this staircase on the first floor.
+    """
     
     def perform(self, engine: Engine) -> bool:
+        # Prevent circular import.
+        from .gamestates import GameWinEndState
+
         turnable: bool = False
 
-        floor = engine.dungeon.current_floor
+        dungeon: Dungeon = engine.dungeon
+        floor: Floor = dungeon.current_floor
 
         player_x = engine.player.x
         player_y = engine.player.y
@@ -403,12 +428,24 @@ class AscendStairsAction(Action):
         if not (player_x == staircase_x and player_y == staircase_y):
             engine.message_log.add("Can't ascend here", color="red")
             return turnable
-            
+
+        # Check quest completion status.
+        if dungeon.on_first_floor:
+            # Quest complete - end game.
+            if engine.player.inventory.has_quest_item:
+                engine.gamestate = GameWinEndState(self.entity)
+                return turnable
+            # Quest not complete - block player.
+            else:
+                engine.message_log.add("You must bring back the relic first!")
+                return turnable
+        
         # Go up a level.
-        engine.dungeon.current_floor_idx -= 1
-        room_to_spawn = engine.dungeon.current_floor.last_room
-        engine.dungeon.spawner.spawn_player(
-            engine.player, room_to_spawn)
+        dungeon.current_floor_index -= 1
+        dungeon.spawner.spawn_player(
+            engine.player,
+            dungeon.current_floor.last_room
+        )
         
         engine.message_log.add(
             "You ascend a level...", color="blue")

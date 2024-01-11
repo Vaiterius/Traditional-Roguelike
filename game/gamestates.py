@@ -391,12 +391,8 @@ class EnterGameConfigState(IndexableOptionsState):
         """
         action_or_state: Optional[Union[Action, State]] = None
 
-        # Can go back with a backspace.
-        if player_input in BACK_KEYS:
-            action_or_state = self._prev_state
-
         # Moving up and down, and left and right if applicable.
-        elif player_input in ARROW_MOVE_KEYS:
+        if player_input in ARROW_MOVE_KEYS:
             x, y = ARROW_MOVE_KEYS[player_input]
             if x == -1:
                 self.cursor_index_x -= 1
@@ -566,9 +562,15 @@ class ContinueGameMenuState(ListSavesMenuState):
             # Can't continue an empty save.
             if save.is_empty:
                 action_or_state = DoNothingAction(self.parent)
+            
+            # TODO add info box showing you can't continue save.
             # Can't continue after being defeated.
             elif save.metadata.get("status") == GameStatus.DEFEAT:
                 action_or_state = DoNothingAction(self.parent)
+            # Can't continue after winning the game.
+            elif save.metadata.get("status") == GameStatus.VICTORY:
+                action_or_state = DoNothingAction(self.parent)
+
             else:
                 action_or_state = ContinueGameAction(
                     save, self.saves_dir, self.cursor_index_y)
@@ -591,23 +593,11 @@ class ContinueGameMenuState(ListSavesMenuState):
         return action_or_state
 
 
-class GameOverState(State):
-    """Delete save if player dies and return to main menu"""
-    
+class GameEndState(State):
+    """The action after a game-ending result: win or loss"""
+
     def __init__(self, parent: Entity):
         super().__init__(parent)
-
-        
-    def handle_input(
-        self, player_input: str) -> Optional[Union[Action, State]]:
-        action_or_state: Optional[Union[Action, State]] = None
-        
-        # TODO maybe accept only enter/exit keys and state that in display.
-        if player_input in ANY_KEYS:
-            action_or_state = OnPlayerDeathAction(self.parent)
-        
-        return action_or_state
-    
     
     def perform(
         self, engine: Engine, action_or_state: Union[Action, State]) -> bool:
@@ -615,13 +605,42 @@ class GameOverState(State):
 
         if isinstance(action_or_state, OnPlayerDeathAction):
             engine.gamestate = MainMenuState(self.parent)
-        
-        return turnable
+        elif isinstance(action_or_state, OnPlayerWinAction):
+            engine.gamestate = MainMenuState(self.parent)
 
-    
+
+class GameOverEndState(GameEndState):
+    """Player has died"""
+
+    def handle_input(
+        self, player_input: str) -> Optional[Union[Action, State]]:
+        action_or_state: Optional[Union[Action, State]] = None
+        
+        if player_input in CONFIRM_KEYS:
+            action_or_state = OnPlayerDeathAction(self.parent)
+        
+        return action_or_state
+
     def render(self, engine: Engine) -> None:
         super().display_main(engine)
         engine.terminal_controller.display_gameover(engine)
+
+
+class GameWinEndState(GameEndState):
+    """Player has completed the main quest"""
+
+    def handle_input(
+        self, player_input: str) -> Optional[Union[Action, State]]:
+        action_or_state: Optional[Union[Action, State]] = None
+        
+        if player_input in CONFIRM_KEYS:
+            action_or_state = OnPlayerWinAction(self.parent)
+        
+        return action_or_state
+    
+    def render(self, engine: Engine) -> None:
+        super().display_main(engine)
+        engine.terminal_controller.display_gamewin(engine)
 
 
 class ExploreState(State):

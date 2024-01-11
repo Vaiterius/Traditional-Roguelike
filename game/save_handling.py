@@ -12,7 +12,8 @@ from . import __version__
 from .modes import GameMode, GameStatus
 from .spawner import Spawner
 from .entities import Player
-from .dungeon.dungeon import Dungeon
+from .dungeon.dungeon import (
+    DungeonConfig, Dungeon, NormalDungeon, EndlessDungeon)
 from .message_log import MessageLog
 from .rng import RandomNumberGenerator
 from .data.config import *
@@ -41,22 +42,36 @@ class Save:
 
 def get_new_game(gamemode: GameMode, slot_index: int) -> Save:
     """Create a fresh game"""
-    rng = RandomNumberGenerator()
-    spawner = Spawner(rng=rng)
+    rng: RandomNumberGenerator = RandomNumberGenerator()
+    spawner: Spawner = Spawner(rng=rng)
     player: Player = spawner.get_player_instance()
-    dungeon = Dungeon(
-        rng=rng,
-        spawner=spawner,
+    dungeon_config: DungeonConfig = DungeonConfig(
+        num_floors=NUM_FLOORS,
         max_enemies_per_floor=MAX_ENEMIES_PER_FLOOR,
         max_items_per_floor=MAX_ITEMS_PER_FLOOR,
-        floor_dimensions=FLOOR_DIMENSIONS,
-        min_max_rooms=MIN_MAX_ROOMS,
-        min_max_room_width=MIN_MAX_ROOM_WIDTH,
-        min_max_room_height=MIN_MAX_ROOM_HEIGHT
+        floor_height=FLOOR_HEIGHT,
+        floor_width=FLOOR_WIDTH,
+        min_num_rooms=MIN_NUM_ROOMS,
+        max_num_rooms=MAX_NUM_ROOMS,
+        min_room_height=MIN_ROOM_HEIGHT,
+        max_room_height=MAX_ROOM_HEIGHT,
+        min_room_width=MIN_ROOM_WIDTH,
+        max_room_width=MAX_ROOM_WIDTH
     )
-    if gamemode == GameMode.NORMAL:
-        dungeon.num_floors = NUM_FLOORS
-    message_log = MessageLog()
+    dungeon: Dungeon = (
+        NormalDungeon(
+            rng=rng,
+            spawner=spawner,
+            config=dungeon_config
+        )
+        if gamemode == GameMode.NORMAL else
+        EndlessDungeon(
+            rng=rng,
+            spawner=spawner,
+            config=dungeon_config
+        )
+    )
+    message_log: MessageLog = MessageLog()
     time_created: datetime = datetime.now()
 
     return Save(
@@ -83,7 +98,7 @@ def get_new_game(gamemode: GameMode, slot_index: int) -> Save:
 def is_valid_save(save: Save) -> bool:
     """Peek at its contents and ensure it's a valid savefile for the game"""
     return (
-        isinstance(save.data.get("dungeon"), Dungeon)
+        isinstance(save.data.get("dungeon"), (NormalDungeon, EndlessDungeon))
         and isinstance(save.data.get("player"), Player)
         and isinstance(save.data.get("message_log"), MessageLog)
         and isinstance(save.metadata.get("created_at"), datetime)
@@ -103,6 +118,8 @@ def is_same_version(save: Save) -> bool:
 
 def fetch_saves(saves_dir: Path) -> list[Save]:
     """Fetch savefiles from the saves directory"""
+    NUMBER_SAVE_SLOTS: int = 6
+
     if not saves_dir.exists():  # Ensure there is a save directory.
         saves_dir.mkdir()
         
@@ -118,11 +135,11 @@ def fetch_saves(saves_dir: Path) -> list[Save]:
             saves.append(save)
             indices_inside.add(save.slot_index)
 
-            if len(saves) >= 5:  # Display only 5 valid saves.
+            if len(saves) >= NUMBER_SAVE_SLOTS:  # Number of save slots.
                 break
     
     # Order the save slots by their indices.
-    for i in range(5):
+    for i in range(NUMBER_SAVE_SLOTS):
         if i in indices_inside:
             continue
         saves.append(Save(i, None, None, None))

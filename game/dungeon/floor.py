@@ -94,11 +94,15 @@ class Floor:
 class FloorBuilder:
     """Methods to build and customize dungeon levels step-by-step"""
     
-    def __init__(self,
-                 rng: RandomNumberGenerator,
-                 floor_dimensions: tuple[int, int]):
+    def __init__(
+        self,
+        rng: RandomNumberGenerator,
+        floor_height: int,
+        floor_width: int
+    ):
         self.rng = rng
-        self.floor_width, self.floor_height = floor_dimensions
+        self.floor_height = floor_height
+        self.floor_width = floor_width
 
         self._floor = Floor(
             width=self.floor_width,
@@ -106,7 +110,8 @@ class FloorBuilder:
         )
     
     
-    def place_walls(self, tile_type: Tile = wall_tile_shrouded):
+    def place_walls(
+        self, tile_type: Tile = wall_tile_shrouded) -> FloorBuilder:
         """Fill the floor with wall tiles"""
         for x in range(self.floor_height):
             row: list[Tile] = []
@@ -121,16 +126,16 @@ class FloorBuilder:
     # TODO add prefab rooms
     
     
-    def place_rooms(self,
-                    # current_floor_num: int,
-                    num_rooms: int,
-                    min_max_room_width: tuple[int, int],
-                    min_max_room_height: tuple[int, int],
-                    tile_type: Tile = floor_tile_shrouded):
+    def place_rooms(
+        self,
+        num_rooms: int,
+        min_room_height: int,
+        max_room_height: int,
+        min_room_width: int,
+        max_room_width: int,
+        tile_type: Tile = floor_tile_shrouded
+    ) -> FloorBuilder:
         """Algorithm to scatter randomly-sized rooms across the floor"""
-        min_room_width, max_room_width = min_max_room_width
-        min_room_height, max_room_height = min_max_room_height
-
         # Place rooms until we reach our desired limit.
         curr_iterations = 0
         while len(self._floor.rooms) < num_rooms:
@@ -170,7 +175,7 @@ class FloorBuilder:
         return self
     
     
-    def place_tunnels(self, tile_type: Tile = floor_tile_dim):
+    def place_tunnels(self, tile_type: Tile = floor_tile_dim) -> FloorBuilder:
         """Build a tunnel path from one room to the next"""
         rooms: list[Room] = self._floor.rooms
         for room in rooms:
@@ -187,10 +192,12 @@ class FloorBuilder:
         return self
     
     
-    def place_staircases(self,
-                         spawner: Spawner,
-                         descending: bool,
-                         ascending: bool):
+    def place_staircases(
+        self,
+        spawner: Spawner,
+        descending: bool,
+        ascending: bool
+    ) -> FloorBuilder:
         """Create and place the descending/ascending staircases"""
         if descending:
             x, y = self._floor.last_room.get_center_cell()
@@ -203,9 +210,11 @@ class FloorBuilder:
         return self
     
     
-    def place_items(self,
-                    spawner: Spawner,
-                    max_items_per_floor: int):
+    def place_items(
+        self,
+        spawner: Spawner,
+        max_items_per_floor: int
+    ) -> FloorBuilder:
         """Scatter random items throughout the level"""
         for _ in range(max_items_per_floor):
             room: Room = self.rng.choice(self._floor.rooms)
@@ -214,7 +223,11 @@ class FloorBuilder:
         return self
     
     
-    def place_creatures(self, spawner: Spawner, max_creatures_per_floor: int):
+    def place_creatures(
+        self, 
+        spawner: Spawner, 
+        max_creatures_per_floor: int
+    ) -> FloorBuilder:
         """Create and place enemies throughout the rooms in the level"""
         for _ in range(max_creatures_per_floor):
             # Don't include the room the player spawns in.
@@ -224,15 +237,16 @@ class FloorBuilder:
         return self
     
     
-    def build(self, dungeon: Optional[Dungeon]):
+    def build(self, dungeon: Optional[Dungeon]) -> Floor:
         """Return the completed floor"""
         self._floor.dungeon = dungeon  # Pass dungeon reference.
         return self._floor
     
     
     def _get_tunnel_set(
-            self, r1_cell: tuple[int, int],
-            r2_cell: tuple[int, int]
+        self,
+        r1_cell: tuple[int, int],
+        r2_cell: tuple[int, int]
     ) -> set[tuple[int, int]]:
         """Get the set of individual tunnel sets that form an L-shape that
         connects two rooms.

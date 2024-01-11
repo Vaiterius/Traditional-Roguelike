@@ -55,7 +55,7 @@ class Engine:
         # Player's field of view.
         if isinstance(
             self.gamestate,
-            (ExploreState, GameOverState, ProjectileTargetState)
+            (ExploreState, GameEndState, ProjectileTargetState)
         ):
             floor: Floor = self.dungeon.current_floor
             
@@ -115,6 +115,6 @@ class Engine:
                 self.player.fighter.is_dead
                 and isinstance(self.gamestate, ExploreState)
             ):
-                self.gamestate = GameOverState(self.player)
+                self.gamestate = GameOverEndState(self.player)
                 self.message_log.add("Game over!", color="blue")
 

@@ -13,7 +13,8 @@ def main(screen: curses.initscr):
     # curses frontend to handle display and input handling.
     terminal_controller = TerminalController(
         screen=screen,
-        floor_dimensions=config.FLOOR_DIMENSIONS
+        floor_height=config.FLOOR_HEIGHT,
+        floor_width=config.FLOOR_WIDTH
     )
     # Filler data to start the engine.
     dummy: Creature = Creature(-1, -1, "", "", "", None, 69, -1)

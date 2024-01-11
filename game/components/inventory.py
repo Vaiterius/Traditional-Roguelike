@@ -66,6 +66,14 @@ class Inventory(BaseComponent):
         
         return damage_reduction
     
+    @property
+    def has_quest_item(self) -> bool:
+        """Check if player has the relic in their inventory"""
+        for item in self.items:
+            if item.get_component("quest_item") is not None:
+                return True
+        return False
+    
 
     # ITEM MANAGEMENT #
     

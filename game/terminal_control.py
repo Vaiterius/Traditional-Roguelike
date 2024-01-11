@@ -162,6 +162,37 @@ class Box:
             self.window.move(y + 2, 1)  # Go down for new paragraph.
 
 
+class InfoBox(Box):
+    """Display-only text box"""
+
+    def __init__(self, height: int, width: int, origin_x: int, origin_y: int):
+        super().__init__(height, width, origin_x, origin_y)
+    
+    def display_exit_game(self) -> None:
+        """
+        Indicate to the player to proceed after winning/losing the game
+        """
+        message: str = "Press ENTER to exit..."
+        self.add_text(
+            self.HEIGHT - 3,
+            get_message_center_x(message, self.WIDTH) - 1,
+            message,
+            curses.A_BOLD
+        )
+
+    def display_continue(self) -> None:
+        """
+        Indicate to the player to proceed with the game
+        """
+        message: str = "Press ENTER to continue..."
+        self.add_text(
+            self.HEIGHT - 3,
+            get_message_center_x(message, self.WIDTH) - 1,
+            message,
+            curses.A_BOLD
+        )
+
+
 class ConfirmBox(Box):
     """Text box but for confirming a boolean option. Cursor bound to y-axis."""
 
@@ -247,11 +278,15 @@ class TerminalController:
       -------Y------>
     """
 
-    def __init__(self,
-                 screen: curses.initscr,
-                 floor_dimensions: tuple[int, int]):
+    def __init__(
+        self,
+        screen: curses.initscr,
+        floor_height: int,
+        floor_width: int,
+    ):
         self.screen = screen
-        self.floor_width, self.floor_height = floor_dimensions
+        self.floor_height = floor_height
+        self.floor_width = floor_width
         self.colors = Color()  # Fetch available character tile colors.
         
         # Keep track of visible enemies.
@@ -270,7 +305,7 @@ class TerminalController:
         
         
         # SIDEBAR CONFIG.
-        self.sidebar_width: int = 28
+        self.sidebar_width: int = 29
         self.sidebar_height: int = \
             self.map_height + self.message_log_height + 2
         
@@ -312,7 +347,8 @@ class TerminalController:
 
         # Display the floor and wall tiles on the map, with the ones brightened
         # as the tiles in the player's FOV.
-        dungeon_level = f"DUNGEON LEVEL {floor.dungeon.current_floor_idx + 1}"
+        dungeon_level = \
+            f"DUNGEON LEVEL {floor.dungeon.current_floor_index + 1}"
         window.addstr(0, 2, f"[ {dungeon_level} ]")
         for pos, tile in floor.explored_tiles.items():
             x, y = pos
@@ -1038,8 +1074,8 @@ class TerminalController:
         """
         Display a list of savefile names as well as metadata beside it.
         """
-        PANEL_HEIGHT: int = self.game_height // 2
-        PANEL_WIDTH: int = self.game_width // 3
+        PANEL_HEIGHT: int = (self.game_height // 2) + 1
+        PANEL_WIDTH: int = (self.game_width // 3) + 1
         
         # Create the slots and metadata panels.
         slots_window = curses.newwin(
@@ -1114,7 +1150,8 @@ class TerminalController:
                 "PLAYER: ": str(save.data.get('player').og_name),
                 "GAMEMODE: ": str(save.metadata.get("gamemode").name),
                 "VERSION: ": str(save.metadata.get('version')),
-                "FLOOR: ": str(save.data.get('dungeon').deepest_floor_idx + 1),
+                "FLOOR: ": str(
+                    save.data.get('dungeon').deepest_floor_index + 1),
                 "CREATED AT: ": str(readable(save.metadata.get("created_at"))),
                 "LAST PLAYED: ": str(
                     readable(save.metadata.get('last_played'))),
@@ -1354,37 +1391,71 @@ class TerminalController:
         box.refresh()
 
         return cursor_index_x, cursor_index_y
+    
+    # TODO display on game start infobox for normal mode and endless mode.
 
-
-    # TODO make prettier and add more stats.
-    def display_gameover(self, engine: Engine) -> None:
-        """Display popup indicating player has died, with stats"""
+    # TODO add ascii side image.
+    # TODO? add player score.
+    def display_gamewin(self, engine: Engine) -> None:
         # Box dimensions.
-        BOX_HEIGHT: int = self.game_height // 5
-        BOX_WIDTH: int = self.game_width // 3
-        origin_x: int = (self.game_height // 2) - (BOX_HEIGHT // 2)
-        origin_y: int = (self.game_width // 2) - (BOX_WIDTH // 2)
-        
-        window = curses.newwin(BOX_HEIGHT, BOX_WIDTH, origin_x, origin_y)
+        BOX_HEIGHT: int = 15
+        BOX_WIDTH: int = 40
 
-        window.erase()
-        window.border()
+        box: InfoBox = InfoBox(
+            height=BOX_HEIGHT,
+            width=BOX_WIDTH,
+            origin_x=(self.game_height // 2) - (BOX_HEIGHT // 2),
+            origin_y=(self.game_width // 2) - (BOX_WIDTH // 2),
+        )
+        box.erase()
+        box.border()
+
+        box.add_header("RELIC RETRIEVED", reversed=True)
+        box.add_wrapped_text(
+            0, 0,
+            "Brave hero, you have brought back the relic! It gleams at you in"
+            " your possession.\nAfter conquering each floor, leaving a wake of"
+            " defeated monsters in your path, your character, once a mere"
+            " novice, emerged out a formidable adventurer.\nYour time"
+            " concludes here, for now."
+        )
+        box.display_exit_game()
+
+        box.refresh()
+    
+
+    # TODO add ascii side image.
+    # TODO display what monster killed player.
+    def display_gameover(self, engine: Engine) -> None:
+        # Box dimensions.
+        BOX_HEIGHT: int = 8
+        BOX_WIDTH: int = 30
+
+        box: InfoBox = InfoBox(
+            height=BOX_HEIGHT,
+            width=BOX_WIDTH,
+            origin_x=(self.game_height // 2) - (BOX_HEIGHT // 2),
+            origin_y=(self.game_width // 2) - (BOX_WIDTH // 2)
+        )
+        box.erase()
+        box.border()
 
         # Information.
         name: str = engine.player.og_name
-        current_floor: str = str(engine.dungeon.current_floor_idx + 1)
-        deepest_floor: str = str(engine.dungeon.deepest_floor_idx + 1)
+        current_floor: str = str(engine.dungeon.current_floor_index + 1)
+        deepest_floor: str = str(engine.dungeon.deepest_floor_index + 1)
         level: str = str(engine.player.leveler.level)
 
-        HEADER: str = "RIP BOZO"
+        box.add_header("R.I.P. BOZO", reversed=True)
+        box.add_wrapped_text(
+            0, 0,
+            f"{name} died on floor {current_floor} at level {level}.\nMade it"
+            f" up to floor {deepest_floor}."
+        )
+        box.display_exit_game()
 
-        window.addstr(0, get_message_center_x(
-            HEADER, BOX_WIDTH), HEADER, curses.A_REVERSE)
-        window.addstr(
-            1, 1, f"{name} died on floor {current_floor} at level {level}")
-        window.addstr(2, 1, f"Made it up to floor {deepest_floor}")
+        box.refresh()
 
-        window.refresh()
 
 
     def display_confirm_box(self,
@@ -1451,13 +1522,13 @@ class TerminalController:
         """Ensure terminal has space for game output"""
         x, y = self.screen.getmaxyx()
         message = "TERMINAL TOO SMALL"
-        submessage = f"resize to at least ({self.game_height + 1}," \
-                     f"{self.game_width + 1})"
+        submessage = f"resize to at least ({self.game_height}," \
+                     f"{self.game_width})"
         message_ypos = y // 2 - (len(message) // 2)
         submessage_ypos = y // 2 - (len(submessage) // 2)
         
         # Complain if user resizes terminal too small.
-        while x <= self.game_height or y <= self.game_width:
+        while x <= self.game_height - 1 or y <= self.game_width - 1:
             self.screen.erase()
             self.screen.addstr(x // 2, message_ypos, message)
             self.screen.addstr((x // 2) + 1, submessage_ypos, submessage)
@@ -1479,13 +1550,21 @@ class TerminalController:
         rng = RandomNumberGenerator(seed=None)
         num_rooms: int = rng.randint(15, 20)
         floor: Floor = (
-            FloorBuilder(rng, (self.game_width - 2, self.game_height - 2))
+            FloorBuilder(
+                rng=rng, 
+                floor_height=self.game_height - 2,
+                floor_width=self.game_width - 2
+            )
             .place_walls(tile_type=wall_tile_dim)
-            .place_rooms(num_rooms,
-                         MIN_MAX_ROOM_WIDTH,
-                         MIN_MAX_ROOM_HEIGHT,
-                         floor_tile_dim)
-            .place_tunnels(floor_tile_dim)
+            .place_rooms(
+                num_rooms=num_rooms,
+                min_room_height=MIN_ROOM_HEIGHT,
+                max_room_height=MAX_ROOM_HEIGHT,
+                min_room_width=MIN_ROOM_WIDTH,
+                max_room_width=MAX_ROOM_WIDTH,
+                tile_type=floor_tile_shrouded
+            )
+            .place_tunnels(tile_type=floor_tile_dim)
         ).build(dungeon=None)
         return floor.tiles
 

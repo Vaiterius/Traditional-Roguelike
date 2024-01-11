@@ -1,16 +1,25 @@
-# Numerical configurations.
+### NUMERICAL ###
+# General.
 MAX_FOV_DISTANCE: int = 8
-NUM_FLOORS: int = 5
+
+# Floor specs.
+NUM_FLOORS: int = 27
+FLOOR_HEIGHT: int = 23
+FLOOR_WIDTH: int = 80
+MIN_NUM_ROOMS: int = 6  # At least 2.
+MAX_NUM_ROOMS: int = 9  # At least 2.
+MIN_ROOM_HEIGHT: int = 4
+MAX_ROOM_HEIGHT: int = 6
+MIN_ROOM_WIDTH: int = 12
+MAX_ROOM_WIDTH: int = 18
+
+# Entities/AI.
 MAX_ENEMIES_PER_FLOOR: int = 5
-FLOOR_DIMENSIONS: tuple[int] = (80, 23)
-MIN_MAX_ROOMS: tuple[int] = (6, 9)  # Must have at least 2 rooms.
-MIN_MAX_ROOM_WIDTH: tuple[int] = (12, 18)
-MIN_MAX_ROOM_HEIGHT: tuple[int] = (4, 6)
 MAX_ITEMS_PER_FLOOR: int = 6
-# AI.
 CHANCE_TO_SWITCH_ROOMS: float = 0.03  # Travelling creature to another room.
 CHANCE_TO_TAKE_STEP: float = 0.75  # Creature pacing around a room.
 
+### CHARACTER ###
 # Tile representations.
 FLOOR_TILE: str = '.'
 WALL_TILE: str = '#'

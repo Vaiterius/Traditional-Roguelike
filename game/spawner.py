@@ -170,15 +170,15 @@ class Spawner:
         factory_pool: dict = [
             {
                 "factory": WeaponFactory(self.rng, item_pool=weapons),
-                "spawn_chance": 33
+                "spawn_chance": 46
             },
             {
                 "factory": StaffFactory(self.rng, item_pool=staves),
-                "spawn_chance": 100
+                "spawn_chance": 23
             },
             {
                 "factory": ArmorFactory(self.rng, item_pool=armor),
-                "spawn_chance": 33
+                "spawn_chance": 46
             },
             {
                 "factory": PotionFactory(
