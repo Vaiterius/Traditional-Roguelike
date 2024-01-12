@@ -31,7 +31,8 @@ class Color:
             "blood_red": 53,
             "forest_green": 23,
             "brown": 131,
-            "gold": 221
+            "gold": 221,
+            "pink": 14,
         }
     
 

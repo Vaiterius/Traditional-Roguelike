@@ -67,12 +67,15 @@ T = TypeVar("T")
 class WeightedFloorGrid:
     """Abstraction wrapper for Floor for A-star pathfinding purposes"""
 
-    def __init__(self, floor: Floor):
+    def __init__(self, floor: Floor, target_enemy: bool = False):
         self._floor = floor
         self._width = floor.width
         self._height = floor.height
         self._wall_locations: set[GridLocation] = floor.wall_locations
         self._weights: dict[GridLocation, float] = {}
+
+        # Used for ally AI targeting enemies of player.
+        self._target_enemy = target_enemy
     
     # def in_bounds(self, id: GridLocation) -> bool:
     #     x, y = id
@@ -84,10 +87,18 @@ class WeightedFloorGrid:
         entity, such as a creature. Don't count the player or the pathfinder
         will never get to it.
         """
-        return (
-            id not in self._wall_locations
-            and not self._floor.blocking_entity_at(*id, include_player=False)
-        )
+        passable: bool = True
+        if id in self._wall_locations:
+            passable = False
+        if self._floor.blocking_entity_at(*id, include_player=False):
+            passable = False
+        if self._target_enemy:
+            passable = True
+        return passable
+        # return (
+        #     id not in self._wall_locations
+        #     and not self._floor.blocking_entity_at(*id, include_player=False)
+        # )
     
     def neighbors(self, id: GridLocation) -> Iterator[GridLocation]:
         x, y = id
@@ -163,11 +174,12 @@ def a_star_path_to(
         x1: int,
         y1: int,
         x2: int,
-        y2: int
+        y2: int,
+        target_enemy: bool = False
 ) -> list[tuple[int, int]]:
     start: GridLocation = (x1, y1)
     goal: GridLocation = (x2, y2)
-    graph: WeightedFloorGrid = WeightedFloorGrid(floor)
+    graph: WeightedFloorGrid = WeightedFloorGrid(floor, target_enemy)
     came_from = a_star_search(graph, start, goal)
 
     current: GridLocation = goal

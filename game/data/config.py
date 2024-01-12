@@ -14,7 +14,7 @@ MIN_ROOM_WIDTH: int = 12
 MAX_ROOM_WIDTH: int = 18
 
 # Entities/AI.
-MAX_ENEMIES_PER_FLOOR: int = 5
+MAX_ENEMIES_PER_FLOOR: int = 4
 MAX_ITEMS_PER_FLOOR: int = 6
 CHANCE_TO_SWITCH_ROOMS: float = 0.03  # Travelling creature to another room.
 CHANCE_TO_TAKE_STEP: float = 0.75  # Creature pacing around a room.

@@ -170,20 +170,20 @@ class Spawner:
         factory_pool: dict = [
             {
                 "factory": WeaponFactory(self.rng, item_pool=weapons),
-                "spawn_chance": 46
+                "spawn_chance": 20
             },
             {
                 "factory": StaffFactory(self.rng, item_pool=staves),
-                "spawn_chance": 23
+                "spawn_chance": 100
             },
             {
                 "factory": ArmorFactory(self.rng, item_pool=armor),
-                "spawn_chance": 46
+                "spawn_chance": 20
             },
             {
                 "factory": PotionFactory(
                     self.rng, item_pool=restoration_potions),
-                "spawn_chance": 33
+                "spawn_chance": 20
             },
         ]
 
@@ -268,7 +268,8 @@ class StaffFactory(WeaponFactory):
         # Prevent circular import.
         from .components.projectable import (
             EffectPerTurnProjectable, LightningProjectable,
-            HealingProjectable, ConfusionProjectable, FreezeProjectable
+            HealingProjectable, RizzProjectable, ConfusionProjectable,
+            FreezeProjectable
         )
 
         staff: Staff = super().get_random_item()
@@ -295,7 +296,7 @@ class StaffFactory(WeaponFactory):
             case ProjectileType.RIZZ:
                 staff.projectile_type = ProjectileType.RIZZ
                 staff.add_component(
-                    "projectable", EffectPerTurnProjectable(
+                    "projectable", RizzProjectable(
                         uses=self._item_data["uses"],
                         magicka_cost=self._item_data["magicka_cost"],
                         turns_remaining=self._item_data["turns_remaining"]

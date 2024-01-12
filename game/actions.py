@@ -13,10 +13,10 @@ if TYPE_CHECKING:
     from .dungeon.floor import Floor
     from .components.equippable import Equippable
     from .components.inventory import Inventory
-from .dungeon.dungeon import Dungeon, NormalDungeon, EndlessDungeon
+from .dungeon.dungeon import Dungeon
 from .entities import Creature, Entity, Item, Weapon, Player
 from .rng import RandomNumberGenerator
-from .modes import GameMode, GameStatus
+from .modes import GameStatus, GameMode
 from .message_log import MessageType
 from .tile import *
 from .save_handling import (
@@ -467,18 +467,47 @@ class ActionWithDirection(Action):
 class BumpAction(ActionWithDirection):
     """Action to decide what happens when a creature moves to a desired tile"""
 
-    def __init__(self, entity: Creature, dx: int, dy: int, no_hit: bool = False):
+    def __init__(
+        self,
+        entity: Creature,
+        dx: int,
+        dy: int,
+        no_hit: bool = False
+    ):
         super().__init__(entity, dx, dy)
         # If on, the bump action will not attempt to hit the blocking entity.
         self._no_hit = no_hit
 
-    def perform(self, engine: Engine) -> None:
+    def perform(self, engine: Engine) -> bool:
+        # Prevent circular import.
+        from .components.ai import AllyAI
+
+        turnable: bool = False
         floor = engine.dungeon.current_floor
 
         desired_x = self.entity.x + self.dx
         desired_y = self.entity.y + self.dy
 
-        if floor.blocking_entity_at(desired_x, desired_y) and not self._no_hit:
+        blocking_entity: Optional[Entity] = floor.blocking_entity_at(
+            desired_x, desired_y)
+
+        # TODO refactor.
+        if blocking_entity is not None and not self._no_hit:
+            # Switch places with ally, for example, instead of hitting them.
+            bumper_is_player: bool = self.entity == engine.player
+            if (
+                bumper_is_player
+                and isinstance(blocking_entity.get_component("ai"), AllyAI)
+            ):
+                temp_x: int = self.entity.x
+                temp_y: int = self.entity.y
+                self.entity.x = blocking_entity.x
+                self.entity.y = blocking_entity.y
+                blocking_entity.x = temp_x
+                blocking_entity.y = temp_y
+                turnable = True
+                return turnable
+
             return MeleeAction(self.entity, self.dx, self.dy).perform(engine)
         else:
             return WalkAction(self.entity, self.dx, self.dy).perform(engine)

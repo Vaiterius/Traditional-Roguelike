@@ -10,7 +10,7 @@ from ..entities import Entity, Item, Creature, Player
 from ..actions import Action, ItemAction
 from ..render_order import RenderOrder
 from .base_component import BaseComponent
-from .ai import ConfusedAI, FrozenAI
+from .ai import AllyFollowingAI, AllyDefendingAI, ConfusedAI, FrozenAI
 
 
 # TODO if enemies are able to wield weapons in the future, change to account
@@ -197,14 +197,70 @@ class HealingProjectable(Projectable):
         return turnable
 
 
+class RizzProjectable(EffectPerTurnProjectable):
+    """
+    Cast a spell to rizz up an enemy, following you around the floor and
+    fighting other enemies with you
+    """
+
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+        entity: Optional[Entity] = self.get_entity_at_target(
+            engine.dungeon.current_floor,
+            engine.gamestate.cursor_index_x,
+            engine.gamestate.cursor_index_y
+        )
+
+        if not entity:
+            engine.message_log.add("Nothing to rizz up here")
+            return turnable
+        
+        if isinstance(entity, Item):
+            engine.message_log.add("Your rizz fails on this item")
+            return turnable
+        
+        if entity.render_order == RenderOrder.CORPSE:
+            engine.message_log.add("Doing that isn't going to bring it back")
+            return turnable
+        
+        if isinstance(entity, Player):
+            engine.message_log.add("Can't rizz up yourself")
+            return turnable
+        
+        if isinstance(entity, Creature):
+            if isinstance(entity.ai, (AllyDefendingAI, AllyFollowingAI)):
+                engine.message_log.add(
+                    f"{entity.name} is already rizzed up!")
+                return turnable
+            
+            self.expend_use()
+            entity.add_component(
+                "ai",
+                AllyFollowingAI(
+                    entity, 
+                    entity.ai, 
+                    self._turns_remaining, 
+                    entity.color
+                )
+            )
+            
+            engine.message_log.add(
+                f"{entity.name} is temporarily swayed by your rizz!",
+                color="blue"
+            )
+
+            self.owner.parent.fighter.magicka -= self.magicka_cost
+            turnable = True
+        
+        return turnable
+
+
+
 class ConfusionProjectable(EffectPerTurnProjectable):
     """
     Cast a spell to confuse an enemy, stumbling around and bumping into other
     living things
     """
-
-    def __init__(self, uses: int, magicka_cost: int, turns_remaining: int):
-        super().__init__(uses, magicka_cost, turns_remaining)
     
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
@@ -257,9 +313,6 @@ class RageProjectable(EffectPerTurnProjectable):
     Also temporarily buffs stats.
     """
 
-    def __init__(self, uses: int, magicka_cost: int, turns_remaining: int):
-        super().__init__(uses, magicka_cost, turns_remaining)
-
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False
         return turnable
@@ -267,9 +320,6 @@ class RageProjectable(EffectPerTurnProjectable):
 
 class FreezeProjectable(EffectPerTurnProjectable):
     """Cast a spell to freeze an enemy in place"""
-
-    def __init__(self, uses: int, magicka_cost: int, turns_remaining: int):
-        super().__init__(uses, magicka_cost, turns_remaining)
     
     def perform(self, engine: Engine) -> bool:
         turnable: bool = False

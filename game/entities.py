@@ -20,7 +20,7 @@ class Entity:
                  y: int,
                  name: str,
                  char: str,
-                 color: Color,
+                 color: str,
                  render_order: RenderOrder,
                  blocking: bool):
         self.x = x
