@@ -9,7 +9,7 @@ class Color:
         curses.use_default_colors()
 
         # Initialize all character foreground colors.
-        for i in range(curses.COLORS):
+        for i in range(curses.COLORS - 1):
             curses.init_pair(i + 1, i, -1)
         
         # TODO chance to enum? VALUE = code number
