@@ -1196,6 +1196,7 @@ class TerminalController:
                           menu_options: list[MenuOption],
                           cursor_index: int) -> int:
         """Display the menu options for the player"""
+        self.ensure_right_terminal_size()
         MAIN_MENU_HEIGHT: int = self.game_height
         MAIN_MENU_WIDTH: int = self.game_width
         
