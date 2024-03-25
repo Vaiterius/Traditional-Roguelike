@@ -79,13 +79,15 @@ class Spawner:
         room.floor.add_entity(enemy)
     
     
-    def spawn_item(self, room: Room, is_quest_item: bool = False) -> None:
+    def spawn_item(self, room: Room, item_type: str) -> None:
         """Spawn a random item and place it inside a room"""
         x, y = room.get_random_empty_cell()
         
         item: Optional[Item] = None
-        if is_quest_item:
-            item = self._get_quest_item_instance()
+        if item_type == "relic":
+            item = self._get_relic_instance()
+        elif item_type == "glyph":
+            item = self._get_glyph_instance()
         else:
             item = self._get_random_item_instance()
         item.x, item.y = x, y
@@ -198,10 +200,9 @@ class Spawner:
         return item_factory.get_random_item()
     
 
-    def _get_quest_item_instance(self) -> Item:
-        """Get the item to be picked up """
+    def _get_relic_instance(self) -> Item:
         # Prevent circular import.
-        from .components.quest_item import QuestItem
+        from .components.quest_item import Relic
 
         item: Item = Item(
             x=-1, y=-1,
@@ -210,7 +211,23 @@ class Spawner:
             render_order=RenderOrder.ITEM,
             blocking=False
         )
-        item.add_component("quest_item", QuestItem())
+        item.add_component("relic", Relic())
+
+        return item
+
+    def _get_glyph_instance(self) -> Item:
+        # Prevent circular import.
+        from .components.quest_item import Glyph
+
+        # TODO specify glyph name.
+        item: Item = Item(
+            x=-1, y=-1,
+            name="Glyph", char="*",
+            color="gold",
+            render_order=RenderOrder.ITEM,
+            blocking=False
+        )
+        item.add_component("glyph", Glyph())
 
         return item
 

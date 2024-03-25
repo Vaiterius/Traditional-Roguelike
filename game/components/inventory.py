@@ -70,7 +70,7 @@ class Inventory(BaseComponent):
     def has_quest_item(self) -> bool:
         """Check if player has the relic in their inventory"""
         for item in self.items:
-            if item.get_component("quest_item") is not None:
+            if item.get_component("relic") is not None:
                 return True
         return False
     
@@ -88,7 +88,7 @@ class Inventory(BaseComponent):
         Add a list of items to the inventory if space is sufficient.
         Return the remaining items that could not be added otherwise.
         """
-        for i in range(len(items)):
+        for _ in range(len(items)):
             if self.size >= self.max_slots:
                 return items
             self.items.append(items.pop())
@@ -129,6 +129,22 @@ class Inventory(BaseComponent):
             self.equipped_torso_armor,
             self.equipped_leg_armor
         }
+    
+    # def count_instances_of(self, item_class: Item) -> int:
+    #     """Get the number of occurrences that are instances of a given class"""
+    #     count: int = 0
+    #     for item in self.items:
+    #         if isinstance(item, item_class):
+    #             count += 1
+    #     return count
+
+    def count_instances_with_component(self, component_name: str) -> int:
+        """Get the number of occurrences that have the given component"""
+        count: int = 0
+        for item in self.items:
+            if item.get_component(component_name) is not None:
+                count += 1
+        return count
     
 
     # WEAPON MANAGEMENT #

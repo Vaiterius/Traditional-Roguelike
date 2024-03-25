@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from .dungeon.floor import Floor
     from .components.equippable import Equippable
     from .components.inventory import Inventory
-from .dungeon.dungeon import Dungeon
+from .dungeon.dungeon import Dungeon, NormalDungeon
 from .entities import Creature, Entity, Item, Weapon, Player
 from .rng import RandomNumberGenerator
 from .modes import GameStatus, GameMode
@@ -136,6 +136,25 @@ class PickUpItemAction(Action):
                 engine.message_log.add(
                     "There is not enough space in your inventory", color="red")
             return turnable
+        
+        # Case: attempt to pick up relic but all glyphs haven't been retrieved.
+        if isinstance(engine.dungeon, NormalDungeon):
+            num_glyphs_needed: int = len(engine.dungeon.glyph_floor_indices)
+            num_glyphs_found: int = inventory.count_instances_with_component(
+                "glyph")
+            if (
+                item.get_component("relic") is not None
+                and num_glyphs_found != num_glyphs_needed
+            ):
+                engine.message_log.add(
+                    "You may not retrieve the relic...",
+                    color="blue"
+                )
+                engine.message_log.add(
+                    f"Glyphs needed: {num_glyphs_found}/{num_glyphs_needed}",
+                    color="blue"
+                )
+                return turnable
         
         # Pick up the item.
         floor.entities.remove(item)
@@ -394,6 +413,17 @@ class DescendStairsAction(Action):
         
         engine.message_log.add(
             "You descend a level...", color="blue")
+        
+        # DEBUG.
+        if isinstance(dungeon, NormalDungeon):
+            engine.message_log.add(
+                f"Glyph in this floor?: {dungeon.floor_has_glyph(dungeon.current_floor)}")
+            engine.message_log.add(
+                f"Glyph locations: {dungeon.glyph_indices}"
+            )
+            engine.message_log.add(
+                f"Glyphs retrieved: {dungeon.count_glyphs_retrieved(engine.player.inventory)}"
+            )
         
         engine.save_meta["turns"] += 1  # Record turn.
         

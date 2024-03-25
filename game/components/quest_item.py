@@ -1,9 +1,16 @@
 from .base_component import BaseComponent
 
 
-# TODO implement the other relics needed to activate the last room reveal.
 class QuestItem(BaseComponent):
     """
-    Indicate that the item is the relic needed to make it out of the dungeon
+    Indicate that the item is involved in the main quest
     """
+
+
+class Relic(QuestItem):
+    """To be fetched back up to the entrance"""
+
+
+class Glyph(QuestItem):
+    """To be combined to reveal the hidden room"""
 

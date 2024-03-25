@@ -7,7 +7,10 @@ if TYPE_CHECKING:
     from ..entities import Player
     from ..spawner import Spawner
     from ..rng import RandomNumberGenerator
+    from ..components.inventory import Inventory
+from ..components.quest_item import Glyph
 from .floor import Floor, FloorBuilder
+from ..data.config import NUM_FLOORS
 
 
 @dataclass
@@ -143,18 +146,28 @@ class NormalDungeon(Dungeon):
     ):
         super().__init__(rng, spawner, config)
 
-        # TODO quest service.
-        self._NUM_RELICS: int = 3
-        self._relics_activated: int = 0
-    
+        # Determine which floor indices to spawn glyphs on.
+        self.glyph_floor_indices: list[int] = [-1, -1, -1]
+        # Floor indices between first and last, assuming at least 3 in between.
+        numbers_between: list[int] = [num for num in range(1, NUM_FLOORS - 1)]
+        for i in range(0, len(self.glyph_floor_indices)):
+            floor_index: int = self._rng.choice(numbers_between)
+            self.glyph_floor_indices[i] = floor_index
+            numbers_between.remove(floor_index)
+
     @property
-    def relics_activated(self) -> int:
-        return self._relics_activated
+    def glyph_indices(self) -> str:
+        return f"{self.glyph_floor_indices}"
+
+    def floor_has_glyph(self, floor: Floor) -> bool:
+        """Given floor has one or more glyphs"""
+        for entity in floor.entities:
+            if entity.get_component("glyph"):
+                return True
+        return False
     
-    @relics_activated.setter
-    def relics_activated(self, new_relics_activated: int) -> None:
-        self._relics_activated = max(
-            0, min(new_relics_activated, self._NUM_RELICS))
+    def count_glyphs_retrieved(self, inventory: Inventory) -> int:
+        return inventory.count_instances_with_component("glyph")
     
     @property
     def on_last_floor(self) -> bool:
@@ -179,9 +192,16 @@ class NormalDungeon(Dungeon):
             num_rooms, self.can_descend, self.can_ascend)
         self.floors.append(floor)
 
+        # Spawn one of the glyphs if in chosen index.
+        if self.current_floor_index in self.glyph_floor_indices:
+            self.spawner.spawn_item(
+                self.current_floor.get_random_room(self._rng),
+                item_type="glyph"
+            )
+
         # TODO handle relic quest.
         if self.on_last_floor:
-            self.spawner.spawn_item(floor.last_room, is_quest_item=True)
+            self.spawner.spawn_item(floor.last_room, item_type="relic")
         
         return floor
 

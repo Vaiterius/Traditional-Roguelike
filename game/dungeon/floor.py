@@ -70,6 +70,11 @@ class Floor:
         return self.rooms[-1]
     
     
+    def get_random_room(self, rng: RandomNumberGenerator) -> Room:
+        """Get a random room"""
+        return rng.choice(self.rooms)
+    
+    
     def blocking_entity_at(
         self,
         x: int,
@@ -218,7 +223,7 @@ class FloorBuilder:
         """Scatter random items throughout the level"""
         for _ in range(max_items_per_floor):
             room: Room = self.rng.choice(self._floor.rooms)
-            spawner.spawn_item(room)
+            spawner.spawn_item(room, item_type="normal")
         
         return self
     
