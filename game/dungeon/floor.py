@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import bisect
-from typing import Iterator, Optional, Union, TYPE_CHECKING
+from typing import Iterator, Optional, Union, Generator, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .dungeon import Dungeon
@@ -97,7 +97,11 @@ class Floor:
 
 
 class FloorBuilder:
-    """Methods to build and customize dungeon levels step-by-step"""
+    """Methods to build and customize dungeon levels step-by-step.
+    
+    Includes additional functionality for final floor making on normal mode.
+    Decided not to create another floorbuilder class for that.
+    """
     
     def __init__(
         self,
@@ -113,6 +117,10 @@ class FloorBuilder:
             width=self.floor_width,
             height=self.floor_height
         )
+
+        # If applicable (normal mode, last floor) - track relic/glyph rooms.
+        self.relic_room: Optional[Room] = None
+        self.glyphs_room: Optional[Room] = None
     
     
     def place_walls(
@@ -126,9 +134,173 @@ class FloorBuilder:
                 self._floor.wall_locations.add((x, y))
             self._floor.tiles.append(row)
         return self
-    
-    
+
+
     # TODO add prefab rooms
+
+
+    def place_relic_room(
+            self, tile_type: Tile = floor_tile_shrouded) -> FloorBuilder:
+        """QUEST - place on a random corner of the map.
+        
+        Must be called before place_rooms()
+        """
+        height: int = 4
+        width: int = 8
+
+        room = Room(
+            rng=self.rng,
+            # Pick if bottom or top corner.
+            x1=self.rng.choice([1, self.floor_height - height - 1]),
+            # Pick if left or right corner.
+            y1=self.rng.choice([1, self.floor_width - width - 1]),
+            width=width,
+            height=height,
+            floor=self._floor
+        )
+
+        self._dig_room(room, tile_type)
+        self._floor.rooms.append(room)
+        self.relic_room = room
+
+        return self
+    
+
+    def place_glyphs_room(
+            self, tile_type: Tile = floor_tile_shrouded) -> FloorBuilder:
+        """QUEST - place next to the relic room.
+        
+        Must be called after place_relic_room()
+        """
+        height: int = 4
+        width: int = 4
+        x1: int = -1
+        y1: int = -1
+
+        if not self.relic_room:
+            return self
+
+        # Place next to relic room respective to where it was randomly placed
+        # in a corner.
+
+        # Set the top-left tip of glyphs room on any of these coordinates.
+        room_tip: tuple[int, int] = (-1, -1)
+        possible_tip_placements = set()
+        OFFSET: int = 2  # Space between relic and glyph rooms.
+
+        # Relic room is on:
+        # Top left corner.
+        if self.relic_room.x1 == 1 and self.relic_room.y1 == 1:
+            # Get coordinates along bottom and right sides.
+            possible_tip_placements.update(
+                # Bottom side - from left to right.
+                self._find_points_between(
+                    (self.relic_room.x2 + OFFSET, self.relic_room.y1),
+                    (self.relic_room.x2 + OFFSET, self.relic_room.y2 + OFFSET)
+                )
+            )
+            possible_tip_placements.update(
+                # Right side - from top to bottom.
+                self._find_points_between(
+                    (self.relic_room.x1, self.relic_room.y2 + OFFSET),
+                    (self.relic_room.x2 + OFFSET, self.relic_room.y2 + OFFSET)
+                )
+            )
+            # Top-left corner tip can be set anywhere along placements.
+            room_tip = self.rng.choice(list(possible_tip_placements))
+
+        # Top right corner.
+        elif (
+            self.relic_room.x1 == 1
+            and self.relic_room.y1 == self.floor_width - self.relic_room.width - 1
+        ):
+            # Get coordinates along bottom and left sides.
+            possible_tip_placements.update(
+                self._find_points_between(
+                    # Bottom side - from left to right.
+                    (self.relic_room.x2 + OFFSET, self.relic_room.y1 - OFFSET),
+                    (self.relic_room.x2 + OFFSET, self.relic_room.y2)
+                )
+            )
+            possible_tip_placements.update(
+                self._find_points_between(
+                    # Left side - from top to bottom.
+                    (self.relic_room.x1, self.relic_room.y1 - OFFSET),
+                    (self.relic_room.x2 + OFFSET, self.relic_room.y1 - OFFSET)
+                )
+            )
+            # Offset for top-right corner tip.
+            room_tip = self.rng.choice(list(possible_tip_placements))
+            room_tip = (room_tip[0], room_tip[1] - width)
+
+        # Bottom left corner.
+        elif (
+            self.relic_room.x1 == self.floor_height - self.relic_room.height - 1
+            and self.relic_room.y1 == 1
+        ):
+            # Get coordinates along top and right sides.
+            possible_tip_placements.update(
+                self._find_points_between(
+                    # Top side - from left to right.
+                    (self.relic_room.x1 - OFFSET, self.relic_room.y1),
+                    (self.relic_room.x1 - OFFSET, self.relic_room.y2 + OFFSET)
+                )
+            )
+            possible_tip_placements.update(
+                self._find_points_between(
+                    # Right side - from top to bottom.
+                    (self.relic_room.x1, self.relic_room.y2 + OFFSET),
+                    (self.relic_room.x2, self.relic_room.y2 + OFFSET)
+                )
+            )
+            # Offset for bottom-left corner tip.
+            room_tip = self.rng.choice(list(possible_tip_placements))
+            room_tip = (room_tip[0] - height, room_tip[1])
+
+        # Bottom right corner.
+        elif (
+            self.relic_room.x1 == self.floor_height - self.relic_room.height - 1
+            and self.relic_room.y1 == self.floor_width - self.relic_room.width - 1
+        ):
+            # Get coordinates along top and left sides.
+            possible_tip_placements.update(
+                self._find_points_between(
+                    # Top side - from left to right.
+                    (self.relic_room.x1 - 2, self.relic_room.y1 - 2),
+                    (self.relic_room.x1 - 2, self.relic_room.y2)
+                )
+            )
+            possible_tip_placements.update(
+                self._find_points_between(
+                    # Left side - from top to bottom.
+                    (self.relic_room.x1 - 2, self.relic_room.y1 - 2),
+                    (self.relic_room.x2, self.relic_room.y1 - 2)
+                )
+            )
+            # Offset for bottom right corner tip.
+            room_tip = self.rng.choice(list(possible_tip_placements))
+            room_tip = (room_tip[0] - height, room_tip[1] - width)
+
+        # Should not happen.
+        else:
+            return self
+        
+        x1, y1 = room_tip
+
+        room = Room(
+            rng=self.rng,
+            x1=x1,
+            y1=y1,
+            width=width,
+            height=height,
+            floor=self._floor
+        )
+
+        self._dig_room(room, tile_type)
+        self._floor.rooms.append(room)
+        self.glyphs_room = room
+
+        return self
     
     
     def place_rooms(
@@ -167,19 +339,25 @@ class FloorBuilder:
                     break  # Stop adding rooms.
                 continue
             curr_iterations = 0
-            
-            # Start "digging" the room.
-            for x in range(room.x1, room.x2):
-                for y in range(room.y1, room.y2):
-                    self._floor.tiles[x][y] = tile_type
-                    # Track for pathfinding.
-                    self._floor.wall_locations.remove((x, y))
+
+            self._dig_room(room, tile_type)
             
             self._floor.rooms.append(room)
         
         return self
     
+
+    def reverse_rooms(self) -> FloorBuilder:
+        """
+        QUEST - Ensure relic room is the last room in list order.
+
+        Must be called before placing tunnels and after placing all rooms
+        """
+        self._floor.rooms.reverse()
+        return self
     
+    
+    # TODO do not tunnel through the relic room.
     def place_tunnels(self, tile_type: Tile = floor_tile_dim) -> FloorBuilder:
         """Build a tunnel path from one room to the next"""
         rooms: list[Room] = self._floor.rooms
@@ -247,13 +425,59 @@ class FloorBuilder:
         self._floor.dungeon = dungeon  # Pass dungeon reference.
         return self._floor
     
+
+    def _find_points_between(
+            self, coord1: tuple[int, int], coord2: tuple[int, int]) -> set:
+        """Returns all points between two coordinates.
+        
+        Horizontal or vertical lines only.
+        """
+        points: list[tuple[int, int]] = []
+
+        x1, y1 = coord1
+        x2, y2 = coord2
+
+        if y1 == y2:  # Horizontal alignment.
+            points.extend(
+                [
+                    (x, y1)
+                    for x in
+                    range(min(x1, x2), max(x1, x2) + 1)
+                ]
+            )
+        elif x1 == x2:  # Vertical alignment.
+            points.extend(
+                [
+                    (x1, y)
+                    for y in
+                    range(min(y1, y2), max(y1, y2) + 1)
+                ]
+            )
+        
+        return set(points)
     
+
+    def _dig_room(
+        self,
+        room: Room,
+        tile_type: Tile = floor_tile_shrouded
+    ) -> None:
+        """Carve out the walls for a room"""
+        for x in range(room.x1, room.x2):
+            for y in range(room.y1, room.y2):
+                self._floor.tiles[x][y] = tile_type
+                # Track for pathfinding.
+                self._floor.wall_locations.remove((x, y))
+    
+    
+    # TODO do not tunnel through the relic room.
     def _get_tunnel_set(
         self,
         r1_cell: tuple[int, int],
         r2_cell: tuple[int, int]
     ) -> set[tuple[int, int]]:
-        """Get the set of individual tunnel sets that form an L-shape that
+        """
+        Get the set of individual tunnel sets that form an L-shape that
         connects two rooms.
         """
         tunnel_set = set()
