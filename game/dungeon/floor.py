@@ -172,8 +172,8 @@ class FloorBuilder:
         
         Must be called after place_relic_room()
         """
-        height: int = 4
-        width: int = 4
+        height: int = 3
+        width: int = 8
         x1: int = -1
         y1: int = -1
 
@@ -357,17 +357,45 @@ class FloorBuilder:
         return self
     
     
-    # TODO do not tunnel through the relic room.
-    def place_tunnels(self, tile_type: Tile = floor_tile_dim) -> FloorBuilder:
+    def place_tunnels(self, tile_type: Tile = floor_tile_dim, vertical_first: bool = True) -> FloorBuilder:
         """Build a tunnel path from one room to the next"""
         rooms: list[Room] = self._floor.rooms
-        for room in rooms:
+
+        if self.relic_room is not None:  # Leave relic room untunneled.
+            rooms.remove(self.relic_room)
+
+        for index, room in enumerate(rooms):
+
+            if index == len(rooms) - 1:  # On final room.
+                break
+
             if len(rooms) > 1:
                 # Dig tunnel from this room to previous room.
                 r1_cell = room.get_random_cell()
-                r2_cell = rooms[-2].get_random_cell()
+                r2_cell = rooms[index + 1].get_random_cell()
 
-                for x, y in self._get_tunnel_set(r1_cell, r2_cell):
+                # Decide whether first tunnel leg is vertical or horizontal.
+                if vertical_first:
+                    tunnel_set = self._get_tunnel_set_1(r1_cell, r2_cell)
+                else:
+                    tunnel_set = self._get_tunnel_set_2(r1_cell, r2_cell)
+                
+                # Don't allow any tunnel to meet with the relic room.
+                if self.relic_room:
+                    for coord in tunnel_set:
+
+                        # Original first tunnel leg choice invalid/intersects,
+                        # so switch tunnel legs. Guarenteed to never intersect
+                        # with the relic room.
+                        if self.relic_room.intersects_with_point(coord):
+                            if vertical_first:
+                                tunnel_set = self._get_tunnel_set_2(
+                                    r1_cell, r2_cell)
+                            else:
+                                tunnel_set = self._get_tunnel_set_1(
+                                    r1_cell, r2_cell)
+
+                for x, y in tunnel_set:
                     self._floor.tiles[x][y] = tile_type
                     # Track for pathfinding.
                     self._floor.wall_locations -= {(x, y)}
@@ -469,9 +497,15 @@ class FloorBuilder:
                 # Track for pathfinding.
                 self._floor.wall_locations.remove((x, y))
     
+
+    #####
+    # After spending my ENTIRE Sunday trying to change from vertical leg first
+    # to horizontal leg first, implemented in the following two functions,
+    # please do not touch the logic below. Holy shit.
+    #####
     
-    # TODO do not tunnel through the relic room.
-    def _get_tunnel_set(
+
+    def _get_tunnel_set_1(
         self,
         r1_cell: tuple[int, int],
         r2_cell: tuple[int, int]
@@ -479,6 +513,8 @@ class FloorBuilder:
         """
         Get the set of individual tunnel sets that form an L-shape that
         connects two rooms.
+
+        First leg goes vertically, second leg goes horizontally.
         """
         tunnel_set = set()
         # First leg vertical, second leg horizontal.
@@ -503,13 +539,59 @@ class FloorBuilder:
         # Room 1 is to the left of room 2.
         start_y = r1_cell_y
         end_y = r2_cell_y
-        # Switch endpoints if room 1 is below room 2.
+        # Switch endpoints if room 1 is right of room 2.
         if r1_cell_y >= r2_cell_y:
             start_y, end_y = end_y, start_y
         
         # Create y-axis coordinates from end of leg 1.
         for y in range(start_y, end_y + 1):
             tunnel_set.add((end_x, y))
+        
+        return tunnel_set
+    
+
+    def _get_tunnel_set_2(
+        self,
+        r1_cell: tuple[int, int],
+        r2_cell: tuple[int, int]
+    ) -> set[tuple[int, int]]:
+        """
+        Get the set of individual tunnel sets that form an L-shape that
+        connects two rooms.
+
+        First leg goes horizontally, second leg goes vertically.
+        """
+        tunnel_set = set()
+        r1_cell_x, r1_cell_y = r1_cell
+        r2_cell_x, r2_cell_y = r2_cell
+
+        # Room 1 is to the left of room 2.
+        start_y = r1_cell_y
+        end_y = r2_cell_y
+        # Switch endpoints if room 2 is left of room 1.
+        if r1_cell_y >= r2_cell_y:
+            start_y, end_y = end_y, start_y
+        
+        # Room 1 is above room 2.
+        start_x = r1_cell_x
+        end_x = r2_cell_x
+        # Switch endpoints if room 1 is below room 2.
+        if r1_cell_x >= r2_cell_x:
+            start_x, end_x = end_x, start_x
+        
+        # Create y-axis coordinates, forming leg 1.
+        for y in range(start_y, end_y + 1):
+            if start_x == r1_cell_x:
+                tunnel_set.add((r1_cell_x, y))
+            else:
+                tunnel_set.add((r2_cell_x, y))
+        
+        # Create x-axis coordinates from end of leg 1.
+        for x in range(start_x, end_x + 1):
+            if start_x == r1_cell_x:
+                tunnel_set.add((x, r2_cell_y))
+            else:
+                tunnel_set.add((x, r1_cell_y))
         
         return tunnel_set
 

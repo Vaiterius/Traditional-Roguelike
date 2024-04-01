@@ -41,6 +41,25 @@ class Room:
            and self.y1 <= room.y2 + 1
            and self.y2 >= room.y1 - 1
        )
+    
+
+    def intersects_with_point(
+            self, coord: tuple[int, int], margin: int = 1) -> bool:
+        """Check if a coordinate point intersects with this room.
+        
+        Margin is to ensure extra space given to area of room 
+        """
+        x, y = coord
+
+        within_x_ranges: bool = (
+            x >= self.x1 - margin and
+            x <= self.x2 + margin
+        )
+        within_y_ranges: bool = (
+            y >= self.y1 - margin and
+            y <= self.y2 + margin
+        )
+        return within_x_ranges and within_y_ranges
 
     
     def get_center_cell(self) -> tuple[int, int]:
