@@ -13,8 +13,10 @@ if TYPE_CHECKING:
     from .dungeon.floor import Floor
     from .components.equippable import Equippable
     from .components.inventory import Inventory
+    from .dungeon.room import Room
 from .dungeon.dungeon import Dungeon, NormalDungeon
-from .entities import Creature, Entity, Item, Weapon, Player
+from .dungeon.floor import FloorBuilder
+from .entities import Creature, Entity, Item, Weapon, Player, Furniture
 from .rng import RandomNumberGenerator
 from .modes import GameStatus, GameMode
 from .message_log import MessageType
@@ -136,25 +138,6 @@ class PickUpItemAction(Action):
                 engine.message_log.add(
                     "There is not enough space in your inventory", color="red")
             return turnable
-        
-        # Case: attempt to pick up relic but all glyphs haven't been retrieved.
-        if isinstance(engine.dungeon, NormalDungeon):
-            num_glyphs_needed: int = len(engine.dungeon.glyph_floor_indices)
-            num_glyphs_found: int = inventory.count_instances_with_component(
-                "glyph")
-            if (
-                item.get_component("relic") is not None
-                and num_glyphs_found != num_glyphs_needed
-            ):
-                engine.message_log.add(
-                    "You may not retrieve the relic...",
-                    color="blue"
-                )
-                engine.message_log.add(
-                    f"Glyphs needed: {num_glyphs_found}/{num_glyphs_needed}",
-                    color="blue"
-                )
-                return turnable
         
         # Pick up the item.
         floor.entities.remove(item)
@@ -417,12 +400,12 @@ class DescendStairsAction(Action):
         # DEBUG.
         if isinstance(dungeon, NormalDungeon):
             engine.message_log.add(
-                f"Glyph in this floor?: {dungeon.floor_has_glyph(dungeon.current_floor)}")
+                f"[DEBUG] Glyph on this floor?: {dungeon.floor_has_glyph(dungeon.current_floor)}")
             engine.message_log.add(
-                f"Glyph locations: {dungeon.glyph_indices}"
+                f"[DEBUG] Glyph floor locations: {dungeon.glyph_locations}"
             )
             engine.message_log.add(
-                f"Glyphs retrieved: {dungeon.count_glyphs_retrieved(engine.player.inventory)}"
+                f"[DEBUG] Glyphs retrieved: {dungeon.count_glyphs_retrieved(engine.player.inventory)}"
             )
         
         engine.save_meta["turns"] += 1  # Record turn.
@@ -485,6 +468,33 @@ class AscendStairsAction(Action):
         return turnable
 
 
+class RevealTunnelAction(Action):
+    """
+    Upon placing all glyphs into their pedestals, a hidden tunnel appears
+    leading to the last room, revealing the quest relic
+    """
+
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+
+        floor: Floor = engine.dungeon.current_floor
+        relic_room: Room = floor.relic_room
+        glyphs_room: Room = floor.glyphs_room
+
+        tunnel_set: set[tuple[int, int]] = FloorBuilder.get_tunnel_set_1(
+            glyphs_room.get_random_cell(), relic_room.get_random_cell()
+        )
+        FloorBuilder.dig_tunnel(floor, tunnel_set)
+        floor.passage_revealed = True
+
+        engine.message_log.add(
+            "A hidden passageway has been revealed!", color="blue")
+        
+        turnable = True
+
+        return turnable
+
+
 class ActionWithDirection(Action):
     """Base action with (x, y) directioning"""
 
@@ -520,6 +530,11 @@ class BumpAction(ActionWithDirection):
 
         blocking_entity: Optional[Entity] = floor.blocking_entity_at(
             desired_x, desired_y)
+        
+        # Bump into furniture.
+        if isinstance(blocking_entity, Furniture):
+            return BumpObstacleAction(
+                self.entity, self.dx, self.dy).perform(engine)
 
         # TODO refactor.
         if blocking_entity is not None and not self._no_hit:
@@ -541,6 +556,61 @@ class BumpAction(ActionWithDirection):
             return MeleeAction(self.entity, self.dx, self.dy).perform(engine)
         else:
             return WalkAction(self.entity, self.dx, self.dy).perform(engine)
+
+
+class BumpObstacleAction(ActionWithDirection):
+    """Bump into a furniture or some kind of blocking obstacle"""
+
+    def perform(self, engine: Engine) -> bool:
+        turnable: bool = False
+        floor = engine.dungeon.current_floor
+
+        desired_x = self.entity.x + self.dx
+        desired_y = self.entity.y + self.dy
+
+        furniture: Entity = floor.blocking_entity_at(
+            desired_x, desired_y)
+        
+        if self.entity != engine.player:
+            return turnable
+
+        if furniture.get_component("inventory"):
+            pedestal_inventory: Inventory = furniture.inventory
+            player_inventory: Inventory = engine.player.inventory
+
+            if pedestal_inventory.size > 0:
+                engine.message_log.add("Pedestal already has glyph")
+                return turnable
+
+            glyph: Optional[Item] = player_inventory.get_item_named(
+                "glyph")
+            
+            if glyph is None:
+                engine.message_log.add(
+                    "You do not have a glyph!")
+                return turnable
+            
+            # Transfer item from player to pedestal.
+            player_inventory.remove_item(glyph)
+            pedestal_inventory.add_item(glyph)
+            engine.dungeon.pedestals_activated += 1
+
+            engine.message_log.add(
+                f"You place the glyph on the pedestal"
+                f" ({engine.dungeon.pedestals_activated}/3)",
+                color="blue"
+            )
+
+            engine.save_meta["turns"] += 1  # Record turn.
+
+        # Reveal tunnel to relic room.
+        if (
+            not floor.passage_revealed
+            and engine.dungeon.pedestals_activated == 3
+        ):
+            RevealTunnelAction(self.entity).perform(engine)
+
+        return turnable
 
 
 class WalkAction(ActionWithDirection):

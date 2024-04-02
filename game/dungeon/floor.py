@@ -32,6 +32,11 @@ class Floor:
 
         self.descending_staircase_location: tuple[int, int] = None
         self.ascending_staircase_location: tuple[int, int] = None
+
+        # If applicable (normal mode, last floor) - track relic/glyph rooms.
+        self.relic_room: Optional[Room] = None
+        self.glyphs_room: Optional[Room] = None
+        self.passage_revealed: bool = False
     
     
     @property
@@ -73,6 +78,16 @@ class Floor:
     def get_random_room(self, rng: RandomNumberGenerator) -> Room:
         """Get a random room"""
         return rng.choice(self.rooms)
+    
+
+    def entity_at(self, x: int, y: int) -> Optional[Entity]:
+        """Check if a cell is occupied by any entity"""
+        for entity in self.entities:
+            if isinstance(entity, Player):
+                continue
+            if entity.x == x and entity.y == y:
+                return entity
+        return None
     
     
     def blocking_entity_at(
@@ -118,7 +133,8 @@ class FloorBuilder:
             height=self.floor_height
         )
 
-        # If applicable (normal mode, last floor) - track relic/glyph rooms.
+        # Yes, this is repeated again from self._floor, I'm just too lazy to 
+        # change all the references.
         self.relic_room: Optional[Room] = None
         self.glyphs_room: Optional[Room] = None
     
@@ -145,8 +161,8 @@ class FloorBuilder:
         
         Must be called before place_rooms()
         """
-        height: int = 4
-        width: int = 8
+        height: int = 5
+        width: int = 9
 
         room = Room(
             rng=self.rng,
@@ -161,19 +177,23 @@ class FloorBuilder:
 
         self._dig_room(room, tile_type)
         self._floor.rooms.append(room)
+        self._floor.relic_room = room
         self.relic_room = room
 
         return self
     
 
     def place_glyphs_room(
-            self, tile_type: Tile = floor_tile_shrouded) -> FloorBuilder:
+        self,
+        spawner: Spawner,
+        tile_type: Tile = floor_tile_shrouded
+    ) -> FloorBuilder:
         """QUEST - place next to the relic room.
         
         Must be called after place_relic_room()
         """
-        height: int = 3
-        width: int = 8
+        height: int = 4
+        width: int = 7
         x1: int = -1
         y1: int = -1
 
@@ -298,7 +318,13 @@ class FloorBuilder:
 
         self._dig_room(room, tile_type)
         self._floor.rooms.append(room)
+        self._floor.glyphs_room = room
         self.glyphs_room = room
+
+        # Place pedestals.
+        spawner.spawn_furniture_at((x1 + 1, y1 + 1), room, "Pedestal")
+        spawner.spawn_furniture_at((x1 + 1, y1 + 5), room, "Pedestal")
+        spawner.spawn_furniture_at((x1 + 2, y1 + 3), room, "Pedestal")
 
         return self
     
@@ -376,9 +402,9 @@ class FloorBuilder:
 
                 # Decide whether first tunnel leg is vertical or horizontal.
                 if vertical_first:
-                    tunnel_set = self._get_tunnel_set_1(r1_cell, r2_cell)
+                    tunnel_set = self.get_tunnel_set_1(r1_cell, r2_cell)
                 else:
-                    tunnel_set = self._get_tunnel_set_2(r1_cell, r2_cell)
+                    tunnel_set = self.get_tunnel_set_2(r1_cell, r2_cell)
                 
                 # Don't allow any tunnel to meet with the relic room.
                 if self.relic_room:
@@ -389,16 +415,16 @@ class FloorBuilder:
                         # with the relic room.
                         if self.relic_room.intersects_with_point(coord):
                             if vertical_first:
-                                tunnel_set = self._get_tunnel_set_2(
+                                tunnel_set = self.get_tunnel_set_2(
                                     r1_cell, r2_cell)
                             else:
-                                tunnel_set = self._get_tunnel_set_1(
+                                tunnel_set = self.get_tunnel_set_1(
                                     r1_cell, r2_cell)
 
-                for x, y in tunnel_set:
-                    self._floor.tiles[x][y] = tile_type
-                    # Track for pathfinding.
-                    self._floor.wall_locations -= {(x, y)}
+                self.dig_tunnel(self._floor, tunnel_set)
+        
+        if self.relic_room:
+            self._floor.rooms.append(self.relic_room)  # Add back.
         
         return self
     
@@ -454,6 +480,20 @@ class FloorBuilder:
         return self._floor
     
 
+    @staticmethod
+    def dig_tunnel(
+        floor: Floor,
+        tunnel_set: set[tuple[int, int]],
+        tile_type: Tile = floor_tile_dim
+    ) -> None:
+        """Dig through the desired tunnel path from point a to point b"""
+        for x, y in tunnel_set:
+            floor.tiles[x][y] = tile_type
+            # Track for pathfinding.
+            floor.wall_locations -= {(x, y)}
+        
+    
+
     def _find_points_between(
             self, coord1: tuple[int, int], coord2: tuple[int, int]) -> set:
         """Returns all points between two coordinates.
@@ -496,7 +536,7 @@ class FloorBuilder:
                 self._floor.tiles[x][y] = tile_type
                 # Track for pathfinding.
                 self._floor.wall_locations.remove((x, y))
-    
+
 
     #####
     # After spending my ENTIRE Sunday trying to change from vertical leg first
@@ -505,8 +545,8 @@ class FloorBuilder:
     #####
     
 
-    def _get_tunnel_set_1(
-        self,
+    @staticmethod
+    def get_tunnel_set_1(
         r1_cell: tuple[int, int],
         r2_cell: tuple[int, int]
     ) -> set[tuple[int, int]]:
@@ -550,8 +590,8 @@ class FloorBuilder:
         return tunnel_set
     
 
-    def _get_tunnel_set_2(
-        self,
+    @staticmethod
+    def get_tunnel_set_2(
         r1_cell: tuple[int, int],
         r2_cell: tuple[int, int]
     ) -> set[tuple[int, int]]:

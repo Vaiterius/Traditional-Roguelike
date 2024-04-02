@@ -22,7 +22,7 @@ from .modes import GameStatus
 from .dungeon.floor import FloorBuilder
 from .tile import *
 from .data.config import *
-from .entities import Creature, Player, Item, Weapon, Armor
+from .entities import Creature, Player, Item, Weapon, Armor, Furniture
 from .components.fighter import StatModifier
 from .color import Color
 from .render_order import RenderOrder
@@ -383,6 +383,20 @@ class TerminalController:
                     entity_for_render.char,
                     self.colors.get_color(entity_for_render.color)
                 )
+
+                # Render glyph on top of pedestal, if in its inventory.
+                if isinstance(entity_for_render, Furniture):
+                    if entity_for_render.get_component("inventory"):
+                        inventory: Inventory = entity_for_render.inventory
+                        item: Optional[Item] = inventory.get_item(0)
+
+                        if item is not None:
+                            window.addstr(
+                                entity_for_render.x + 1,
+                                entity_for_render.y + 1,
+                                item.char,
+                                self.colors.get_color(item.color)
+                            )
 
             # For display on sidebar.
             if (
@@ -1565,7 +1579,7 @@ class TerminalController:
                 max_room_width=MAX_ROOM_WIDTH,
                 tile_type=floor_tile_shrouded
             )
-            .place_tunnels(tile_type=floor_tile_dim)
+            .place_tunnels(tile_type=floor_tile_shrouded)
         ).build(dungeon=None)
         return floor.tiles
 

@@ -48,6 +48,10 @@ class Entity:
         return copy.deepcopy(self)
 
 
+class Furniture(Entity):
+    """An impassable, inanimate piece of furnature fixed to the ground"""
+
+
 class Item(Entity):
     """A holdable or usable thing to a creature"""
     parent: Optional[Creature]

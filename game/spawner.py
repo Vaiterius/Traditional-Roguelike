@@ -11,7 +11,7 @@ from .components.fighter import Fighter
 from .components.leveler import Leveler
 from .render_order import RenderOrder
 from .entities import (
-    Entity, Item, Potion, Weapon, Staff, Armor, Creature, Player)
+    Entity, Item, Potion, Weapon, Staff, Armor, Creature, Player, Furniture)
 from .item_types import WeaponType, ProjectileType, ArmorType, PotionType
 from .rng import RandomNumberGenerator
 
@@ -93,6 +93,21 @@ class Spawner:
         item.x, item.y = x, y
         
         room.floor.add_entity(item)
+    
+    
+    def spawn_furniture_at(
+            self, coord: tuple[int, int], room: Room, name: str) -> None:
+        """Spawn the desired furniture into a spot in the room"""
+        furniture: Optional[Furniture] = None
+
+        if name == "Pedestal":
+            furniture = self._get_pedestal_instance()
+
+            # Hold the glyph.
+            furniture.add_component("inventory", Inventory(num_slots=1))
+
+        furniture.x, furniture.y = coord
+        room.floor.add_entity(furniture)
 
 
     def get_player_instance(self) -> Player:
@@ -198,6 +213,17 @@ class Spawner:
         )[0]["factory"]
 
         return item_factory.get_random_item()
+    
+
+    def _get_pedestal_instance(self) -> Furniture:
+        """Spawn a pedestal where the glyphs will be layed upon"""
+        return Furniture(
+            x=-1, y=-1,
+            name="Pedestal", char="-",
+            color="gold",
+            render_order=RenderOrder.FURNITURE,
+            blocking=True
+        )
     
 
     def _get_relic_instance(self) -> Item:

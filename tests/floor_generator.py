@@ -6,9 +6,10 @@ from game.tile import *
 from game.color import Color
 from game.rng import RandomNumberGenerator
 from game.dungeon.floor import Floor, FloorBuilder
+from game.spawner import Spawner
 
-FLOOR_HEIGHT -= 12
-FLOOR_WIDTH -= 40
+FLOOR_HEIGHT -= 7
+FLOOR_WIDTH -= 25
 
 
 def main(stdscr):
@@ -65,7 +66,7 @@ def get_builder(rng: RandomNumberGenerator, vertical_first: bool) -> FloorBuilde
         )
         .place_walls(tile_type=wall_tile)
         .place_relic_room(tile_type=floor_tile_dim)
-        .place_glyphs_room(tile_type=floor_tile_shrouded)
+        .place_glyphs_room(Spawner(rng), tile_type=floor_tile_shrouded)
         .place_rooms(
             # num_rooms=rng.randint(MIN_NUM_ROOMS, MAX_NUM_ROOMS),
             num_rooms=3,
@@ -76,6 +77,7 @@ def get_builder(rng: RandomNumberGenerator, vertical_first: bool) -> FloorBuilde
             tile_type=floor_tile_shrouded
         )
         # .place_glyphs_room(tile_type=floor_tile_shrouded)
+        .reverse_rooms()
         .place_tunnels(tile_type=floor_tile, vertical_first=vertical_first)
     )
 

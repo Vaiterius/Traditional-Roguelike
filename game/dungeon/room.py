@@ -47,7 +47,7 @@ class Room:
             self, coord: tuple[int, int], margin: int = 1) -> bool:
         """Check if a coordinate point intersects with this room.
         
-        Margin is to ensure extra space given to area of room 
+        Margin is to (optionally) pad extra space to area of room 
         """
         x, y = coord
 
@@ -77,9 +77,9 @@ class Room:
 
     
     def get_random_empty_cell(self) -> tuple[int, int]:
-        """A random spot that's not occupied by a blocking entity"""
+        """A random spot that's not occupied by an entity"""
         rand_x, rand_y = self.get_random_cell()
-        while self.floor.blocking_entity_at(rand_x, rand_y) is not None:
+        while self.floor.entity_at(rand_x, rand_y) is not None:
             rand_x, rand_y = self.get_random_cell()
         return rand_x, rand_y
     

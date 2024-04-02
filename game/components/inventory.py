@@ -100,6 +100,13 @@ class Inventory(BaseComponent):
         except IndexError:
             return None
         return item
+    
+    def get_item_named(self, name: str) -> Optional[Item]:
+        """Retrieve an item from inventory by its name"""
+        for item in self.items:
+            if item.name.lower() == name.lower():
+                return item
+        return None
 
     def remove_item(self, item: Item) -> Optional[Item]:
         """Remove a specified item from the inventory"""

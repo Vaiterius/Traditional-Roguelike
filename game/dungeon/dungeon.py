@@ -98,29 +98,29 @@ class Dungeon:
                 floor_height=self._config.floor_height,
                 floor_width=self._config.floor_width
             )
-                .place_walls()
-                .place_rooms(
-                    num_rooms=num_rooms,
-                    min_room_height=self._config.min_room_height,
-                    max_room_height=self._config.max_room_height,
-                    min_room_width=self._config.min_room_width,
-                    max_room_width=self._config.max_room_width
-                )
-                .place_tunnels()
-                .place_staircases(
-                    spawner=self.spawner,
-                    descending=can_descend,
-                    ascending=can_ascend
-                )
-                .place_items(
-                    spawner=self.spawner,
-                    max_items_per_floor=self._config.max_items_per_floor
-                )
-                .place_creatures(
-                    spawner=self.spawner,
-                    max_creatures_per_floor=self._config.max_enemies_per_floor
-                )
-                .build(self)
+            .place_walls()
+            .place_rooms(
+                num_rooms=num_rooms,
+                min_room_height=self._config.min_room_height,
+                max_room_height=self._config.max_room_height,
+                min_room_width=self._config.min_room_width,
+                max_room_width=self._config.max_room_width
+            )
+            .place_tunnels()
+            .place_staircases(
+                spawner=self.spawner,
+                descending=can_descend,
+                ascending=can_ascend
+            )
+            .place_items(
+                spawner=self.spawner,
+                max_items_per_floor=self._config.max_items_per_floor
+            )
+            .place_creatures(
+                spawner=self.spawner,
+                max_creatures_per_floor=self._config.max_enemies_per_floor
+            )
+            .build(self)
         )
     
     # Overridable.
@@ -154,10 +154,13 @@ class NormalDungeon(Dungeon):
             floor_index: int = self._rng.choice(numbers_between)
             self.glyph_floor_indices[i] = floor_index
             numbers_between.remove(floor_index)
+        
+        self.pedestals_activated: int = 0
 
     @property
-    def glyph_indices(self) -> str:
-        return f"{self.glyph_floor_indices}"
+    def glyph_locations(self) -> str:
+        locations: list[int] = [num + 1 for num in self.glyph_floor_indices]
+        return f"{locations}"
 
     def floor_has_glyph(self, floor: Floor) -> bool:
         """Given floor has one or more glyphs"""
@@ -178,6 +181,48 @@ class NormalDungeon(Dungeon):
         """Determine when to put descending staircases"""
         # Last descension is second-to-last floor.
         return not self.on_last_floor
+
+    def build_floor(
+        self, num_rooms: int, can_descend: bool, can_ascend: bool) -> Floor:
+        """Construct the map for the current dungeon level"""
+        builder: FloorBuilder = (
+            FloorBuilder(
+                rng=self._rng,
+                floor_height=self._config.floor_height,
+                floor_width=self._config.floor_width
+            )
+            .place_walls()
+        )
+
+        # Last floor will have the relic and glyph rooms.
+        if self.on_last_floor:
+            builder.place_relic_room().place_glyphs_room(self.spawner)
+
+        return (
+            builder.place_rooms(
+                num_rooms=num_rooms,
+                min_room_height=self._config.min_room_height,
+                max_room_height=self._config.max_room_height,
+                min_room_width=self._config.min_room_width,
+                max_room_width=self._config.max_room_width
+            )
+            .reverse_rooms()  # Required.
+            .place_tunnels()
+            .place_staircases(
+                spawner=self.spawner,
+                descending=can_descend,
+                ascending=can_ascend
+            )
+            .place_items(
+                spawner=self.spawner,
+                max_items_per_floor=self._config.max_items_per_floor
+            )
+            .place_creatures(
+                spawner=self.spawner,
+                max_creatures_per_floor=self._config.max_enemies_per_floor
+            )
+            .build(self)
+        )
     
     def generate_next_floor(self) -> Floor:
         """Keep track of the ongoing quest status"""
