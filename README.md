@@ -1,22 +1,27 @@
 # Unnamed Roguelike
 
-### 🚧 Under Development! 🚧
+### 🚧 Under Development! (beta) 🚧
 
-A retro traditional roguelike developed completely within the Python Standard Library and played on the terminal. Uses the curses library for terminal input/output handling. Fully ASCII interface and keyboard-controlled. Allows for saving ongoing games but once you die, there is no going back.
+A retro traditional roguelike developed completely within the Python Standard Library and played on the terminal. Uses the curses library for terminal input/output handling. Fully ASCII interface and keyboard-controlled. Players can save their progress mid-game, but death is permanent – there's no undoing it.
 
 ## Description
 
 Equip yourself with diverse armor, face creatures head-on with formidable weapons, and unleash magical abilities as you descend into the monster-filled dungeon down a series of ever-more treacherous floors. Will you prove your mettle and conquer the hallowing depths, or will **darkness** claim you?
 
-**Normal mode**: An ancient relic on the 27th floor needs to be retrieved. The room can only be revealed once a set of three other relics found throughout the previous floors are activated. Once retrieved, it must be taken back all the way up to the entrance to win the game. <br>
-**Endless mode**: There is no need to activate or fetch anything. You are cursed to fight until you die!
+**Normal mode**: An ancient relic on the 27th floor needs to be retrieved. Locate all 3 scattered glyphs within the dungeon to unlock the passage leading to the final room. Winning the game requires the relic (and yourself) to be safely taken back up to the entrance. <br>
+
+**Endless mode**: There is no need to activate or fetch anything. You are cursed to fight until your inevitable death!
 
 ### Development screenshots
 
-<img alt="A screenshot of the main menu with a randomly-generated dungeon background" src="screenshots/title_screen.png" width="250">
-<img alt="A screenshot of the menu to select ongoing savegames for continuing" src="screenshots/continue_game_screen.png" width="250">
-<img alt="A screenshot of your character going through a dungeon floor" src="screenshots/gameplay.png" width="250">
-<img alt="A screenshot of choosing an attribute to level up" src="screenshots/levelup.png" width="250">
+<p width="100%" align="center" style="display: flex;">
+    <img alt="A screenshot of the main menu with a randomly-generated dungeon background" src="screenshots/title_screen.png" width="45%" style="margin-right: 20px;">
+    <img alt="A screenshot of the menu to select ongoing savegames for continuing" src="screenshots/continue_game_screen.png" width="45%">
+</p>
+<p width="100%" align="center" style="display: flex;">
+    <img alt="A screenshot of your character going through a dungeon floor" src="screenshots/gameplay.png" width="45%" style="margin-right: 20px;">
+    <img alt="A screenshot of choosing an attribute to level up" src="screenshots/levelup.png" width="45%">
+</p>
 
 ## Run Me!
 
@@ -24,9 +29,12 @@ I will upload this game to [itch.io](https://vaiterius.itch.io/) as soon as it's
 
 Must have [Python](https://www.python.org/) 3.10+ installed.
 
-**Linux users**: Should work natively. <br>
-**Windows users**: Might not work natively, only the Linux distributions of Python has the curses module required to play the game as far as I know. You might need to install the module seperately [here](https://pypi.org/project/windows-curses/), preferrably in a virtual environment. <br>
-**Mac users**: ¯\\_(ツ)_/¯
+### Available platforms
+
+**Linux** - Should work natively. <br>
+**Mac** - Should work natively. <br>
+**OpenBSD** - Should work natively. <br>
+**Windows** - Might not work natively, only the Linux distributions of Python has the curses module required to play the game as far as I know. You might need to install the module seperately [here](https://pypi.org/project/windows-curses/), preferrably in a virtual environment. <br>
 
 ## Controls
 
